@@ -83,7 +83,7 @@ fun SettingsScreen(
             confirmButton = {
                 Button(onClick = {
                     showLoginDialog = false
-                    openUrl("$homeServerDomain/auth/app-authorization")
+                    openUrl("$homeServerDomain/api/v1/auth/app-authorization")
                 }) {
                     Text("OK")
                 }

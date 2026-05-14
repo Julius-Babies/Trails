@@ -1,0 +1,18 @@
+project:
+  name: "Trails"
+  id: "trails"
+
+services:
+  - name: "api"
+    path_prefixes:
+      - "/api"
+    modes:
+      local:
+        port: 8080
+
+  - name: "frontend"
+    path_prefixes:
+      - "/"
+    modes:
+      local:
+        port: 5173

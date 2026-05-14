@@ -13,6 +13,8 @@ import es.jvbabi.trails.database.Users
 import io.ktor.server.application.Application
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.or
+import org.koin.core.context.loadKoinModules
+import org.koin.dsl.module
 import org.koin.ktor.ext.inject
 
 class TrailsAuthentiktUser(private val dbUser: User): AuthentiktUser<User>(dbUser) {
@@ -25,7 +27,7 @@ fun Application.installAuthentikt() {
 
     val db by inject<DatabaseManager>()
 
-    installAuthentikt {
+    val instance = installAuthentikt {
         apiPrefix = "/api/v1/auth"
 
         val emailPlugin = EmailUserSelectionPlugin {
@@ -65,4 +67,6 @@ fun Application.installAuthentikt() {
             }
         }
     }
+
+    loadKoinModules(module { single { instance } })
 }
