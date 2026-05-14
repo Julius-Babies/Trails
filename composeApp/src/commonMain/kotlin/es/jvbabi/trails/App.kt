@@ -1,29 +1,39 @@
 package es.jvbabi.trails
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.safeContentPadding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.ui.NavDisplay
+import es.jvbabi.trails.page.Screen
 import es.jvbabi.trails.page.home.HomeScreen
-import org.jetbrains.compose.resources.painterResource
-
-import trails.composeapp.generated.resources.Res
-import trails.composeapp.generated.resources.compose_multiplatform
+import es.jvbabi.trails.page.setings.SettingsScreen
 
 @Composable
 @Preview
 fun App() {
     MaterialTheme {
-        HomeScreen()
+        val backstack = remember { mutableStateListOf<Screen>(Screen.Home) }
+
+        NavDisplay(
+            backStack = backstack,
+            onBack = { backstack.removeLastOrNull() },
+            entryProvider = { key ->
+                return@NavDisplay when (key) {
+                    is Screen.Home -> NavEntry(key = key) {
+                        HomeScreen(
+                            onOpenSettings = remember { { backstack.add(Screen.Settings) } }
+                        )
+                    }
+
+                    is Screen.Settings -> NavEntry(key = key) {
+                        SettingsScreen(
+                            onBack = remember { { backstack.removeLastOrNull() } }
+                        )
+                    }
+                }
+            }
+        )
     }
 }

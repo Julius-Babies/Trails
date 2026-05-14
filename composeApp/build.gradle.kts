@@ -2,6 +2,7 @@ import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
+    alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
@@ -41,6 +42,10 @@ kotlin {
             implementation(libs.androidx.lifecycle.runtimeCompose)
 
             implementation(libs.app.maplibre.compose)
+
+            implementation(libs.app.navigation3.runtime)
+            implementation(libs.app.navigation3.ui)
+            implementation(libs.app.navigation3.lifecycle)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
