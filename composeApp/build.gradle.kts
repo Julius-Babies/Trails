@@ -30,6 +30,7 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
+            implementation(libs.androidx.browser)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -41,11 +42,14 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
 
-            implementation(libs.app.maplibre.compose)
+            implementation(libs.maplibre.compose)
 
-            implementation(libs.app.navigation3.runtime)
-            implementation(libs.app.navigation3.ui)
-            implementation(libs.app.navigation3.lifecycle)
+            implementation(libs.navigation3.runtime)
+            implementation(libs.navigation3.ui)
+            implementation(libs.navigation3.lifecycle)
+
+            implementation(libs.koin.compose)
+            implementation(libs.koin.compose.navigation3)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

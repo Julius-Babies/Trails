@@ -10,6 +10,8 @@ import es.jvbabi.trails.page.Screen
 import es.jvbabi.trails.page.home.HomeScreen
 import es.jvbabi.trails.page.setings.SettingsScreen
 
+expect fun openUrl(url: String)
+
 @Composable
 @Preview
 fun App() {

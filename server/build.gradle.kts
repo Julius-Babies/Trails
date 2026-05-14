@@ -14,7 +14,13 @@ application {
 
 kotlin {
     jvmToolchain(25)
+
+    compilerOptions {
+        optIn.add("kotlin.uuid.ExperimentalUuidApi")
+        freeCompilerArgs.add("-Xskip-prerelease-check")
+    }
 }
+
 dependencies {
     implementation(ktorLibs.serialization.kotlinx.json)
     implementation(ktorLibs.server.callLogging)
@@ -22,12 +28,14 @@ dependencies {
     implementation(ktorLibs.server.core)
     implementation(ktorLibs.server.netty)
     implementation(libs.exposed.core)
-    implementation(libs.exposed.r2dbc)
-    implementation(libs.h2database.h2)
-    implementation(libs.h2database.r2dbc)
+    implementation(libs.exposed.dao)
+    implementation(libs.exposed.jdbc)
+    implementation(libs.sqlite)
     implementation(libs.koin.ktor)
     implementation(libs.koin.loggerSlf4j)
     implementation(libs.logback.classic)
+
+    implementation(libs.bcrypt)
 
     implementation(libs.authentikt)
 

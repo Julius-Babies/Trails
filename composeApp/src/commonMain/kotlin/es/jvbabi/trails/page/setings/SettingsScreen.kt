@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.tooling.preview.Preview
+import es.jvbabi.trails.openUrl
 import org.jetbrains.compose.resources.painterResource
 import trails.composeapp.generated.resources.Res
 import trails.composeapp.generated.resources.arrow_left
@@ -67,14 +68,12 @@ fun SettingsScreen(
         }
     }
 
+    var homeServerDomain by rememberSaveable { mutableStateOf("http://10.0.2.2:8080") }
     if (showLoginDialog) {
         AlertDialog(
             onDismissRequest = { showLoginDialog = false },
             title = { Text("Anmelden") },
             text = { Column {
-
-                var homeServerDomain by rememberSaveable { mutableStateOf("") }
-
                 TextField(
                     value = homeServerDomain,
                     onValueChange = { homeServerDomain = it },
@@ -82,7 +81,10 @@ fun SettingsScreen(
                 )
             }},
             confirmButton = {
-                Button(onClick = { showLoginDialog = false }) {
+                Button(onClick = {
+                    showLoginDialog = false
+                    openUrl("$homeServerDomain/auth/app-authorization")
+                }) {
                     Text("OK")
                 }
             }
