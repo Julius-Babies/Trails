@@ -13,6 +13,7 @@ kotlin {
     androidTarget {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
+            freeCompilerArgs.add("-Xexplicit-backing-fields")
         }
     }
     
@@ -50,6 +51,11 @@ kotlin {
 
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.navigation3)
+
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.client.cio)
+            implementation(libs.ktor.serialization.kotlinx.json)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

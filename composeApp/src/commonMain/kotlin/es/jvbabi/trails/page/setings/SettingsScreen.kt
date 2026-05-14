@@ -19,15 +19,12 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.tooling.preview.Preview
-import es.jvbabi.trails.openUrl
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.jetbrains.compose.resources.painterResource
+import org.koin.compose.viewmodel.koinViewModel
 import trails.composeapp.generated.resources.Res
 import trails.composeapp.generated.resources.arrow_left
 
@@ -35,8 +32,22 @@ import trails.composeapp.generated.resources.arrow_left
 fun SettingsScreen(
     onBack: () -> Unit,
 ) {
-    var showLoginDialog by rememberSaveable { mutableStateOf(false) }
+    val viewModel = koinViewModel<SettingsViewModel>()
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
+    SettingsContent(
+        state = state,
+        onBack = onBack,
+        onEvent = viewModel::onEvent
+    )
+}
+
+@Composable
+fun SettingsContent(
+    state: SettingsState,
+    onBack: () -> Unit,
+    onEvent: (SettingsEvent) -> Unit,
+) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
@@ -62,28 +73,26 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState())
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
         ) {
-            Button(onClick = { showLoginDialog = true }) {
+            Button(onClick = { onEvent(SettingsEvent.OpenLoginDialog) }) {
                 Text("Anmelden")
             }
         }
     }
 
-    var homeServerDomain by rememberSaveable { mutableStateOf("https://trails.werkbank.space") }
-    if (showLoginDialog) {
+    if (state.showLoginDialog) {
         AlertDialog(
-            onDismissRequest = { showLoginDialog = false },
+            onDismissRequest = { onEvent(SettingsEvent.CloseLoginDialog) },
             title = { Text("Anmelden") },
             text = { Column {
                 TextField(
-                    value = homeServerDomain,
-                    onValueChange = { homeServerDomain = it },
+                    value = state.homeServerUrl,
+                    onValueChange = { onEvent(SettingsEvent.UpdateHomeServerUrl(it)) },
                     label = { Text("Home Server Domain") }
                 )
             }},
             confirmButton = {
                 Button(onClick = {
-                    showLoginDialog = false
-                    openUrl("$homeServerDomain/api/v1/auth/app-authorization")
+                    onEvent(SettingsEvent.Login)
                 }) {
                     Text("OK")
                 }
@@ -95,7 +104,12 @@ fun SettingsScreen(
 @Composable
 @Preview
 private fun SettingsPreview() {
-    SettingsScreen(
+    SettingsContent(
         onBack = {},
+        state = SettingsState(
+            showLoginDialog = true,
+                homeServerUrl = "https://trails.werkbank.space"
+        ),
+        onEvent = {}
     )
 }
