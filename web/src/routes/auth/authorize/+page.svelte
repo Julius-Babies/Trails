@@ -15,7 +15,8 @@
         <div class="w-full h-full flex flex-col items-center justify-center md:py-8 md:bg-zinc-50">
             <div class="flex flex-col items-center p-4 h-full md:max-h-8/12 max-md:w-full md:w-xl md:rounded-mc md:shadow-xl bg-white">
                 <span class="text-6xl font-extralight pt-8">Trails</span>
-                <span class="text-base font-light text-zinc-600 pt-2 pb-8">Mit Benutzerkonto anmelden.</span>
+                <span class="text-base font-light text-zinc-600 pt-2">Mit Benutzerkonto anmelden.</span>
+                <span class="text-base font-light text-zinc-600 pb-8">{authentikt.currentFlow?.attributes["device_name"]}</span>
 
                 <div class="flex grow w-full">
                     {#if !authentikt.currentFlow}

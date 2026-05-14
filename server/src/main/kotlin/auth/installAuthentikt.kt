@@ -13,11 +13,14 @@ import es.jvbabi.trails.database.User
 import es.jvbabi.trails.database.Users
 import io.ktor.http.*
 import io.ktor.server.application.*
+import io.ktor.util.AttributeKey
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.or
 import org.koin.core.context.loadKoinModules
 import org.koin.dsl.module
 import org.koin.ktor.ext.inject
+
+val deviceNameAttribute = AttributeKey<String>("device_name")
 
 class TrailsAuthentiktUser(private val dbUser: User): AuthentiktUser<User>(dbUser) {
     override suspend fun getEmail(): String = user.email

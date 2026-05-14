@@ -1,6 +1,7 @@
 package es.jvbabi.trails.page.setings
 
 import androidx.lifecycle.ViewModel
+import es.jvbabi.trails.domain.repository.DeviceRepository
 import es.jvbabi.trails.openUrl
 import io.ktor.http.URLBuilder
 import io.ktor.http.URLProtocol
@@ -9,7 +10,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
-class SettingsViewModel: ViewModel() {
+class SettingsViewModel(
+    private val deviceRepository: DeviceRepository,
+): ViewModel() {
 
     val state: StateFlow<SettingsState>
         field = MutableStateFlow(SettingsState())
@@ -24,7 +27,7 @@ class SettingsViewModel: ViewModel() {
                 val url = URLBuilder(state.value.homeServerUrl).apply {
                     if (!state.value.homeServerUrl.startsWith("http://") && !state.value.homeServerUrl.startsWith("https://")) protocol = URLProtocol.HTTPS
                     appendPathSegments("api", "v1", "auth", "app-authorization")
-                    parameters.append("device_name", "Unnamed Device")
+                    parameters.append("device_name", deviceRepository.getDeviceName())
                 }.buildString()
 
                 openUrl(url)
