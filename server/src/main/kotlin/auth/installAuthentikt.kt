@@ -40,21 +40,21 @@ fun Application.installAuthentikt() {
         }
         install(emailPlugin)
 
-        val passwordPlugin = PasswordPlugin<TrailsAuthentiktUser> {
+        val passwordPlugin = PasswordPlugin<User> {
             checkPassword { user, password ->
-                return@checkPassword db.transaction { user.user.password } == BCrypt.withDefaults().hashToString(12, password.toCharArray())
+                return@checkPassword BCrypt.verifyer().verify(password.toCharArray(), db.transaction { user.password }).verified
             }
         }
         install(passwordPlugin)
 
-        val totpPlugin = TotpPlugin<TrailsAuthentiktUser> {
-            getSecret { user -> db.transaction { user.user.otp!! } }
+        val totpPlugin = TotpPlugin<User> {
+            getSecret { user -> db.transaction { user.otp!! } }
         }
         install(totpPlugin)
 
-        val donePlugin = DonePlugin<TrailsAuthentiktUser> {
+        val donePlugin = DonePlugin<User> {
             generateToken { session, user ->
-                return@generateToken "test-token-for-${user.getUsername()}"
+                return@generateToken "test-token-for-${user.id}"
             }
         }
         install(donePlugin)

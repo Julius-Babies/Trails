@@ -18,6 +18,6 @@ class User(id: EntityID<Uuid>) : UuidEntity(id) {
 object Users : UuidTable("users") {
     val username = varchar("username", 255)
     val email = varchar("email", 255)
-    val password = varchar("", 255)
+    val password = varchar("password", 255)
     val otp = varchar("otp", 255).nullable().default(null)
 }
