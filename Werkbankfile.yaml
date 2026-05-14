@@ -16,3 +16,6 @@ services:
     modes:
       local:
         port: 5173
+
+dependencies:
+  androiddns: true

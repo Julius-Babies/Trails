@@ -68,7 +68,7 @@ fun SettingsScreen(
         }
     }
 
-    var homeServerDomain by rememberSaveable { mutableStateOf("http://10.0.2.2:8080") }
+    var homeServerDomain by rememberSaveable { mutableStateOf("https://trails.werkbank.space") }
     if (showLoginDialog) {
         AlertDialog(
             onDismissRequest = { showLoginDialog = false },
