@@ -7,10 +7,12 @@ import es.jvbabi.authentikt.core.step.plugins.builtin.DonePlugin
 import es.jvbabi.authentikt.core.step.plugins.builtin.PasswordPlugin
 import es.jvbabi.authentikt.core.step.plugins.builtin.TotpPlugin
 import es.jvbabi.authentikt.core.userselection.plugins.builtin.EmailUserSelectionPlugin
+import es.jvbabi.trails.config.ApplicationConfig
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.User
 import es.jvbabi.trails.database.Users
-import io.ktor.server.application.Application
+import io.ktor.http.*
+import io.ktor.server.application.*
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.or
 import org.koin.core.context.loadKoinModules
@@ -26,6 +28,7 @@ class TrailsAuthentiktUser(private val dbUser: User): AuthentiktUser<User>(dbUse
 fun Application.installAuthentikt() {
 
     val db by inject<DatabaseManager>()
+    val applicationConfig by inject<ApplicationConfig>()
 
     val instance = installAuthentikt {
         apiPrefix = "/api/v1/auth"
@@ -53,8 +56,15 @@ fun Application.installAuthentikt() {
         install(totpPlugin)
 
         val donePlugin = DonePlugin<User> {
-            generateToken { session, user ->
-                return@generateToken "test-token-for-${user.id}"
+            onSuccess { session, user ->
+                val url = URLBuilder().apply {
+                    protocol = URLProtocol("trailsapp", -1)
+                    host = "application"
+                    appendPathSegments(applicationConfig.url.host)
+                    appendPathSegments("auth", "redirect")
+                    parameters.append("token", "test-token-for-${user.id}")
+                }
+                redirect(url.buildString())
             }
         }
         install(donePlugin)

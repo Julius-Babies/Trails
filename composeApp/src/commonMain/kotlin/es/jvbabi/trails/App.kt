@@ -14,9 +14,15 @@ expect fun openUrl(url: String)
 
 @Composable
 @Preview
-fun App() {
+fun App(
+    startNavigation: Screen? = null
+) {
     MaterialTheme {
         val backstack = remember { mutableStateListOf<Screen>(Screen.Home) }
+
+        LaunchedEffect(startNavigation) {
+            startNavigation?.let { backstack.add(it) }
+        }
 
         NavDisplay(
             backStack = backstack,
