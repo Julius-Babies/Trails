@@ -64,6 +64,9 @@ kotlin {
             implementation(libs.moko.permissions.core)
             implementation(libs.moko.permissions.location)
 
+            implementation(libs.haze.blur)
+            implementation(libs.haze.blur.materials)
+
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.cio)
             implementation(libs.ktor.client.content.negotiation)

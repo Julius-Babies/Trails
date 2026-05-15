@@ -20,6 +20,7 @@ import dev.icerock.moko.permissions.PermissionState
 import dev.icerock.moko.permissions.PermissionsController
 import dev.icerock.moko.permissions.location.BACKGROUND_LOCATION
 import dev.icerock.moko.permissions.location.LOCATION
+import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.LocationRepository
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +31,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -41,6 +43,7 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
     private val locationRepository by inject<LocationRepository>()
     private val permissionsController by inject<PermissionsController>()
     private val trailsServerRepository by inject<TrailsServerRepository>()
+    private val keyValueRepository by inject<KeyValueRepository>()
 
     companion object {
         private val _isRunning = MutableStateFlow(false)
@@ -67,7 +70,11 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
 
             _isRunning.value = true
 
-            trailsServerRepository.connect()
+            if (keyValueRepository.get("trails.token").first() != null) {
+                trailsServerRepository.connect()
+            } else {
+                Log.w("LocationService", "No token found, cannot connect to server")
+            }
 
             val notification = createNotification()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
