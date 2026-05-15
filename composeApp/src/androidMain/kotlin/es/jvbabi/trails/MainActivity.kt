@@ -12,20 +12,26 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.lifecycleScope
 import co.touchlab.kermit.Logger
-import es.jvbabi.trails.di.initKoin
+import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
 import es.jvbabi.trails.page.Screen
-import org.koin.android.ext.koin.androidContext
-import org.koin.android.ext.koin.androidLogger
+import io.ktor.http.Url
+import kotlinx.coroutines.launch
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import org.koin.core.context.loadKoinModules
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 const val KOIN_ACTIVITY_CONTEXT = "koin_activity_context"
 
-class MainActivity : ComponentActivity() {
+class MainActivity : ComponentActivity(), KoinComponent {
 
     private var startNavigation: Screen? by mutableStateOf(null)
+
+    private val handleDeepLinkUseCase by inject<HandleDeepLinkUseCase>()
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -51,6 +57,9 @@ class MainActivity : ComponentActivity() {
 
         if (action == Intent.ACTION_VIEW && data.toString().startsWith("trailsapp://application")) {
             Logger.d { "New intent: $data" }
+            lifecycleScope.launch {
+                handleDeepLinkUseCase(Url(data.toString()))
+            }
         }
     }
 }

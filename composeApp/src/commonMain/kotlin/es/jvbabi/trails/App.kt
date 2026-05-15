@@ -1,7 +1,6 @@
 package es.jvbabi.trails
 
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation3.runtime.NavEntry
@@ -17,6 +16,7 @@ expect fun openUrl(url: String)
 fun App(
     startNavigation: Screen? = null
 ) {
+
     MaterialTheme {
         val backstack = remember { mutableStateListOf<Screen>(Screen.Home) }
 
