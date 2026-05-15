@@ -1,5 +1,6 @@
 package es.jvbabi.trails.database
 
+import database.DataSnapshots
 import es.jvbabi.trails.config.ApplicationConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,6 +22,7 @@ class DatabaseManager: KoinComponent {
         transaction(db = database) {
             SchemaUtils.create(Users)
             SchemaUtils.create(Devices, Sessions)
+            SchemaUtils.create(DataSnapshots)
         }
     }
 

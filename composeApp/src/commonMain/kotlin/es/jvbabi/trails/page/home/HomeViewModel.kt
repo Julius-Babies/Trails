@@ -2,6 +2,7 @@ package es.jvbabi.trails.page.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import es.jvbabi.trails.domain.repository.BackgroundServiceRepository
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.Location
 import es.jvbabi.trails.domain.repository.LocationRepository
@@ -17,6 +18,7 @@ import kotlinx.coroutines.launch
 class HomeViewModel(
     private val keyValueRepository: KeyValueRepository,
     private val locationRepository: LocationRepository,
+    private val backgroundServiceRepository: BackgroundServiceRepository,
     private val trailsServerRepository: TrailsServerRepository,
 ): ViewModel() {
 
@@ -35,7 +37,7 @@ class HomeViewModel(
                 .filterNotNull()
                 .distinctUntilChanged()
                 .collectLatest {
-                    trailsServerRepository.connect()
+                    backgroundServiceRepository.startService()
 
                     trailsServerRepository.isConnected.collectLatest { isConnected ->
                         state.update { it.copy(isConnectedToServer = isConnected) }

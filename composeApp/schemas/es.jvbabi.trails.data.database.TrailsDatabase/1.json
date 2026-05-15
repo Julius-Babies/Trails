@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "9e3ec83eaa5f83198e863b1874300e0f",
+    "identityHash": "680c356305b231661a967dc3038d906d",
     "entities": [
       {
         "tableName": "key_value",
@@ -41,7 +41,7 @@
       },
       {
         "tableName": "location",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `bearing` REAL NOT NULL, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`timestamp`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `bearing` REAL NOT NULL, `bearing_accuracy` REAL, `location_accuracy` REAL NOT NULL, `battery_level` REAL, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`timestamp`))",
         "fields": [
           {
             "fieldPath": "latitude",
@@ -62,6 +62,22 @@
             "notNull": true
           },
           {
+            "fieldPath": "bearingAccuracy",
+            "columnName": "bearing_accuracy",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "locationAccuracy",
+            "columnName": "location_accuracy",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "batteryLevel",
+            "columnName": "battery_level",
+            "affinity": "REAL"
+          },
+          {
             "fieldPath": "timestamp",
             "columnName": "timestamp",
             "affinity": "INTEGER",
@@ -78,7 +94,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9e3ec83eaa5f83198e863b1874300e0f')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '680c356305b231661a967dc3038d906d')"
     ]
   }
 }

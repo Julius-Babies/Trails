@@ -5,10 +5,12 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -19,6 +21,7 @@ import dev.icerock.moko.permissions.PermissionsController
 import dev.icerock.moko.permissions.location.BACKGROUND_LOCATION
 import dev.icerock.moko.permissions.location.LOCATION
 import es.jvbabi.trails.domain.repository.LocationRepository
+import es.jvbabi.trails.domain.repository.TrailsServerRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -37,6 +40,7 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
 
     private val locationRepository by inject<LocationRepository>()
     private val permissionsController by inject<PermissionsController>()
+    private val trailsServerRepository by inject<TrailsServerRepository>()
 
     companion object {
         private val _isRunning = MutableStateFlow(false)
@@ -62,6 +66,8 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
             }
 
             _isRunning.value = true
+
+            trailsServerRepository.connect()
 
             val notification = createNotification()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -103,7 +109,14 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
 
     override fun onLocationChanged(location: Location) {
         serviceScope.launch {
-            locationRepository.storeLocation(location.latitude, location.longitude, location.bearing)
+            locationRepository.storeLocation(
+                latitude = location.latitude,
+                longitude = location.longitude,
+                bearing = location.bearing,
+                bearingAccuracy = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) location.bearingAccuracyDegrees else null,
+                locationAccuracy = location.accuracy,
+                batteryLevel = getBatteryPercentage()?.div(100f)
+            )
         }
         Log.d("LocationService", "Native Location: ${location.latitude}, ${location.longitude} (Provider: ${location.provider})")
     }
@@ -139,4 +152,18 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    fun getBatteryPercentage(): Int? {
+        val intentFilter = IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+        val batteryIntent = applicationContext.registerReceiver(null, intentFilter)
+
+        val level = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val scale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+
+        return if (level != -1 && scale != -1) {
+            (level * 100 / scale)
+        } else {
+            null
+        }
+    }
 }
