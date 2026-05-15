@@ -1,4 +1,4 @@
-package es.jvbabi.trails
+package es.jvbabi.trails.api
 
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application

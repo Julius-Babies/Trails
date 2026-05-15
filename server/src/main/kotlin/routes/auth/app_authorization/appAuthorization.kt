@@ -2,7 +2,8 @@ package es.jvbabi.trails.routes.auth.app_authorization
 
 import es.jvbabi.authentikt.core.AuthentiktInstance
 import es.jvbabi.trails.auth.TrailsAuthentiktUser
-import es.jvbabi.trails.auth.deviceNameAttribute
+import es.jvbabi.trails.auth.deviceManufacturerAttribute
+import es.jvbabi.trails.auth.deviceModelAttribute
 import es.jvbabi.trails.config.ApplicationConfig
 import io.ktor.http.*
 import io.ktor.server.response.*
@@ -15,8 +16,11 @@ fun Route.appAuthorization() {
         val applicationConfig by inject<ApplicationConfig>()
         val session = authentikt.createNewSession()
 
-        val deviceName = call.parameters["device_name"] ?: "Unknown TrailsApp"
-        session.publicAttributes[deviceNameAttribute] = deviceName
+        val deviceManufacturer = call.parameters["device_manufacturer"]
+        val deviceModel = call.parameters["device_model"]
+
+        session.publicAttributes[deviceManufacturerAttribute] = deviceManufacturer.orEmpty()
+        session.publicAttributes[deviceModelAttribute] = deviceModel.orEmpty()
 
         val destination = URLBuilder(applicationConfig.url).apply {
             appendPathSegments("auth", "authorize")

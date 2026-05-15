@@ -1,17 +1,26 @@
 package es.jvbabi.trails.database
 
+import es.jvbabi.trails.config.ApplicationConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
-class DatabaseManager {
-    val database = Database.connect("jdbc:sqlite:database.db")
+class DatabaseManager: KoinComponent {
+    private val applicationConfig by inject<ApplicationConfig>()
+    private val databasePath = applicationConfig
+        .storage
+        .resolve("database.db")
+        .absolutePath
+    val database = Database.connect("jdbc:sqlite:$databasePath")
 
     init {
         transaction(db = database) {
             SchemaUtils.create(Users)
+            SchemaUtils.create(Devices)
         }
     }
 

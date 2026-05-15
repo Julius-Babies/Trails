@@ -1,6 +1,7 @@
 package es.jvbabi.trails.page.setings
 
 import androidx.lifecycle.ViewModel
+import co.touchlab.kermit.Logger
 import es.jvbabi.trails.domain.repository.DeviceRepository
 import es.jvbabi.trails.openUrl
 import io.ktor.http.URLBuilder
@@ -27,17 +28,19 @@ class SettingsViewModel(
                 val url = URLBuilder(state.value.homeServerUrl).apply {
                     if (!state.value.homeServerUrl.startsWith("http://") && !state.value.homeServerUrl.startsWith("https://")) protocol = URLProtocol.HTTPS
                     appendPathSegments("api", "v1", "auth", "app-authorization")
-                    parameters.append("device_name", deviceRepository.getDeviceName())
+                    parameters.append("device_manufacturer", deviceRepository.getManufacturer())
+                    parameters.append("device_model", deviceRepository.getDeviceModel())
                 }.buildString()
 
-                openUrl(url)
+                Logger.d { "opening $url" }
+                //openUrl(url)
             }
         }
     }
 }
 
 data class SettingsState(
-    val homeServerUrl: String = "",
+    val homeServerUrl: String = "https://trails.werkbank.space", // TODO remove default value for prod, just for testing
     val showLoginDialog: Boolean = false,
 )
 

@@ -19,10 +19,14 @@ import org.jetbrains.exposed.v1.core.or
 import org.koin.core.context.loadKoinModules
 import org.koin.dsl.module
 import org.koin.ktor.ext.inject
+import kotlin.text.toCharArray
+import kotlin.uuid.Uuid
 
-val deviceNameAttribute = AttributeKey<String>("device_name")
+val deviceModelAttribute = AttributeKey<String>("device_model")
+val deviceManufacturerAttribute = AttributeKey<String>("device_manufacturer")
+val authSessionSelectedDeviceIdAttribute = AttributeKey<Uuid>("auth_session_selected_device_id")
 
-class TrailsAuthentiktUser(private val dbUser: User): AuthentiktUser<User>(dbUser) {
+class TrailsAuthentiktUser(dbUser: User): AuthentiktUser<User>(dbUser) {
     override suspend fun getEmail(): String = user.email
     override suspend fun getUsername(): String = user.username
     override suspend fun getDisplayName(): String = user.username
@@ -32,6 +36,8 @@ fun Application.installAuthentikt() {
 
     val db by inject<DatabaseManager>()
     val applicationConfig by inject<ApplicationConfig>()
+    val deviceSelectionAuthentiktPlugin = DeviceSelectionAuthentiktPlugin()
+    loadKoinModules(module { single { deviceSelectionAuthentiktPlugin } })
 
     val instance = installAuthentikt {
         apiPrefix = "/api/v1/auth"
@@ -72,11 +78,18 @@ fun Application.installAuthentikt() {
         }
         install(donePlugin)
 
+        install(deviceSelectionAuthentiktPlugin)
+
         authorization { session, user ->
             when {
                 !session.has(passwordPlugin) -> passwordPlugin
                 db.transaction { user.user.otp } != null && !session.has(totpPlugin) -> totpPlugin
-                else -> donePlugin
+                else -> {
+                    val nextStep = authSessionDeviceSelection(session, user.user)
+                    if (nextStep != null) return@authorization nextStep
+
+                    return@authorization donePlugin
+                }
             }
         }
     }

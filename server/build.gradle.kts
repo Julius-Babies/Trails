@@ -27,15 +27,24 @@ dependencies {
     implementation(ktorLibs.server.contentNegotiation)
     implementation(ktorLibs.server.core)
     implementation(ktorLibs.server.netty)
+    implementation(ktorLibs.client.contentNegotiation)
+    implementation(ktorLibs.client.core)
+    implementation(ktorLibs.client.cio)
+
     implementation(libs.exposed.core)
     implementation(libs.exposed.dao)
     implementation(libs.exposed.jdbc)
+    implementation(libs.exposed.kotlin.datetime)
     implementation(libs.sqlite)
     implementation(libs.koin.ktor)
     implementation(libs.koin.loggerSlf4j)
     implementation(libs.logback.classic)
 
     implementation(libs.bcrypt)
+    implementation(libs.csv)
+    implementation(libs.gson)
+
+    implementation(libs.kotlinx.datetime)
 
     implementation(libs.authentikt)
 
