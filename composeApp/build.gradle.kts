@@ -11,10 +11,13 @@ plugins {
 }
 
 kotlin {
+    compilerOptions {
+        freeCompilerArgs.add("-Xexplicit-backing-fields")
+    }
+
     androidTarget {
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
-            freeCompilerArgs.add("-Xexplicit-backing-fields")
         }
     }
     
@@ -55,6 +58,9 @@ kotlin {
 
             implementation(libs.androidx.room.runtime)
             implementation(libs.androidx.sqlite.bundled)
+
+            implementation(libs.moko.permissions.core)
+            implementation(libs.moko.permissions.location)
 
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)

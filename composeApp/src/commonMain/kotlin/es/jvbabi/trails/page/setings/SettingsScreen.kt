@@ -76,6 +76,13 @@ fun SettingsContent(
             Button(onClick = { onEvent(SettingsEvent.OpenLoginDialog) }) {
                 Text("Anmelden")
             }
+
+            Button(
+                onClick = { onEvent(SettingsEvent.RequestLocationPermissions) },
+                enabled = state.hasLocationPermissions == false
+            ) {
+                Text("Standortberechtigungen anfordern")
+            }
         }
     }
 
@@ -83,13 +90,15 @@ fun SettingsContent(
         AlertDialog(
             onDismissRequest = { onEvent(SettingsEvent.CloseLoginDialog) },
             title = { Text("Anmelden") },
-            text = { Column {
-                TextField(
-                    value = state.homeServerUrl,
-                    onValueChange = { onEvent(SettingsEvent.UpdateHomeServerUrl(it)) },
-                    label = { Text("Home Server Domain") }
-                )
-            }},
+            text = {
+                Column {
+                    TextField(
+                        value = state.homeServerUrl,
+                        onValueChange = { onEvent(SettingsEvent.UpdateHomeServerUrl(it)) },
+                        label = { Text("Home Server Domain") }
+                    )
+                }
+            },
             confirmButton = {
                 Button(onClick = {
                     onEvent(SettingsEvent.Login)
@@ -107,8 +116,9 @@ private fun SettingsPreview() {
     SettingsContent(
         onBack = {},
         state = SettingsState(
-            showLoginDialog = true,
-                homeServerUrl = "https://trails.werkbank.space"
+            showLoginDialog = false,
+            homeServerUrl = "https://trails.werkbank.space",
+            hasLocationPermissions = true,
         ),
         onEvent = {}
     )
