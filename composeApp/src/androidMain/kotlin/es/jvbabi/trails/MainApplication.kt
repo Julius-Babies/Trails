@@ -8,7 +8,12 @@ import es.jvbabi.trails.domain.repository.BackgroundServiceRepository
 import es.jvbabi.trails.data.repository.BackgroundServiceRepositoryImpl
 import es.jvbabi.trails.di.initKoin
 import es.jvbabi.trails.domain.repository.DeviceRepository
+import io.ktor.client.HttpClient
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.json.Json
 import org.koin.android.ext.koin.androidContext
+import io.ktor.client.engine.android.*
 import org.koin.android.ext.koin.androidLogger
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -25,6 +30,15 @@ class MainApplication: Application() {
                 single { AndroidDeviceRepository() } bind DeviceRepository::class
                 single<PermissionsController> { PermissionsControllerImpl(get()) }
                 single<BackgroundServiceRepository> { BackgroundServiceRepositoryImpl() }
+                single<HttpClient> { HttpClient(Android) {
+                    install(ContentNegotiation) {
+                        json(Json {
+                            prettyPrint = true
+                            isLenient = true
+                            ignoreUnknownKeys = true
+                        })
+                    }
+                } }
             })
         }
     }

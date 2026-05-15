@@ -10,5 +10,6 @@ import androidx.room.Entity
 data class DbLocation(
     @ColumnInfo("latitude") val latitude: Double,
     @ColumnInfo("longitude") val longitude: Double,
+    @ColumnInfo("bearing") val bearing: Float,
     @ColumnInfo("timestamp") val timestamp: Long,
 )

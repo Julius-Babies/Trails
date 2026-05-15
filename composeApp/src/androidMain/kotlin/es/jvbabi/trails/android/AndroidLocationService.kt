@@ -13,11 +13,17 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import dev.icerock.moko.permissions.Permission
+import dev.icerock.moko.permissions.PermissionState
+import dev.icerock.moko.permissions.PermissionsController
+import dev.icerock.moko.permissions.location.BACKGROUND_LOCATION
+import dev.icerock.moko.permissions.location.LOCATION
 import es.jvbabi.trails.domain.repository.LocationRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +36,7 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
     private val serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     private val locationRepository by inject<LocationRepository>()
+    private val permissionsController by inject<PermissionsController>()
 
     companion object {
         private val _isRunning = MutableStateFlow(false)
@@ -41,20 +48,33 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
     override fun onCreate() {
         super.onCreate()
         locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
-        _isRunning.value = true
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val notification = createNotification()
+        serviceScope.launch {
+            if (permissionsController.getPermissionState(Permission.BACKGROUND_LOCATION) != PermissionState.Granted) {
+                Log.w("LocationService", "Background location permission not granted, cannot start tracking")
+                return@launch
+            }
+            if (permissionsController.getPermissionState(Permission.LOCATION) != PermissionState.Granted) {
+                Log.w("LocationService", "Location permission not granted, cannot start tracking")
+                return@launch
+            }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
-        } else {
-            startForeground(1, notification)
+            _isRunning.value = true
+
+            val notification = createNotification()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+            } else {
+                startForeground(1, notification)
+            }
+
+            withContext(Dispatchers.Main) {
+                startTracking()
+            }
+
         }
-
-        startTracking()
-
         return START_STICKY
     }
 
@@ -83,7 +103,7 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
 
     override fun onLocationChanged(location: Location) {
         serviceScope.launch {
-            locationRepository.storeLocation(location.latitude, location.longitude)
+            locationRepository.storeLocation(location.latitude, location.longitude, location.bearing)
         }
         Log.d("LocationService", "Native Location: ${location.latitude}, ${location.longitude} (Provider: ${location.provider})")
     }

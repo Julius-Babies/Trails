@@ -36,6 +36,8 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.browser)
+
+            implementation(libs.ktor.client.android)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -56,6 +58,8 @@ kotlin {
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.navigation3)
 
+            implementation(libs.kotlinx.datetime)
+
             implementation(libs.androidx.room.runtime)
             implementation(libs.androidx.sqlite.bundled)
 
@@ -64,7 +68,7 @@ kotlin {
 
             implementation(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)
-            implementation(libs.ktor.client.cio)
+            implementation(libs.ktor.client.websocket)
             implementation(libs.ktor.serialization.kotlinx.json)
         }
         commonTest.dependencies {

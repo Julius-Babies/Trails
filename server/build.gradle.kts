@@ -27,6 +27,7 @@ dependencies {
     implementation(ktorLibs.server.contentNegotiation)
     implementation(ktorLibs.server.core)
     implementation(ktorLibs.server.netty)
+    implementation(ktorLibs.server.websockets)
     implementation(ktorLibs.server.auth.jwt)
     implementation(ktorLibs.client.contentNegotiation)
     implementation(ktorLibs.client.core)

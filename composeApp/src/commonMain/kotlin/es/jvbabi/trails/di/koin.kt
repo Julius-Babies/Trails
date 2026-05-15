@@ -9,14 +9,10 @@ import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.LocationRepository
 import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
 import es.jvbabi.trails.domain.usecase.auth.LoginUseCase
+import es.jvbabi.trails.page.home.HomeViewModel
 import es.jvbabi.trails.page.setings.SettingsViewModel
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
-import kotlinx.serialization.json.Json
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
@@ -31,18 +27,6 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
 
     modules(module {
         single {
-            HttpClient(CIO) {
-                install(ContentNegotiation) {
-                    json(Json {
-                        prettyPrint = true
-                        isLenient = true
-                        ignoreUnknownKeys = true
-                    })
-                }
-            }
-        }
-
-        single {
             getDatabaseBuilder()
                 .setDriver(BundledSQLiteDriver())
                 .setQueryCoroutineContext(Dispatchers.IO)
@@ -55,6 +39,7 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
         singleOf(::HandleDeepLinkUseCase)
         singleOf(::LoginUseCase)
 
+        viewModelOf(::HomeViewModel)
         viewModelOf(::SettingsViewModel)
     })
 }

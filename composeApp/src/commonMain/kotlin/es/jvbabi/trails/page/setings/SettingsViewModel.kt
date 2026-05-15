@@ -2,6 +2,7 @@ package es.jvbabi.trails.page.setings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dev.icerock.moko.permissions.DeniedAlwaysException
 import dev.icerock.moko.permissions.Permission
 import dev.icerock.moko.permissions.PermissionState
 import dev.icerock.moko.permissions.PermissionsController
@@ -63,7 +64,11 @@ class SettingsViewModel(
             is SettingsEvent.RequestLocationPermissions -> {
                 viewModelScope.launch {
                     permissionsController.providePermission(Permission.LOCATION)
-                    permissionsController.providePermission(Permission.BACKGROUND_LOCATION)
+                    try {
+                        permissionsController.providePermission(Permission.BACKGROUND_LOCATION)
+                    } catch (_: DeniedAlwaysException) {
+                        permissionsController.openAppSettings()
+                    }
                 }
             }
             is SettingsEvent.StartTracking -> backgroundServiceRepository.startService()
