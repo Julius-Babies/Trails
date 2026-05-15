@@ -2,13 +2,12 @@ package es.jvbabi.trails.page.setings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import co.touchlab.kermit.Logger
 import dev.icerock.moko.permissions.Permission
 import dev.icerock.moko.permissions.PermissionState
 import dev.icerock.moko.permissions.PermissionsController
 import dev.icerock.moko.permissions.location.BACKGROUND_LOCATION
-import dev.icerock.moko.permissions.location.COARSE_LOCATION
 import dev.icerock.moko.permissions.location.LOCATION
+import es.jvbabi.trails.domain.repository.BackgroundServiceRepository
 import es.jvbabi.trails.domain.repository.DeviceRepository
 import es.jvbabi.trails.openUrl
 import io.ktor.http.URLBuilder
@@ -22,6 +21,7 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(
     private val deviceRepository: DeviceRepository,
     private val permissionsController: PermissionsController,
+    private val backgroundServiceRepository: BackgroundServiceRepository,
 ): ViewModel() {
 
     val state: StateFlow<SettingsState>
@@ -34,6 +34,12 @@ class SettingsViewModel(
                     hasLocationPermissions = permissionsController.getPermissionState(Permission.LOCATION) == PermissionState.Granted &&
                             permissionsController.getPermissionState(Permission.BACKGROUND_LOCATION) == PermissionState.Granted
                 )
+            }
+        }
+
+        viewModelScope.launch {
+            backgroundServiceRepository.isRunning().collect { isRunning ->
+                state.update { it.copy(isBackgroundTrackingServiceRunning = isRunning) }
             }
         }
     }
@@ -60,6 +66,8 @@ class SettingsViewModel(
                     permissionsController.providePermission(Permission.BACKGROUND_LOCATION)
                 }
             }
+            is SettingsEvent.StartTracking -> backgroundServiceRepository.startService()
+            is SettingsEvent.StopTracking -> backgroundServiceRepository.stopService()
         }
     }
 }
@@ -68,6 +76,7 @@ data class SettingsState(
     val homeServerUrl: String = "https://trails.werkbank.space", // TODO remove default value for prod, just for testing
     val showLoginDialog: Boolean = false,
     val hasLocationPermissions: Boolean? = null,
+    val isBackgroundTrackingServiceRunning: Boolean = false,
 )
 
 sealed class SettingsEvent {
@@ -76,4 +85,6 @@ sealed class SettingsEvent {
     data object Login: SettingsEvent()
     data class UpdateHomeServerUrl(val url: String): SettingsEvent()
     data object RequestLocationPermissions: SettingsEvent()
+    data object StartTracking: SettingsEvent()
+    data object StopTracking: SettingsEvent()
 }

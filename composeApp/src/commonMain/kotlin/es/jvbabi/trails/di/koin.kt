@@ -4,7 +4,9 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import es.jvbabi.trails.data.database.TrailsDatabase
 import es.jvbabi.trails.data.repository.KeyValueRepositoryImpl
+import es.jvbabi.trails.data.repository.LocationRepositoryImpl
 import es.jvbabi.trails.domain.repository.KeyValueRepository
+import es.jvbabi.trails.domain.repository.LocationRepository
 import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
 import es.jvbabi.trails.domain.usecase.auth.LoginUseCase
 import es.jvbabi.trails.page.setings.SettingsViewModel
@@ -48,6 +50,7 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
         }
 
         singleOf(::KeyValueRepositoryImpl) bind KeyValueRepository::class
+        singleOf(::LocationRepositoryImpl) bind LocationRepository::class
 
         singleOf(::HandleDeepLinkUseCase)
         singleOf(::LoginUseCase)

@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "708ae2fcf022512dc2081904f4f518e4",
+    "identityHash": "58b8e36c7c9e0ab7175287ecceee63fd",
     "entities": [
       {
         "tableName": "key_value",
@@ -38,11 +38,41 @@
             "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_key_value_key` ON `${TABLE_NAME}` (`key`)"
           }
         ]
+      },
+      {
+        "tableName": "location",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`timestamp`))",
+        "fields": [
+          {
+            "fieldPath": "latitude",
+            "columnName": "latitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "longitude",
+            "columnName": "longitude",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "timestamp"
+          ]
+        }
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '708ae2fcf022512dc2081904f4f518e4')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '58b8e36c7c9e0ab7175287ecceee63fd')"
     ]
   }
 }

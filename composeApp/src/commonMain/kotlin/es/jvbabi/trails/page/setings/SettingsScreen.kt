@@ -83,6 +83,15 @@ fun SettingsContent(
             ) {
                 Text("Standortberechtigungen anfordern")
             }
+
+            Button(
+                onClick = {
+                    if (state.isBackgroundTrackingServiceRunning) onEvent(SettingsEvent.StopTracking)
+                    else onEvent(SettingsEvent.StartTracking)
+                }
+            ) {
+                Text(if (state.isBackgroundTrackingServiceRunning) "Tracking stoppen" else "Tracking starten")
+            }
         }
     }
 
