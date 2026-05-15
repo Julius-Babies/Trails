@@ -32,8 +32,7 @@ class SettingsViewModel(
                     parameters.append("device_model", deviceRepository.getDeviceModel())
                 }.buildString()
 
-                Logger.d { "opening $url" }
-                //openUrl(url)
+                openUrl(url)
             }
         }
     }

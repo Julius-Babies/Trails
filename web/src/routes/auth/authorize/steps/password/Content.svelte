@@ -54,5 +54,5 @@
             class="mt-2"
             onclick={plugin.submit}
             disabled={plugin.status === "loading" || plugin.password === ""}
-    >Weiter {#if plugin.status === "loading"}<Loader />{:else}<ArrowRight />{/if}</Button>
+    >Weiter {#if plugin.status === "loading"}<Loader class="animate-spin" />{:else}<ArrowRight />{/if}</Button>
 </div>

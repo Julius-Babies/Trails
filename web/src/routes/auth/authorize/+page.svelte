@@ -10,6 +10,7 @@
     import DeviceSelection from "./steps/device_selection/DeviceSelection.svelte";
     import EmailUserSelection from "./steps/email/EmailUserSelection.svelte";
     import Password from "./steps/password/Password.svelte";
+    import {Loader} from "@lucide/svelte";
 
     const config: AuthentiktConfiguration = {
         baseUrl: "https://trails.werkbank.space/api/v1/auth/authentikt/",
@@ -43,7 +44,19 @@
                         <DeviceSelection />
                         <EmailUserSelection />
                         <Password />
-                        <DoneRenderer />
+                        <DoneRenderer>
+                            {#snippet children(plugin)}
+                                <div class="flex flex-col items-center justify-center w-full h-full gap-4">
+                                    <span class="text-xl font-semibold pb-1">Anmeldung erfolgreich.</span>
+                                    {#if plugin.result?.type === "redirect"}
+                                        <div>
+                                            Die Weiterleitung funktioniert nicht?
+                                            <a href={plugin.result.to} class="underline">Klicke hier.</a>
+                                        </div>
+                                    {/if}
+                                </div>
+                            {/snippet}
+                        </DoneRenderer>
                     {/if}
                 </div>
                 <span class="text-xs text-zinc-400">Powered by <a href="https://github.com/Julius-Babies/authentikt" class="underline" target="blank" rel="noreferrer">Authentikt</a>.</span><br />

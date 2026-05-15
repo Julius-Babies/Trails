@@ -1,5 +1,6 @@
 package es.jvbabi.trails
 
+import es.jvbabi.trails.api.installAuthentication
 import es.jvbabi.trails.api.installCallLogging
 import es.jvbabi.trails.api.installContentNegotiation
 import es.jvbabi.trails.auth.installAuthentikt
@@ -11,6 +12,7 @@ fun Application.rootModule() {
     installKoin()
     installCallLogging()
     installContentNegotiation()
+    installAuthentication()
     installAuthentikt()
     installRouting()
 }

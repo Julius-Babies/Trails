@@ -20,7 +20,7 @@ class DatabaseManager: KoinComponent {
     init {
         transaction(db = database) {
             SchemaUtils.create(Users)
-            SchemaUtils.create(Devices)
+            SchemaUtils.create(Devices, Sessions)
         }
     }
 
