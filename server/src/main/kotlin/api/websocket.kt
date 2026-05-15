@@ -1,5 +1,6 @@
 package es.jvbabi.trails.api
 
+import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
 import io.ktor.server.application.*
 import io.ktor.server.websocket.*
 import kotlin.time.Duration.Companion.seconds
@@ -10,5 +11,7 @@ fun Application.installWebsocket() {
         timeout = 15.seconds
         maxFrameSize = Long.MAX_VALUE
         masking = false
+
+        contentConverter = KotlinxWebsocketSerializationConverter(jsonInstance)
     }
 }

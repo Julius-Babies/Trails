@@ -4,9 +4,11 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import es.jvbabi.trails.config.ApplicationConfig
 import es.jvbabi.trails.database.DatabaseManager
+import es.jvbabi.trails.database.Device
 import es.jvbabi.trails.database.Devices
 import es.jvbabi.trails.database.Session
 import es.jvbabi.trails.database.Sessions
+import es.jvbabi.trails.database.User
 import io.ktor.http.auth.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -50,8 +52,18 @@ fun Application.installAuthentication() {
                         ?.let { Session.wrapRow(it) }
                 }
                 return@validate if (session == null) null
-                else UserIdPrincipal(userId.toString())
+                else db.transaction {
+                    val device = session.device
+                    val user = device.owner
+                    TrailsAppUserPrincipal(user, device, session)
+                }
             }
         }
     }
 }
+
+data class TrailsAppUserPrincipal(
+    val user: User,
+    val device: Device,
+    val session: Session,
+)

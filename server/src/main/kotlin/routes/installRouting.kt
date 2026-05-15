@@ -4,7 +4,7 @@ import es.jvbabi.trails.routes.auth.app_authorization.appAuthorization
 import es.jvbabi.trails.routes.devices.image.deviceImage
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
-import routes.positions.positions
+import routes.app.app
 
 fun Application.installRouting() {
     routing {
@@ -13,8 +13,8 @@ fun Application.installRouting() {
                 appAuthorization()
             }
 
-            route("/positions") {
-                positions()
+            route("/app") {
+                app()
             }
 
             route("/devices") {
