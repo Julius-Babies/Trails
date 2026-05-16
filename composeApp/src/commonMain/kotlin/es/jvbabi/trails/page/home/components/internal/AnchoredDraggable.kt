@@ -113,7 +113,7 @@ internal class AnchoredDraggableState<T>(
             private val dragScope =
                 object : DragScope {
                     override fun dragBy(pixels: Float) {
-                        with(anchoredDragScope) { dragTo(newOffsetForDelta(pixels)) }
+                        with(anchoredDragScope) { dragTo(newOffsetForDelta(pixels, 0.75f)) }
                     }
                 }
 
@@ -355,14 +355,13 @@ internal class AnchoredDraggableState<T>(
         }
     }
 
-    internal fun newOffsetForDelta(delta: Float): Float {
+    internal fun newOffsetForDelta(delta: Float, scale: Float): Float {
         val current = if (offset.isNaN()) 0f else offset
-        val raw = current + delta * 0.75f
+        val raw = current + delta * scale
         val min = anchors.minAnchor()
         val max = anchors.maxAnchor()
         return if (raw < min) {
-            val diff = min - raw
-            min - sqrt(diff.coerceAtLeast(0f)) * 8f
+            min
         } else if (raw > max) {
             val diff = raw - max
             max + sqrt(diff.coerceAtLeast(0f)) * 8f
@@ -370,7 +369,7 @@ internal class AnchoredDraggableState<T>(
     }
 
     fun dispatchRawDelta(delta: Float): Float {
-        val newOffset = newOffsetForDelta(delta)
+        val newOffset = newOffsetForDelta(delta, 1f)
         val oldOffset = if (offset.isNaN()) 0f else offset
         offset = newOffset
         return newOffset - oldOffset

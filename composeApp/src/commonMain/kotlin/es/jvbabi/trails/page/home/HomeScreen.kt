@@ -1,13 +1,15 @@
 package es.jvbabi.trails.page.home
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,8 +21,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,10 +28,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.coerceAtLeast
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.times
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,17 +49,15 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import es.jvbabi.trails.page.home.components.CardSheetValue
 import es.jvbabi.trails.page.home.components.DraggableCardSheet
-import es.jvbabi.trails.page.home.components.DraggableCardSheetState
 import es.jvbabi.trails.page.home.components.Map
+import es.jvbabi.trails.page.home.components.NavigationBar
 import es.jvbabi.trails.page.home.components.rememberDraggableCardSheetState
+import es.jvbabi.trails.page.shares.main.SharesScreen
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import trails.composeapp.generated.resources.Res
 import trails.composeapp.generated.resources.settings
-import trails.composeapp.generated.resources.shapes
-import trails.composeapp.generated.resources.smartphone
-import trails.composeapp.generated.resources.users
 
 @Composable
 fun HomeScreen(
@@ -75,6 +80,7 @@ fun HomeContent(
     onEvent: (event: HomeEvent) -> Unit,
 ) {
     val hazeState = rememberHazeState()
+    val scope = rememberCoroutineScope()
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val collapsedHeight = 72.dp
@@ -82,6 +88,7 @@ fun HomeContent(
             expandedHeight = maxHeight,
             semiExpandedHeight = 350.dp,
             collapsedHeight = collapsedHeight,
+            initialValue = CardSheetValue.Collapsed,
         )
         DraggableCardSheet(
             modifier = Modifier.fillMaxSize(),
@@ -140,7 +147,6 @@ fun HomeContent(
                 }
             },
             cardContent = { contentPadding ->
-                val scope = rememberCoroutineScope()
                 val hazeStyle = HazeMaterials.thin()
                 Box(
                     modifier = Modifier
@@ -151,44 +157,46 @@ fun HomeContent(
                                 style = hazeStyle
                             }
                         }
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = draggableCardSheetState.progress))
                 ) {
                     Box(
                         modifier = Modifier
-                            .padding(top = animateDpAsState(if (draggableCardSheetState.isUserDragging) 5.dp else 4.dp).value + (contentPadding.calculateTopPadding() * draggableCardSheetState.expandedProgress))
+                            .padding(top = (animateDpAsState(if (draggableCardSheetState.isUserDragging) 5.dp else 4.dp).value + ((contentPadding.top - 8.dp) * draggableCardSheetState.expandedProgress)).coerceAtLeast(0.dp))
                             .align(Alignment.TopCenter)
                             .width(animateDpAsState(if (draggableCardSheetState.isUserDragging) 52.dp else 40.dp).value)
                             .height(animateDpAsState(if (draggableCardSheetState.isUserDragging) 2.dp else 4.dp).value)
                             .clip(RoundedCornerShape(50))
                             .background(MaterialTheme.colorScheme.outlineVariant)
                     )
-//                    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-//                        Row {
-//                            Button(
-//                                onClick = {
-//                                    scope.launch { draggableCardSheetState.expand() }
-//                                }
-//                            ) { Text("expand") }
-//                            Button(
-//                                onClick = {
-//                                    scope.launch { draggableCardSheetState.collapse() }
-//                                }
-//                            ) { Text("collaps") }
-//                            Button(
-//                                onClick = {
-//                                    scope.launch { draggableCardSheetState.semiExpand() }
-//                                }
-//                            ) { Text("semi") }
-//                        }
-//                        Text(
-//                            text = "Hier könnte eine Karte mit deinen Trails sein!",
-//                            modifier = Modifier.padding(16.dp)
-//                        )
-//                    }
+                    Box(
+                        modifier = Modifier
+                            .padding(bottom = contentPadding.bottom * draggableCardSheetState.collapsedProgress + collapsedHeight)
+                            .fillMaxSize()
+                            .defaultMinSize(minHeight = collapsedHeight)
+                            .clipToBounds()
+                            .bottomFadeOut(active = draggableCardSheetState.isUserDragging && draggableCardSheetState.progress < 0.5f)
+                    ) {
+                        AnimatedContent(
+                            targetState = state.selectedTab,
+                        ) { selectedTab ->
+                            when (selectedTab) {
+                                HomeState.Tab.MyDevices -> Text("Hier könnten deine Geräte sein!")
+                                HomeState.Tab.Things -> Text("Hier könnten deine Gegenstände sein!")
+                                HomeState.Tab.Shares -> SharesScreen(
+                                    nestedScrollConnection = draggableCardSheetState.nestedScrollConnection,
+                                    onExpandCard = { scope.launch { draggableCardSheetState.expand() } },
+                                    onSemiExpandCard = { scope.launch { draggableCardSheetState.semiExpand() } },
+                                    contentPadding = contentPadding,
+                                )
+                            }
+
+                        }
+                    }
 
                     Column(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(bottom = contentPadding.calculateBottomPadding() * draggableCardSheetState.collapsedProgress)
+                            .padding(bottom = contentPadding.bottom * draggableCardSheetState.collapsedProgress)
                             .fillMaxWidth()
                             .height(collapsedHeight - 8.dp),
                         verticalArrangement = Arrangement.Bottom
@@ -199,64 +207,10 @@ fun HomeContent(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             NavigationBar(
-                                containerColor = Color.Transparent,
-                                windowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                NavigationBarItem(
-                                    selected = state.selectedTab == HomeState.Tab.MyDevices,
-                                    onClick = {
-                                        onEvent(HomeEvent.SelectTab(HomeState.Tab.MyDevices))
-                                        if (draggableCardSheetState.targetValue == CardSheetValue.Collapsed)
-                                            scope.launch { draggableCardSheetState.semiExpand() }
-                                        else if (draggableCardSheetState.targetValue == CardSheetValue.SemiExpanded)
-                                            scope.launch { draggableCardSheetState.expand() }
-                                    },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(Res.drawable.smartphone),
-                                            contentDescription = null,
-                                        )
-                                    },
-                                    label = { Text("Meine Geräte") }
-                                )
-
-                                NavigationBarItem(
-                                    selected = state.selectedTab == HomeState.Tab.Things,
-                                    onClick = {
-                                        onEvent(HomeEvent.SelectTab(HomeState.Tab.Things))
-                                        if (draggableCardSheetState.targetValue == CardSheetValue.Collapsed)
-                                            scope.launch { draggableCardSheetState.semiExpand() }
-                                        else if (draggableCardSheetState.targetValue == CardSheetValue.SemiExpanded)
-                                            scope.launch { draggableCardSheetState.expand() }
-                                    },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(Res.drawable.shapes),
-                                            contentDescription = null,
-                                        )
-                                    },
-                                    label = { Text("Gegenstände") }
-                                )
-
-                                NavigationBarItem(
-                                    selected = state.selectedTab == HomeState.Tab.Shares,
-                                    onClick = {
-                                        onEvent(HomeEvent.SelectTab(HomeState.Tab.Shares))
-                                        if (draggableCardSheetState.targetValue == CardSheetValue.Collapsed)
-                                            scope.launch { draggableCardSheetState.semiExpand() }
-                                        else if (draggableCardSheetState.targetValue == CardSheetValue.SemiExpanded)
-                                            scope.launch { draggableCardSheetState.expand() }
-                                    },
-                                    icon = {
-                                        Icon(
-                                            painter = painterResource(Res.drawable.users),
-                                            contentDescription = null,
-                                        )
-                                    },
-                                    label = { Text("Freigaben") }
-                                )
-                            }
+                                selectedTab = state.selectedTab,
+                                draggableCardSheetState = draggableCardSheetState,
+                                onSelect = { onEvent(HomeEvent.SelectTab(it)) }
+                            )
                         }
                     }
                 }
@@ -276,4 +230,28 @@ fun HomeScreenPreview() {
         onOpenSettings = {},
         onEvent = {},
     )
+}
+
+fun Modifier.bottomFadeOut(
+    height: Dp = 48.dp,
+    active: Boolean = true,
+) = composed {
+
+    val fadeAlpha by animateFloatAsState(
+        targetValue = if (active) 0f else 1f
+    )
+
+    this.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            val fadeHeightPx = height.toPx()
+            drawRect(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color.Black, Color.Black.copy(alpha = fadeAlpha)),
+                    startY = size.height - fadeHeightPx,
+                    endY = size.height,
+                ),
+                blendMode = BlendMode.DstIn,
+            )
+        }
 }
