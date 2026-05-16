@@ -45,9 +45,26 @@ class HomeViewModel(
                 }
         }
     }
+
+    fun onEvent(event: HomeEvent) {
+        when (event) {
+            is HomeEvent.SelectTab -> {
+                state.update { it.copy(selectedTab = event.tab) }
+            }
+        }
+    }
 }
 
 data class HomeState(
     val ownLocation: Location? = null,
     val isConnectedToServer: Boolean = false,
-)
+    val selectedTab: Tab = Tab.MyDevices
+) {
+    enum class Tab {
+        MyDevices, Things, Shares
+    }
+}
+
+sealed class HomeEvent {
+    data class SelectTab(val tab: HomeState.Tab): HomeEvent()
+}
