@@ -52,6 +52,13 @@ import kotlinx.coroutines.launch
 
 enum class CardSheetValue { Collapsed, SemiExpanded, Expanded }
 
+@Composable
+internal expect fun SheetBackHandler(
+    enabled: Boolean,
+    onProgress: (Float) -> Unit,
+    onBack: (progress: Float) -> Unit,
+)
+
 @Stable
 class DraggableCardSheetState(
     val expandedHeight: Dp,
@@ -60,6 +67,9 @@ class DraggableCardSheetState(
     val density: Density,
     confirmValueChange: (CardSheetValue) -> Boolean = { true },
 ) {
+
+    val predictiveBackGesturePreviewCoefficient = 1f
+
     val hasSemiExpanded: Boolean
         get() = semiExpandedHeight != Dp.Unspecified &&
             semiExpandedHeight > collapsedHeight &&
@@ -81,6 +91,14 @@ class DraggableCardSheetState(
 
     var isUserDragging: Boolean by mutableStateOf(false)
         private set
+
+    var backPreviewProgress: Float by mutableStateOf(0f)
+        private set
+
+    private var backPreviewBaseOffsetPx: Float = Float.NaN
+    private var backPreviewAppliedOffsetPx: Float = 0f
+    private var backPreviewStartValue: CardSheetValue? = null
+    private var backPreviewTargetValue: CardSheetValue? = null
 
     val currentValue: CardSheetValue get() = anchoredDraggableState.currentValue
     val targetValue: CardSheetValue get() = anchoredDraggableState.targetValue
@@ -160,6 +178,67 @@ class DraggableCardSheetState(
         isUserDragging = isDragging
     }
 
+    internal fun setBackPreviewProgress(progress: Float) {
+        backPreviewProgress = progress.coerceIn(0f, 1f)
+    }
+
+    private fun backPreviewTarget(from: CardSheetValue): CardSheetValue = when (from) {
+        CardSheetValue.Expanded ->
+            if (hasSemiExpanded) CardSheetValue.SemiExpanded else CardSheetValue.Collapsed
+        CardSheetValue.SemiExpanded -> CardSheetValue.Collapsed
+        CardSheetValue.Collapsed -> CardSheetValue.Collapsed
+    }
+
+    internal fun applyBackPreview(progress: Float) {
+        if (backPreviewStartValue == null) {
+            backPreviewStartValue = currentValue
+            backPreviewTargetValue = backPreviewTarget(currentValue)
+            backPreviewBaseOffsetPx = anchoredDraggableState.offset
+            backPreviewAppliedOffsetPx = 0f
+        }
+        val targetValue = backPreviewTargetValue ?: backPreviewTarget(currentValue)
+        val currentPos = anchoredDraggableState.offset
+        val targetPos = anchoredDraggableState.anchors.positionOf(targetValue)
+        if (currentPos.isNaN() || targetPos.isNaN()) {
+            setBackPreviewProgress(0f)
+            backPreviewBaseOffsetPx = Float.NaN
+            backPreviewAppliedOffsetPx = 0f
+            backPreviewStartValue = null
+            backPreviewTargetValue = null
+            return
+        }
+
+        val clamped = progress.coerceIn(0f, 1f)
+        if (clamped == 0f) {
+            if (backPreviewAppliedOffsetPx != 0f) {
+                anchoredDraggableState.previewToOffset(backPreviewBaseOffsetPx)
+            }
+            backPreviewBaseOffsetPx = Float.NaN
+            backPreviewAppliedOffsetPx = 0f
+            backPreviewStartValue = null
+            backPreviewTargetValue = null
+            setBackPreviewProgress(0f)
+            return
+        }
+
+        if (backPreviewBaseOffsetPx.isNaN()) backPreviewBaseOffsetPx = currentPos
+
+        val desiredOffset = (targetPos - backPreviewBaseOffsetPx) *
+            (clamped * predictiveBackGesturePreviewCoefficient)
+        anchoredDraggableState.previewToOffset(backPreviewBaseOffsetPx + desiredOffset)
+        backPreviewAppliedOffsetPx = desiredOffset
+        setBackPreviewProgress(clamped)
+    }
+
+    internal fun consumeBackPreviewStart(): CardSheetValue {
+        val value = backPreviewStartValue ?: currentValue
+        backPreviewStartValue = null
+        backPreviewTargetValue = null
+        backPreviewBaseOffsetPx = Float.NaN
+        backPreviewAppliedOffsetPx = 0f
+        return value
+    }
+
     val nestedScrollConnection = object : NestedScrollConnection {
         private fun anchorPos(value: CardSheetValue) =
             anchoredDraggableState.anchors.positionOf(value)
@@ -210,6 +289,23 @@ fun DraggableCardSheet(
     val systemBar = WindowInsets.safeContent.asPaddingValues()
     val isAnimating = state.anchoredDraggableState.isAnimationRunning
 
+    SheetBackHandler(
+        enabled = state.currentValue != CardSheetValue.Collapsed,
+        onProgress = { state.applyBackPreview(it) },
+        onBack = { lastProgress ->
+            state.applyBackPreview(lastProgress)
+            scope.launch {
+                state.setBackPreviewProgress(0f)
+                when (state.consumeBackPreviewStart()) {
+                    CardSheetValue.Expanded ->
+                        if (state.hasSemiExpanded) state.semiExpand() else state.collapse()
+                    CardSheetValue.SemiExpanded -> state.collapse()
+                    CardSheetValue.Collapsed -> Unit
+                }
+            }
+        },
+    )
+
     val horizontalContainerPadding by derivedStateOf {
         systemBar.calculateBottomPadding() * (1f - state.collapsedProgress) +
                 8.dp * (1f - state.expandedProgress)
@@ -234,16 +330,15 @@ fun DraggableCardSheet(
             start = 8.dp,
             end = 8.dp,
             top = 8.dp + systemBar.calculateTopPadding() * state.expandedProgress,
-            bottom = 8.dp + systemBar.calculateBottomPadding() * (
-                    if (state.hasSemiExpanded) state.collapsedProgress else state.progress
-                    )
+            bottom = 8.dp + systemBar.calculateBottomPadding() * (if (state.hasSemiExpanded) state.collapsedProgress else state.progress)
         )
     }
 
     val sheetHeight by derivedStateOf {
-        val collapsedPos = state.anchoredDraggableState.anchors.positionOf(CardSheetValue.Collapsed)
-        val semiPos = state.anchoredDraggableState.anchors.positionOf(CardSheetValue.SemiExpanded)
-        val expandedPos = state.anchoredDraggableState.anchors.positionOf(CardSheetValue.Expanded)
+        val anchors = state.anchoredDraggableState.anchors
+        val collapsedPos = anchors.positionOf(CardSheetValue.Collapsed)
+        val semiPos = anchors.positionOf(CardSheetValue.SemiExpanded)
+        val expandedPos = anchors.positionOf(CardSheetValue.Expanded)
         val px = state.offsetPx
 
         if (collapsedPos.isNaN() || expandedPos.isNaN() || px.isNaN()) {
@@ -259,6 +354,8 @@ fun DraggableCardSheet(
             state.semiExpandedHeight + (state.expandedHeight - state.semiExpandedHeight) * progress
         }
     }
+
+
 
     Box(modifier = modifier.fillMaxSize()) {
         content()

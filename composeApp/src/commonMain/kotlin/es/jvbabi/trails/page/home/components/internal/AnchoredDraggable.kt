@@ -160,6 +160,11 @@ internal class AnchoredDraggableState<T>(
     var offset: Float by mutableFloatStateOf(Float.NaN)
         private set
 
+    internal fun previewToOffset(targetOffset: Float) {
+        offset = targetOffset
+        lastVelocity = 0f
+    }
+
     fun requireOffset(): Float {
         check(!offset.isNaN()) {
             "The offset was read before being initialized. Did you access the offset in a phase " +
@@ -383,6 +388,15 @@ internal class AnchoredDraggableState<T>(
                 settledValue = targetValue
             }
         }
+
+    internal fun snapToOffset(targetOffset: Float) {
+        dragMutex.tryMutate {
+            with(anchoredDragScope) {
+                dragTo(targetOffset)
+                dragTarget = null
+            }
+        }
+    }
 
     companion object {
         fun <T : Any> Saver(
