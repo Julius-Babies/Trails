@@ -13,6 +13,7 @@ plugins {
 kotlin {
     compilerOptions {
         freeCompilerArgs.add("-Xexplicit-backing-fields")
+        optIn.add("kotlin.uuid.ExperimentalUuidApi")
     }
 
     androidTarget {
@@ -63,6 +64,7 @@ kotlin {
 
             implementation(libs.moko.permissions.core)
             implementation(libs.moko.permissions.location)
+            implementation(libs.moko.permissions.compose)
 
             implementation(libs.haze.blur)
             implementation(libs.haze.blur.materials)

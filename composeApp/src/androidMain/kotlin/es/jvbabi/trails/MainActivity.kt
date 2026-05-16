@@ -15,6 +15,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.lifecycleScope
 import co.touchlab.kermit.Logger
 import dev.icerock.moko.permissions.PermissionsController
+import dev.icerock.moko.permissions.compose.BindEffect
 import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
 import es.jvbabi.trails.page.Screen
 import io.ktor.http.Url
@@ -40,11 +41,11 @@ class MainActivity : ComponentActivity(), KoinComponent {
         super.onCreate(savedInstanceState)
 
         loadKoinModules(module { single(named(KOIN_ACTIVITY_CONTEXT)) { this@MainActivity as Context } })
-        permissionsController.bind(this)
 
         onNewIntent(intent)
 
         setContent {
+            BindEffect(permissionsController)
             App(
                 startNavigation = startNavigation,
             )
@@ -53,6 +54,7 @@ class MainActivity : ComponentActivity(), KoinComponent {
 
     override fun onNewIntent(intent: Intent, caller: ComponentCaller) {
         super.onNewIntent(intent, caller)
+        permissionsController.bind(this)
 
         val action = intent.action
         val data = intent.data
