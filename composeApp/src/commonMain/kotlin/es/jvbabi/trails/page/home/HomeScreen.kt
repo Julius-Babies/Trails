@@ -17,7 +17,6 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -53,6 +52,8 @@ fun HomeScreen(
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val draggableCardSheetState = rememberDraggableCardSheetState(
             expandedHeight = maxHeight,
+            semiExpandedHeight = 350.dp,
+            collapsedHeight = 120.dp
         )
         DraggableCardSheet(
             modifier = Modifier.fillMaxSize(),
@@ -112,19 +113,20 @@ fun HomeScreen(
                     }
                 }
             },
-            cardContent = {
+            cardContent = { padding ->
                 val scope = rememberCoroutineScope()
                 val hazeStyle = HazeMaterials.thin()
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
                         .hazeEffect(hazeState) {
                             blurEffect {
                                 blurRadius = 4.dp + draggableCardSheetState.progress * 4.dp
                                 style = hazeStyle
                             }
                         }
+                        .verticalScroll(rememberScrollState())
+                        .padding(padding)
                 ) {
                     Row {
                         Button(
@@ -137,6 +139,11 @@ fun HomeScreen(
                                 scope.launch { draggableCardSheetState.collapse() }
                             }
                         ) { Text("collaps") }
+                        Button(
+                            onClick = {
+                                scope.launch { draggableCardSheetState.semiExpand() }
+                            }
+                        ) { Text("semi") }
                     }
                     Text(
                         text = "Hier könnte eine Karte mit deinen Trails sein!",
