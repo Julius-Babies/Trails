@@ -6,14 +6,15 @@ import es.jvbabi.trails.data.database.entity.DbActiveShare
 import es.jvbabi.trails.data.database.entity.DbDevice
 import es.jvbabi.trails.data.database.entity.DbUser
 import es.jvbabi.trails.domain.model.Device
+import es.jvbabi.trails.domain.repository.ApplicationRepository
 import es.jvbabi.trails.domain.repository.DevicesRepository
 import es.jvbabi.trails.domain.repository.FileRepository
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.MeResponse
+import es.jvbabi.trails.domain.repository.ShareRepository
 import es.jvbabi.trails.domain.repository.SnapshotRepository
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
 import es.jvbabi.trails.domain.repository.UseShareLinkResult
-import es.jvbabi.trails.domain.repository.UserRepository
 import es.jvbabi.trails.utils.NetworkRequestUnsuccessfulException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -37,7 +38,9 @@ import io.ktor.utils.io.copyAndClose
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
@@ -45,11 +48,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -66,7 +72,8 @@ class TrailsServerRepositoryImpl(
     private val keyValueRepository: KeyValueRepository,
     private val snapshotRepository: SnapshotRepository,
     private val devicesRepository: DevicesRepository,
-    private val userRepository: UserRepository,
+    private val shareRepository: ShareRepository,
+    private val applicationRepository: ApplicationRepository,
     private val fileRepository: FileRepository,
 ) : TrailsServerRepository {
 
@@ -76,8 +83,10 @@ class TrailsServerRepositoryImpl(
 
     override val isConnected: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
-    override fun connect() {
-        if (this.isConnected.value) return
+    override fun connectWithHomeserver(): Deferred<Boolean> {
+        if (this.isConnected.value) return CompletableDeferred(true)
+
+        val connectedDeferred = CompletableDeferred<Boolean>()
 
         scope.launch {
             val url = this@TrailsServerRepositoryImpl.getBaseUrl().first()!!.apply {
@@ -98,6 +107,7 @@ class TrailsServerRepositoryImpl(
                 }
 
                 isConnected.value = true
+                connectedDeferred.complete(true)
 
                 val locationUpdater = scope.launch {
                     snapshotRepository.getCurrentSnapshotForDevice(device)
@@ -128,10 +138,34 @@ class TrailsServerRepositoryImpl(
                         }
                 }
 
+                val appForegroundSyncer = scope.launch {
+                    applicationRepository.getApplicationForegroundState().collectLatest { inForeground ->
+                        if (inForeground) {
+                            val subscribedShares = mutableSetOf<Uuid>()
+                            shareRepository.getShares()
+                                .map { it.filter { share -> share.device.owner.homeserver == getBaseUrl().first()!!.host } }
+                                .map { it.toSet() }
+                                .distinctUntilChanged()
+                                .collectLatest { shares ->
+                                    val newShareIds = shares.map { it.id }.toSet() - subscribedShares
+                                    websocketSession?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.ShareSubscribe(newShareIds.map { it.toString() }))
+                                    subscribedShares.addAll(newShareIds)
+
+                                    val removedShareIds = subscribedShares - shares.map { it.id }.toSet()
+                                    websocketSession?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.ShareUnsubscribe(removedShareIds.map { it.toString() }))
+                                    subscribedShares.removeAll(removedShareIds)
+                                }
+                        } else {
+                            websocketSession?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.ShareUnsubscribeAll)
+                        }
+                    }
+                }
+
                 for (frame in websocketSession!!.incoming) {
                     if (frame is Frame.Text) logger.i { "Received WS message: ${frame.readText()}" }
                 }
                 locationUpdater.cancel()
+                appForegroundSyncer.cancel()
 
                 isConnected.value = false
                 websocketSession?.close()
@@ -144,8 +178,11 @@ class TrailsServerRepositoryImpl(
 
             delay(5.seconds)
 
-            connect()
+            val reconnectResult = connectWithHomeserver().await()
+            if (!connectedDeferred.isCompleted) connectedDeferred.complete(reconnectResult)
         }
+
+        return connectedDeferred
     }
 
     override fun getBaseUrl(): Flow<URLBuilder?> {
@@ -295,6 +332,44 @@ class TrailsServerRepositoryImpl(
 
         return UseShareLinkResult.Success
     }
+
+    typealias ServerHost = String
+    private val activeExternalSessions = mutableMapOf<ServerHost, DefaultClientWebSocketSession>()
+
+    override suspend fun connectWithOtherServer(server: String) {
+        if (activeExternalSessions[server]?.isActive == true) return
+        val url = URLBuilder("wss://$server").apply {
+            appendPathSegments("api", "v1", "app", "ws")
+        }
+
+        try {
+            activeExternalSessions[server] = httpClient.webSocketSession(urlString = url.buildString())
+
+            isConnected.value = true
+
+            for (frame in websocketSession!!.incoming) {
+                if (frame is Frame.Text) logger.i { "Received WS message: ${frame.readText()}" }
+            }
+
+            isConnected.value = false
+            activeExternalSessions[server]?.close()
+            activeExternalSessions.remove(server)
+
+        } catch (e: Exception) {
+            Logger.e(e) { "Error connecting to WS: ${e.message}" }
+            isConnected.value = false
+        }
+
+        delay(5.seconds)
+
+        connectWithHomeserver().await()
+    }
+
+    override suspend fun stopAllOtherServerConnections() {
+        activeExternalSessions.map {
+            scope.launch { it.value.close(); activeExternalSessions.remove(it.key) }
+        }.joinAll()
+    }
 }
 
 @Serializable
@@ -310,6 +385,22 @@ private sealed class TrailsWebSocketAppMessage {
         @SerialName("battery_level") val batteryLevel: Float?,
         @SerialName("battery_charging") val batteryCharging: Boolean?,
         @SerialName("time") val time: Long,
+    ) : TrailsWebSocketAppMessage()
+
+    @Serializable
+    @SerialName("share.subscribe")
+    data class ShareSubscribe(
+        @SerialName("share_ids") val shareIds: List<String>,
+    ) : TrailsWebSocketAppMessage()
+
+    @Serializable
+    @SerialName("share.unsubscribe_all")
+    data object ShareUnsubscribeAll : TrailsWebSocketAppMessage()
+
+    @Serializable
+    @SerialName("share.unsubscribe")
+    data class ShareUnsubscribe(
+        @SerialName("share_ids") val shareIds: List<String>,
     ) : TrailsWebSocketAppMessage()
 }
 

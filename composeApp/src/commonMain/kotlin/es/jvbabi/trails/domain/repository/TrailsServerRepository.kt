@@ -2,6 +2,7 @@ package es.jvbabi.trails.domain.repository
 
 import es.jvbabi.trails.domain.model.Device
 import io.ktor.http.URLBuilder
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.SerialName
@@ -10,7 +11,9 @@ import kotlin.uuid.Uuid
 
 interface TrailsServerRepository {
 
-    fun connect()
+    fun connectWithHomeserver(): Deferred<Boolean>
+    suspend fun connectWithOtherServer(server: String)
+    suspend fun stopAllOtherServerConnections()
 
     val isConnected: StateFlow<Boolean>
 

@@ -69,7 +69,7 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
                 .filterNotNull()
                 .distinctUntilChangedBy {}
                 .collect {
-                    trailsServerRepository.connect()
+                    trailsServerRepository.connectWithHomeserver().await()
                 }
         }
         serviceScope.launch {

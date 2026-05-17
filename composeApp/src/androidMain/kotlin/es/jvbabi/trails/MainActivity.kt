@@ -19,6 +19,7 @@ import dev.icerock.moko.permissions.compose.BindEffect
 import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
 import es.jvbabi.trails.page.Screen
 import io.ktor.http.Url
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -34,7 +35,10 @@ class MainActivity : ComponentActivity(), KoinComponent {
 
     private val handleDeepLinkUseCase by inject<HandleDeepLinkUseCase>()
     private val permissionsController by inject<PermissionsController>()
-
+    
+    companion object {
+        val isVisible = MutableStateFlow(false)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -44,12 +48,34 @@ class MainActivity : ComponentActivity(), KoinComponent {
 
         onNewIntent(intent)
 
+        isVisible.value = true
+
         setContent {
             BindEffect(permissionsController)
             App(
                 startNavigation = startNavigation,
             )
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        isVisible.value = false
+    }
+
+    override fun onResume() {
+        super.onResume()
+        isVisible.value = true
+    }
+
+    override fun onStart() {
+        super.onStart()
+        isVisible.value = false
+    }
+
+    override fun onStop() {
+        super.onStop()
+        isVisible.value = false
     }
 
     override fun onNewIntent(intent: Intent, caller: ComponentCaller) {

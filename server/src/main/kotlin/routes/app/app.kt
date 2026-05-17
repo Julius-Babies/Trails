@@ -20,19 +20,21 @@ fun Route.app() {
 
     val db by inject<DatabaseManager>()
 
-    authenticate(TRAILS_USER_REALM) {
+    authenticate(TRAILS_USER_REALM, optional = true) {
         webSocket("/ws") {
-            val user = call.principal<TrailsAppUserPrincipal>()!!
-            sendSerialized("Hi, ${user.user.username}")
+            val auth = call.principal<TrailsAppUserPrincipal>()
+            sendSerialized("Hi, ${auth?.user?.username ?: "guest"}!")
             for (frame in incoming) {
                 if (frame is Frame.Text) {
                     val message = converter!!.deserialize<TrailsWebSocketAppMessage>(frame)
+                    println(message)
                     when (message) {
                         is TrailsWebSocketAppMessage.DataSnapshot -> {
+                            if (auth == null) continue
                             launch {
                                 db.transaction {
                                     DataSnapshot.new {
-                                        this.device = user.device
+                                        this.device = auth.device
                                         this.latitude = message.latitude
                                         this.longitude = message.longitude
                                         this.bearing = message.bearing.toDouble()
@@ -41,11 +43,13 @@ fun Route.app() {
                                         this.batteryLevel = message.batteryLevel
                                         this.batteryCharging = message.batteryCharging
                                         this.createdAt = Instant.fromEpochSeconds(message.time)
-                                        this.device = user.device
+                                        this.device = auth.device
                                     }
                                 }
                             }
                         }
+
+                        else -> {}
                     }
                 }
             }
@@ -66,10 +70,26 @@ private sealed class TrailsWebSocketAppMessage {
         @SerialName("latitude") val latitude: Double,
         @SerialName("longitude") val longitude: Double,
         @SerialName("bearing") val bearing: Float,
-        @SerialName("bearing_accuracy") val bearingAccuracy: Float? = null,
+        @SerialName("bearing_accuracy") val bearingAccuracy: Float?,
         @SerialName("location_accuracy") val locationAccuracy: Float,
-        @SerialName("battery_level") val batteryLevel: Float? = null,
-        @SerialName("battery_charging") val batteryCharging: Boolean? = null,
+        @SerialName("battery_level") val batteryLevel: Float?,
+        @SerialName("battery_charging") val batteryCharging: Boolean?,
         @SerialName("time") val time: Long,
+    ) : TrailsWebSocketAppMessage()
+
+    @Serializable
+    @SerialName("share.subscribe")
+    data class ShareSubscribe(
+        @SerialName("share_ids") val shareIds: List<String>,
+    ) : TrailsWebSocketAppMessage()
+
+    @Serializable
+    @SerialName("share.unsubscribe_all")
+    data object ShareUnsubscribeAll : TrailsWebSocketAppMessage()
+
+    @Serializable
+    @SerialName("share.unsubscribe")
+    data class ShareUnsubscribe(
+        @SerialName("share_ids") val shareIds: List<String>,
     ) : TrailsWebSocketAppMessage()
 }

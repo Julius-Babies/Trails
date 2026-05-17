@@ -1,9 +1,11 @@
 package es.jvbabi.trails.data.repository
 
 import co.touchlab.kermit.Logger
+import es.jvbabi.trails.data.database.TrailsDatabase
+import es.jvbabi.trails.domain.model.ActiveShare
+import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.ShareCreationResult
 import es.jvbabi.trails.domain.repository.ShareRepository
-import es.jvbabi.trails.domain.repository.TrailsServerRepository
 import es.jvbabi.trails.utils.NetworkRequestUnsuccessfulException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -11,10 +13,13 @@ import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
+import io.ktor.http.URLBuilder
 import io.ktor.http.appendPathSegments
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration
@@ -22,7 +27,8 @@ import kotlin.uuid.Uuid
 
 class ShareRepositoryImpl(
     private val httpClient: HttpClient,
-    private val trailsServerRepository: TrailsServerRepository,
+    private val database: TrailsDatabase,
+    private val keyValueRepository: KeyValueRepository,
 ): ShareRepository {
     override suspend fun createShare(
         locationHistory: Duration,
@@ -30,8 +36,8 @@ class ShareRepositoryImpl(
         shareName: String,
         allowMultiuse: Boolean
     ): ShareCreationResult {
-        val token = trailsServerRepository.getToken().first() ?: throw IllegalStateException("No token available")
-        val url = (trailsServerRepository.getBaseUrl().first() ?: throw IllegalStateException("No server URL available")).apply {
+        val token = keyValueRepository.get("trails.token").first() ?: return ShareCreationResult.Error("No token available")
+        val url = (keyValueRepository.get("trails.host").first()?.let { URLBuilder("https://$it") } ?: throw IllegalStateException("No server URL available")).apply {
             appendPathSegments("api", "v1", "app", "share")
         }.build()
 
@@ -53,6 +59,11 @@ class ShareRepositoryImpl(
 
         val shareResponse = response.body<ShareResponse>()
         return ShareCreationResult.Success(Uuid.parse(shareResponse.shareId), homeServer = url.host)
+    }
+
+    override fun getShares(): Flow<List<ActiveShare>> {
+        return database.activeShareDao.getActiveShares()
+            .map { shares -> shares.map { it.toModel() } }
     }
 }
 
