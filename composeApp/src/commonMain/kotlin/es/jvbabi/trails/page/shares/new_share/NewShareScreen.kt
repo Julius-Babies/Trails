@@ -1,6 +1,9 @@
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package es.jvbabi.trails.page.shares.new_share
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -21,16 +24,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +47,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,12 +56,15 @@ import es.jvbabi.trails.domain.model.User
 import es.jvbabi.trails.page.home.bottomFadeOut
 import es.jvbabi.trails.page.home.components.PaddingValues
 import es.jvbabi.trails.page.home.components.padding
+import es.jvbabi.trails.shareUrl
 import es.jvbabi.trails.utils.rememberBitmapFromBytes
 import es.jvbabi.trails.utils.toDp
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import trails.composeapp.generated.resources.Res
 import trails.composeapp.generated.resources.battery_medium
+import trails.composeapp.generated.resources.check
+import trails.composeapp.generated.resources.circle_alert
 import trails.composeapp.generated.resources.link
 import trails.composeapp.generated.resources.map_pin_time
 import trails.composeapp.generated.resources.tag
@@ -90,6 +102,13 @@ fun NewShareContent(
     if (state.currentDevice == null) return
 
     val localHapticFeedback = LocalHapticFeedback.current
+
+    DisposableEffect(Unit) {
+        onDispose {
+            onEvent(NewShareEvent.ResetShareCreationState)
+            onEvent(NewShareEvent.ResetInputFields)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -344,7 +363,7 @@ fun NewShareContent(
                     .padding(8.dp)
             ) {
                 Button(
-                    onClick = {},
+                    onClick = { onEvent(NewShareEvent.CreateShareClicked) },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -361,6 +380,93 @@ fun NewShareContent(
                 }
             }
         }
+    }
+
+    if (state.shareCreationState != NewShareState.ShareCreationState.Idle) {
+        AlertDialog(
+            onDismissRequest = {
+                val state = state.shareCreationState
+                if (state is NewShareState.ShareCreationState.Loading) return@AlertDialog
+                onEvent(NewShareEvent.ResetShareCreationState)
+                if (state is NewShareState.ShareCreationState.Success) close()
+            },
+            icon = {
+                AnimatedContent(
+                    targetState = state.shareCreationState,
+                ) { state ->
+                    when (state) {
+                        NewShareState.ShareCreationState.Idle -> {}
+                        NewShareState.ShareCreationState.Loading -> LoadingIndicator()
+                        is NewShareState.ShareCreationState.Success -> Icon(
+                            painter = painterResource(Res.drawable.check),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        is NewShareState.ShareCreationState.Error -> Icon(
+                            painter = painterResource(Res.drawable.circle_alert),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+            },
+            title = {
+                AnimatedContent(
+                    modifier = Modifier.fillMaxWidth(),
+                    targetState = state.shareCreationState,
+                ) { creationState ->
+                    Text(
+                        text = when (creationState) {
+                            NewShareState.ShareCreationState.Idle -> ""
+                            NewShareState.ShareCreationState.Loading -> "Freigabe wird erstellt..."
+                            is NewShareState.ShareCreationState.Success -> "Freigabe erstellt"
+                            is NewShareState.ShareCreationState.Error -> "Ein Fehler ist aufgetreten"
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            },
+            confirmButton = {
+                AnimatedVisibility(
+                    visible = state.shareCreationState is NewShareState.ShareCreationState.Success,
+                    enter = slideInVertically { it },
+                    exit = slideOutVertically { it },
+                ) {
+                    TextButton(
+                        onClick = {
+                            if (state.shareCreationState !is NewShareState.ShareCreationState.Success) return@TextButton
+                            shareUrl(
+                                url = state.shareCreationState.url.buildString(),
+                                title = state.shareCreationState.title,
+                            )
+                        }
+                    ) {
+                        Text("Teilen")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        val state = state.shareCreationState
+                        onEvent(NewShareEvent.ResetShareCreationState)
+                        if (state is NewShareState.ShareCreationState.Success) close()
+                    },
+                    enabled = state.shareCreationState != NewShareState.ShareCreationState.Loading && state.shareCreationState != NewShareState.ShareCreationState.Idle
+                ) {
+                    Text("Schließen")
+                }
+            }
+        )
+    }
+
+    LaunchedEffect(state.shareCreationState) {
+        if (state.shareCreationState !is NewShareState.ShareCreationState.Success) return@LaunchedEffect
+        shareUrl(
+            url = state.shareCreationState.url.buildString(),
+            title = state.shareCreationState.title,
+        )
     }
 }
 
@@ -388,6 +494,9 @@ fun NewShareScreenPreview() {
                     username = "testuser",
                 )
             ),
+            selectedLocationShareHistoryState = NewShareState.LocationShareHistoryState.OneHour,
+            shareBatteryLevel = true,
+            shareCreationState = NewShareState.ShareCreationState.Loading,
         ),
         onEvent = {},
         close = {},

@@ -7,11 +7,13 @@ import es.jvbabi.trails.data.database.converter.UuidConverter
 import es.jvbabi.trails.data.repository.DevicesRepositoryImpl
 import es.jvbabi.trails.data.repository.KeyValueRepositoryImpl
 import es.jvbabi.trails.data.repository.LocationRepositoryImpl
+import es.jvbabi.trails.data.repository.ShareRepositoryImpl
 import es.jvbabi.trails.data.repository.TrailsServerRepositoryImpl
 import es.jvbabi.trails.data.repository.UserRepositoryImpl
 import es.jvbabi.trails.domain.repository.DevicesRepository
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.LocationRepository
+import es.jvbabi.trails.domain.repository.ShareRepository
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
 import es.jvbabi.trails.domain.repository.UserRepository
 import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
@@ -75,6 +77,7 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
         singleOf(::DevicesRepositoryImpl) bind DevicesRepository::class
         singleOf(::UserRepositoryImpl) bind UserRepository::class
         singleOf(::TrailsServerRepositoryImpl) bind TrailsServerRepository::class
+        singleOf(::ShareRepositoryImpl) bind ShareRepository::class
 
         singleOf(::HandleDeepLinkUseCase)
         singleOf(::LoginUseCase)

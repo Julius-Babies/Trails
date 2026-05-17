@@ -1,6 +1,7 @@
 package es.jvbabi.trails
 
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.material3.ColorScheme
@@ -25,4 +26,20 @@ actual fun dynamicTheme(dark: Boolean): ColorScheme {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return MaterialTheme.colorScheme
     val context = KoinPlatformTools.defaultContext().get().get<Context>(named(KOIN_ACTIVITY_CONTEXT))
     return if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+}
+
+actual fun shareUrl(url: String, title: String?) {
+    val context = KoinPlatformTools.defaultContext().get().get<Context>(named(KOIN_ACTIVITY_CONTEXT))
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, url)
+        title?.let { putExtra(Intent.EXTRA_TITLE, title) }
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    val chooser = Intent.createChooser(intent, null).apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    context.startActivity(chooser)
 }
