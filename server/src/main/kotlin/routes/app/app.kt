@@ -1,6 +1,7 @@
 package routes.app
 
 import database.DataSnapshot
+import database.DataSnapshots
 import es.jvbabi.trails.api.TRAILS_USER_REALM
 import es.jvbabi.trails.api.TrailsAppUserPrincipal
 import es.jvbabi.trails.data.DeviceSubscriptionMessage
@@ -18,8 +19,14 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.koin.ktor.ext.inject
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.eq
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 private typealias ActiveShareId = Uuid
 
@@ -47,23 +54,46 @@ fun Route.app() {
                             if (auth == null) continue
                             launch {
                                 val snapshot = db.transaction {
-                                    DataSnapshot.new {
-                                        this.device = auth.device
-                                        this.latitude = message.latitude
-                                        this.longitude = message.longitude
-                                        this.bearing = message.bearing.toDouble()
-                                        this.bearingAccuracy = message.bearingAccuracy?.toDouble()
-                                        this.locationAccuracy = message.locationAccuracy.toDouble()
-                                        this.batteryLevel = message.batteryLevel
-                                        this.batteryCharging = message.batteryCharging
-                                        this.createdAt = Instant.fromEpochSeconds(message.time)
-                                        this.device = auth.device
+                                    val existingSnapshot = DataSnapshot.find {
+                                        DataSnapshots.device eq auth.device.id
+                                    }.orderBy(DataSnapshots.createdAt to SortOrder.DESC)
+                                        .limit(1)
+                                        .firstOrNull()
+
+                                    val batteryChanged = existingSnapshot?.let {
+                                        it.batteryLevel != message.batteryLevel ||
+                                            it.batteryCharging != message.batteryCharging
+                                    } ?: true
+
+                                    val movedEnough = existingSnapshot?.let {
+                                        distanceMeters(
+                                            it.latitude,
+                                            it.longitude,
+                                            message.latitude,
+                                            message.longitude,
+                                        ) > MIN_DISTANCE_METERS
+                                    } ?: true
+
+                                    if (batteryChanged || movedEnough) {
+                                        DataSnapshot.new {
+                                            this.device = auth.device
+                                            this.latitude = message.latitude
+                                            this.longitude = message.longitude
+                                            this.bearing = message.bearing.toDouble()
+                                            this.bearingAccuracy = message.bearingAccuracy?.toDouble()
+                                            this.locationAccuracy = message.locationAccuracy.toDouble()
+                                            this.batteryLevel = message.batteryLevel
+                                            this.batteryCharging = message.batteryCharging
+                                            this.createdAt = Instant.fromEpochSeconds(message.time)
+                                        }
+                                    } else {
+                                        existingSnapshot.createdAt = Instant.fromEpochSeconds(message.time)
+                                        existingSnapshot
                                     }
                                 }
 
-                                val flow = selfFlow
-                                if (flow != null && flow.subscriptionCount.value > 0) {
-                                    flow.emit(DeviceSubscriptionMessage.Snapshot(snapshot))
+                                if (selfFlow != null && selfFlow.subscriptionCount.value > 0) {
+                                    selfFlow.emit(DeviceSubscriptionMessage.Snapshot(snapshot))
                                 }
                             }
                         }
@@ -126,6 +156,26 @@ fun Route.app() {
             }
         }
     }
+}
+
+private const val MIN_DISTANCE_METERS = 10.0
+private const val EARTH_RADIUS_METERS = 6371000.0
+
+private fun distanceMeters(
+    latitude1: Double,
+    longitude1: Double,
+    latitude2: Double,
+    longitude2: Double,
+): Double {
+    val lat1 = Math.toRadians(latitude1)
+    val lat2 = Math.toRadians(latitude2)
+    val deltaLat = Math.toRadians(latitude2 - latitude1)
+    val deltaLon = Math.toRadians(longitude2 - longitude1)
+
+    val a = sin(deltaLat / 2).let { it * it } +
+        cos(lat1) * cos(lat2) * sin(deltaLon / 2).let { it * it }
+    val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return EARTH_RADIUS_METERS * c
 }
 
 @Serializable

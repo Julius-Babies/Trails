@@ -24,6 +24,10 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
@@ -36,6 +40,8 @@ class SnapshotRepositoryImpl(
 ): SnapshotRepository {
 
     private var job: Job? = null
+    private val snapshotsByDevice = mutableMapOf<Uuid, Snapshot>()
+    private val lastDbTimestamps = mutableMapOf<Uuid, Long>()
 
     override fun startSnapshotCollection(scope: CoroutineScope) {
         if (job?.isActive == true) return
@@ -58,23 +64,78 @@ class SnapshotRepositoryImpl(
             )
         }
             .onEach {
-                database.dataSnapshotDao.upsert(DbDataSnapshot(
-                    timestamp = it.time.toInstant(TimeZone.currentSystemDefault()).epochSeconds,
-                    deviceId = it.device.id,
-                    latitude = it.location.latitude,
-                    longitude = it.location.longitude,
-                    bearing = it.location.bearing,
-                    bearingAccuracy = it.location.bearingAccuracy,
-                    locationAccuracy = it.location.locationAccuracy,
-                    batteryLevel = it.batteryState?.percentage?.div(100f),
-                    batteryCharging = it.batteryState?.isCharging,
-                ))
+                storeSnapshot(it)
             }
             .launchIn(scope)
     }
 
+    override suspend fun storeSnapshot(snapshot: Snapshot) {
+        val deviceId = snapshot.device.id
+        val previousSnapshot = snapshotsByDevice[deviceId]
+        val previousDbTimestamp = lastDbTimestamps[deviceId]
+        val batteryChanged = previousSnapshot?.batteryState != snapshot.batteryState
+        val movedEnough = previousSnapshot?.let { previous ->
+            distanceMeters(
+                previous.location.latitude,
+                previous.location.longitude,
+                snapshot.location.latitude,
+                snapshot.location.longitude,
+            ) > MIN_DISTANCE_METERS
+        } ?: true
+
+        snapshotsByDevice[deviceId] = snapshot
+        val timestamp = snapshot.time.toInstant(TimeZone.currentSystemDefault()).epochSeconds
+
+        if (batteryChanged || movedEnough || previousSnapshot == null || previousDbTimestamp == null) {
+            database.dataSnapshotDao.upsert(
+                DbDataSnapshot(
+                    timestamp = timestamp,
+                    deviceId = snapshot.device.id,
+                    latitude = snapshot.location.latitude,
+                    longitude = snapshot.location.longitude,
+                    bearing = snapshot.location.bearing,
+                    bearingAccuracy = snapshot.location.bearingAccuracy,
+                    locationAccuracy = snapshot.location.locationAccuracy,
+                    batteryLevel = snapshot.batteryState?.percentage?.div(100f),
+                    batteryCharging = snapshot.batteryState?.isCharging,
+                )
+            )
+            lastDbTimestamps[deviceId] = timestamp
+        } else {
+            database.dataSnapshotDao.updateTimestamp(deviceId, previousDbTimestamp, timestamp)
+            lastDbTimestamps[deviceId] = timestamp
+        }
+    }
+
     override fun getCurrentSnapshotForDevice(device: Device): Flow<Snapshot?> {
         return database.dataSnapshotDao.getLastSnapshot(device.id)
-            .map { it?.toModel() }
+            .map { snapshot ->
+                val model = snapshot?.toModel()
+                if (model != null) {
+                    snapshotsByDevice[device.id] = model
+                    lastDbTimestamps[device.id] = snapshot.dataSnapshot.timestamp
+                }
+                snapshotsByDevice[device.id]
+            }
     }
+}
+
+private const val MIN_DISTANCE_METERS = 10.0
+private const val EARTH_RADIUS_METERS = 6371000.0
+
+private fun distanceMeters(
+    latitude1: Double,
+    longitude1: Double,
+    latitude2: Double,
+    longitude2: Double,
+): Double {
+    val lat1 = Math.toRadians(latitude1)
+    val lat2 = Math.toRadians(latitude2)
+    val deltaLat = Math.toRadians(latitude2 - latitude1)
+    val deltaLon = Math.toRadians(longitude2 - longitude1)
+
+    val a = sin(deltaLat / 2).let { it * it } +
+        cos(lat1) * cos(lat2) * sin(deltaLon / 2).let { it * it }
+    val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return EARTH_RADIUS_METERS * c
 }

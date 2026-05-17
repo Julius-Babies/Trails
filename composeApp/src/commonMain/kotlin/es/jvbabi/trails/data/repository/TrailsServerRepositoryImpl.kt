@@ -3,9 +3,11 @@ package es.jvbabi.trails.data.repository
 import co.touchlab.kermit.Logger
 import es.jvbabi.trails.data.database.TrailsDatabase
 import es.jvbabi.trails.data.database.entity.DbActiveShare
-import es.jvbabi.trails.data.database.entity.DbDataSnapshot
 import es.jvbabi.trails.data.database.entity.DbDevice
 import es.jvbabi.trails.data.database.entity.DbUser
+import es.jvbabi.trails.domain.model.Snapshot
+import es.jvbabi.trails.domain.repository.BatteryState
+import es.jvbabi.trails.domain.repository.Location
 import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.repository.ApplicationRepository
 import es.jvbabi.trails.domain.repository.DevicesRepository
@@ -82,6 +84,22 @@ class TrailsServerRepositoryImpl(
     val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val logger = Logger.withTag("TrailsServerRepositoryImpl")
     private var websocketSession: DefaultClientWebSocketSession? = null
+    private val homeServerSocketClient = HomeServerWebSocketClient(
+        scope = scope,
+        applicationRepository = applicationRepository,
+        shareRepository = shareRepository,
+        snapshotRepository = snapshotRepository,
+        database = database,
+        logger = logger,
+    )
+    private val externalServerSocketClient = ExternalServerWebSocketClient(
+        scope = scope,
+        applicationRepository = applicationRepository,
+        shareRepository = shareRepository,
+        snapshotRepository = snapshotRepository,
+        database = database,
+        logger = logger,
+    )
 
     override val isConnected: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
@@ -140,61 +158,10 @@ class TrailsServerRepositoryImpl(
                         }
                 }
 
-                val appForegroundSyncer = scope.launch {
-                    applicationRepository.getApplicationForegroundState().collectLatest { inForeground ->
-                        if (inForeground) {
-                            val subscribedShares = mutableSetOf<Uuid>()
-                            shareRepository.getShares()
-                                .map { it.filter { share -> share.device.owner.homeserver == getBaseUrl().first()!!.host } }
-                                .map { it.toSet() }
-                                .distinctUntilChanged()
-                                .collectLatest { shares ->
-                                    val newShareIds = shares.map { it.id }.toSet() - subscribedShares
-                                    websocketSession?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.ShareSubscribe(newShareIds.map { it.toString() }))
-                                    subscribedShares.addAll(newShareIds)
-
-                                    val removedShareIds = subscribedShares - shares.map { it.id }.toSet()
-                                    websocketSession?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.ShareUnsubscribe(removedShareIds.map { it.toString() }))
-                                    subscribedShares.removeAll(removedShareIds)
-                                }
-                        } else {
-                            websocketSession?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.ShareUnsubscribeAll)
-                        }
-                    }
-                }
-
-                for (frame in websocketSession!!.incoming) {
-                    if (frame is Frame.Text) {
-                        val message = websocketSession!!.converter!!.deserialize<TrailsWebSocketServerMessage>(frame)
-                        logger.i { "Received WS message: $message" }
-
-                        when (message) {
-                            is TrailsWebSocketServerMessage.ShareDeleted -> {
-                                database.activeShareDao.deleteById(Uuid.parse(message.shareId))
-                            }
-
-                            is TrailsWebSocketServerMessage.Snapshot -> {
-                                val share = shareRepository.getShareById(Uuid.parse(message.shareId)).first() ?: continue
-                                database.dataSnapshotDao.upsert(
-                                    DbDataSnapshot(
-                                        latitude = message.location.latitude,
-                                        longitude = message.location.longitude,
-                                        bearing = message.location.bearing,
-                                        bearingAccuracy = message.location.bearingAccuracy,
-                                        locationAccuracy = message.location.locationAccuracy,
-                                        batteryLevel = message.batteryState?.percentage?.div(100f),
-                                        batteryCharging = message.batteryState?.isCharging,
-                                        deviceId = share.device.id,
-                                        timestamp = message.timestamp
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
+                val serverHost = getBaseUrl().first()!!.host
+                homeServerSocketClient.run(websocketSession!!, serverHost)
 
                 locationUpdater.cancel()
-                appForegroundSyncer.cancel()
 
                 isConnected.value = false
                 websocketSession?.close()
@@ -374,60 +341,8 @@ class TrailsServerRepositoryImpl(
         try {
             activeExternalSessions[server] = httpClient.webSocketSession(urlString = url.buildString())
 
-            val appForegroundSyncer = scope.launch {
-                applicationRepository.getApplicationForegroundState().collectLatest { inForeground ->
-                    if (inForeground) {
-                        val subscribedShares = mutableSetOf<Uuid>()
-                        shareRepository.getShares()
-                            .map { it.filter { share -> share.device.owner.homeserver == server } }
-                            .map { it.toSet() }
-                            .distinctUntilChanged()
-                            .collectLatest { shares ->
-                                val newShareIds = shares.map { it.id }.toSet() - subscribedShares
-                                activeExternalSessions[server]?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.ShareSubscribe(newShareIds.map { it.toString() }))
-                                subscribedShares.addAll(newShareIds)
+            externalServerSocketClient.run(activeExternalSessions[server]!!, server)
 
-                                val removedShareIds = subscribedShares - shares.map { it.id }.toSet()
-                                activeExternalSessions[server]?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.ShareUnsubscribe(removedShareIds.map { it.toString() }))
-                                subscribedShares.removeAll(removedShareIds)
-                            }
-                    } else {
-                        activeExternalSessions[server]?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.ShareUnsubscribeAll)
-                    }
-                }
-            }
-
-            for (frame in activeExternalSessions[server]!!.incoming) {
-                if (frame is Frame.Text) {
-                    val message = activeExternalSessions[server]!!.converter!!.deserialize<TrailsWebSocketServerMessage>(frame)
-                    logger.i { "Received WS message: $message" }
-
-                    when (message) {
-                        is TrailsWebSocketServerMessage.ShareDeleted -> {
-                            database.activeShareDao.deleteById(Uuid.parse(message.shareId))
-                        }
-
-                        is TrailsWebSocketServerMessage.Snapshot -> {
-                            val share = shareRepository.getShareById(Uuid.parse(message.shareId)).first() ?: continue
-                            database.dataSnapshotDao.upsert(
-                                DbDataSnapshot(
-                                    latitude = message.location.latitude,
-                                    longitude = message.location.longitude,
-                                    bearing = message.location.bearing,
-                                    bearingAccuracy = message.location.bearingAccuracy,
-                                    locationAccuracy = message.location.locationAccuracy,
-                                    batteryLevel = message.batteryState?.percentage?.div(100f),
-                                    batteryCharging = message.batteryState?.isCharging,
-                                    deviceId = share.device.id,
-                                    timestamp = message.timestamp
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-
-            appForegroundSyncer.cancel()
             activeExternalSessions[server]?.close()
             activeExternalSessions.remove(server)
 
@@ -540,3 +455,121 @@ private data class UseShareLinkResponse(
         @SerialName("username") val username: String,
     )
 }
+
+private abstract class WebSocketClientBase(
+    protected val scope: CoroutineScope,
+    protected val applicationRepository: ApplicationRepository,
+    protected val shareRepository: ShareRepository,
+    protected val snapshotRepository: SnapshotRepository,
+    protected val database: TrailsDatabase,
+    protected val logger: Logger,
+) {
+    suspend fun run(session: DefaultClientWebSocketSession, serverHost: String) {
+        val appForegroundSyncer = startShareSubscriptionSync(serverHost) { session }
+        handleIncomingMessages(session)
+        appForegroundSyncer.cancel()
+    }
+
+    private fun startShareSubscriptionSync(
+        serverHost: String,
+        sessionProvider: () -> DefaultClientWebSocketSession?
+    ) = scope.launch {
+        applicationRepository.getApplicationForegroundState().collectLatest { inForeground ->
+            if (inForeground) {
+                val subscribedShares = mutableSetOf<Uuid>()
+                shareRepository.getShares()
+                    .map { it.filter { share -> share.device.owner.homeserver == serverHost } }
+                    .map { it.toSet() }
+                    .distinctUntilChanged()
+                    .collectLatest { shares ->
+                        val newShareIds = shares.map { it.id }.toSet() - subscribedShares
+                        sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(
+                            TrailsWebSocketAppMessage.ShareSubscribe(newShareIds.map { it.toString() })
+                        )
+                        subscribedShares.addAll(newShareIds)
+
+                        val removedShareIds = subscribedShares - shares.map { it.id }.toSet()
+                        sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(
+                            TrailsWebSocketAppMessage.ShareUnsubscribe(removedShareIds.map { it.toString() })
+                        )
+                        subscribedShares.removeAll(removedShareIds)
+                    }
+            } else {
+                sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.ShareUnsubscribeAll)
+            }
+        }
+    }
+
+    private suspend fun handleIncomingMessages(session: DefaultClientWebSocketSession) {
+        for (frame in session.incoming) {
+            if (frame is Frame.Text) {
+                val message = session.converter!!.deserialize<TrailsWebSocketServerMessage>(frame)
+                logger.i { "Received WS message: $message" }
+
+                when (message) {
+                    is TrailsWebSocketServerMessage.ShareDeleted -> {
+                        database.activeShareDao.deleteById(Uuid.parse(message.shareId))
+                    }
+
+                    is TrailsWebSocketServerMessage.Snapshot -> {
+                        val share = shareRepository.getShareById(Uuid.parse(message.shareId)).first() ?: continue
+                        val timestamp = Instant.fromEpochSeconds(message.timestamp)
+                            .toLocalDateTime(TimeZone.currentSystemDefault())
+                        snapshotRepository.storeSnapshot(
+                            Snapshot(
+                                device = share.device,
+                                time = timestamp,
+                                location = Location(
+                                    latitude = message.location.latitude,
+                                    longitude = message.location.longitude,
+                                    bearing = message.location.bearing,
+                                    bearingAccuracy = message.location.bearingAccuracy,
+                                    locationAccuracy = message.location.locationAccuracy,
+                                    time = timestamp,
+                                ),
+                                batteryState = message.batteryState?.let {
+                                    BatteryState(
+                                        percentage = it.percentage,
+                                        isCharging = it.isCharging,
+                                    )
+                                },
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private class HomeServerWebSocketClient(
+    scope: CoroutineScope,
+    applicationRepository: ApplicationRepository,
+    shareRepository: ShareRepository,
+    snapshotRepository: SnapshotRepository,
+    database: TrailsDatabase,
+    logger: Logger,
+) : WebSocketClientBase(
+    scope = scope,
+    applicationRepository = applicationRepository,
+    shareRepository = shareRepository,
+    snapshotRepository = snapshotRepository,
+    database = database,
+    logger = logger,
+)
+
+private class ExternalServerWebSocketClient(
+    scope: CoroutineScope,
+    applicationRepository: ApplicationRepository,
+    shareRepository: ShareRepository,
+    snapshotRepository: SnapshotRepository,
+    database: TrailsDatabase,
+    logger: Logger,
+) : WebSocketClientBase(
+    scope = scope,
+    applicationRepository = applicationRepository,
+    shareRepository = shareRepository,
+    snapshotRepository = snapshotRepository,
+    database = database,
+    logger = logger,
+)
