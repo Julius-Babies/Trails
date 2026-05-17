@@ -13,7 +13,6 @@ import es.jvbabi.trails.domain.repository.ShareCreationResult
 import es.jvbabi.trails.domain.repository.ShareRepository
 import io.ktor.http.URLBuilder
 import io.ktor.http.URLProtocol
-import io.ktor.http.Url
 import io.ktor.http.appendPathSegments
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.Dispatchers
@@ -78,6 +77,7 @@ class NewShareViewModel(
             is NewShareEvent.ShareNameChanged -> {
                 state.value = state.value.copy(
                     shareName = event.newName,
+                    showShareNameEmptyError = false,
                 )
             }
             NewShareEvent.AllowMultiuseLinkChanged -> {
@@ -87,6 +87,13 @@ class NewShareViewModel(
             }
             NewShareEvent.CreateShareClicked -> {
                 viewModelScope.launch(Dispatchers.IO + CoroutineName("CreateShare")) {
+                    if (state.value.shareName.isBlank()) {
+                        state.value = state.value.copy(
+                            showShareNameEmptyError = true,
+                        )
+                        return@launch
+                    }
+
                     state.value = state.value.copy(
                         shareCreationState = NewShareState.ShareCreationState.Loading,
                     )
@@ -141,6 +148,7 @@ data class NewShareState(
     val selectedLocationShareHistoryState: LocationShareHistoryState = LocationShareHistoryState.OneHour,
     val shareBatteryLevel: Boolean = true,
     val shareName: String = "",
+    val showShareNameEmptyError: Boolean = false,
     val allowMultiuseLink: Boolean = false,
     val shareCreationState: ShareCreationState = ShareCreationState.Idle,
 ) {

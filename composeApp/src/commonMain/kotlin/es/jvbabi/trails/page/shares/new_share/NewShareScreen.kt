@@ -4,6 +4,8 @@ package es.jvbabi.trails.page.shares.new_share
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -40,12 +42,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -101,6 +108,10 @@ fun NewShareContent(
 ) {
     if (state.currentDevice == null) return
 
+    val localDensity = LocalDensity.current
+    
+    var currentFloatingSubmitButtonContainerHeight by remember { mutableStateOf(0.dp) }
+
     val localHapticFeedback = LocalHapticFeedback.current
 
     DisposableEffect(Unit) {
@@ -154,6 +165,7 @@ fun NewShareContent(
                     .bottomFadeOut()
                     .let { if (nestedScrollConnection != null) it.nestedScroll(nestedScrollConnection) else it }
                     .verticalScroll(rememberScrollState())
+                    .padding(bottom = currentFloatingSubmitButtonContainerHeight + 16.dp)
             ) {
                 Row(
                     modifier = Modifier
@@ -324,7 +336,21 @@ fun NewShareContent(
                             onValueChange = { onEvent(NewShareEvent.ShareNameChanged(it)) },
                             placeholder = { Text("z.B. 'Freigabe für Familie'") },
                             singleLine = true,
+                            isError = state.showShareNameEmptyError,
                         )
+                        AnimatedVisibility(
+                            visible = state.showShareNameEmptyError,
+                            enter = expandVertically(expandFrom = Alignment.CenterVertically),
+                            exit = shrinkVertically(shrinkTowards = Alignment.CenterVertically),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Der Freigabename darf nicht leer sein.",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
                     }
                 }
 
@@ -360,6 +386,7 @@ fun NewShareContent(
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
+                    .onSizeChanged { with(localDensity) { currentFloatingSubmitButtonContainerHeight = it.height.toDp() } }
                     .padding(8.dp)
             ) {
                 Button(
@@ -496,7 +523,8 @@ fun NewShareScreenPreview() {
             ),
             selectedLocationShareHistoryState = NewShareState.LocationShareHistoryState.OneHour,
             shareBatteryLevel = true,
-            shareCreationState = NewShareState.ShareCreationState.Loading,
+            showShareNameEmptyError = true,
+            shareCreationState = NewShareState.ShareCreationState.Idle,
         ),
         onEvent = {},
         close = {},

@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContent
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -329,7 +329,7 @@ fun DraggableCardSheet(
     cardContent: @Composable (PaddingValues) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val systemBar = WindowInsets.safeContent.asPaddingValues()
+    val systemBar = WindowInsets.systemBars.asPaddingValues()
 
     SheetBackHandler(
         enabled = state.currentValue != CardSheetValue.Collapsed,
@@ -432,10 +432,10 @@ fun DraggableCardSheet(
         }
 
         val shape = RoundedCornerShape(
-            topEnd = WindowInsets.safeContent.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp),
-            topStart = WindowInsets.safeContent.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp),
-            bottomEnd = WindowInsets.safeContent.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp) * (1-state.expandedProgress),
-            bottomStart = WindowInsets.safeContent.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp) * (1-state.expandedProgress),
+            topEnd = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp),
+            topStart = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp),
+            bottomEnd = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp) * (1-state.expandedProgress),
+            bottomStart = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp) * (1-state.expandedProgress),
         )
 
         Box(Modifier.fillMaxSize()) {

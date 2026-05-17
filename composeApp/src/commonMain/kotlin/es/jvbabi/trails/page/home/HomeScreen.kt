@@ -9,10 +9,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -40,6 +43,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.times
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.blur.blurEffect
@@ -51,7 +55,6 @@ import es.jvbabi.trails.page.home.components.CardSheetValue
 import es.jvbabi.trails.page.home.components.DraggableCardSheet
 import es.jvbabi.trails.page.home.components.Map
 import es.jvbabi.trails.page.home.components.NavigationBar
-import es.jvbabi.trails.page.home.components.padding
 import es.jvbabi.trails.page.home.components.rememberDraggableCardSheetState
 import es.jvbabi.trails.page.shares.main.SharesScreen
 import kotlinx.coroutines.launch
@@ -171,9 +174,12 @@ fun HomeContent(
                             .clip(RoundedCornerShape(50))
                             .background(MaterialTheme.colorScheme.outlineVariant)
                     )
+
+                    val defaultContentBottomPadding = contentPadding.bottom * draggableCardSheetState.collapsedProgress + collapsedHeight
+
                     Box(
                         modifier = Modifier
-                            .padding(bottom = contentPadding.bottom * draggableCardSheetState.collapsedProgress + collapsedHeight)
+                            .padding(bottom = max(defaultContentBottomPadding, WindowInsets.ime.asPaddingValues().calculateBottomPadding()))
                             .fillMaxSize()
                             .defaultMinSize(minHeight = collapsedHeight)
                             .clipToBounds()
