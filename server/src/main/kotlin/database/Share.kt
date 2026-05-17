@@ -17,6 +17,7 @@ class Share(id: EntityID<Uuid>) : UuidEntity(id) {
     var shareBatteryState by Shares.shareBatteryState
     var shareName by Shares.shareName
     var isLocked by Shares.isLocked
+    var allowMultiuse by Shares.allowMultiuse
     var createdAt by Shares.createdAt
 }
 
@@ -26,5 +27,6 @@ object Shares: UuidTable("shares") {
     val shareBatteryState = bool("share_battery_state")
     val shareName = varchar("share_name", 255)
     val isLocked = bool("is_locked")
+    val allowMultiuse = bool("allow_multiuse")
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
 }

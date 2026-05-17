@@ -13,6 +13,7 @@ import es.jvbabi.trails.page.setings.SettingsScreen
 
 expect fun openUrl(url: String)
 expect fun shareUrl(url: String, title: String?)
+expect fun getClipboardText(): String?
 
 @Composable
 expect fun dynamicTheme(dark: Boolean): ColorScheme

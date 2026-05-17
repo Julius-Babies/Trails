@@ -7,6 +7,7 @@ import kotlin.uuid.Uuid
 
 interface DevicesRepository {
     fun getDevices(user: User): Flow<List<Device>>
+    fun getDevices(): Flow<List<Device>>
     fun getDeviceById(id: Uuid): Flow<Device?>
 
     fun hasDeviceImage(device: Device): Flow<Boolean>

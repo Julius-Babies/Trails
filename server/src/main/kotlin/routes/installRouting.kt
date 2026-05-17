@@ -1,6 +1,7 @@
 package es.jvbabi.trails.routes
 
 import es.jvbabi.trails.routes.app.share.newShare
+import es.jvbabi.trails.routes.app.share.useShare
 import es.jvbabi.trails.routes.auth.app_authorization.appAuthorization
 import es.jvbabi.trails.routes.me.me
 import es.jvbabi.trails.routes.devices.image.deviceImage
@@ -32,6 +33,10 @@ fun Application.installRouting() {
 
                 route("/share") {
                     newShare()
+
+                    route("/use") {
+                        useShare()
+                    }
                 }
             }
 

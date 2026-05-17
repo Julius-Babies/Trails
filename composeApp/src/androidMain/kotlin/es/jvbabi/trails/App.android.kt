@@ -43,3 +43,9 @@ actual fun shareUrl(url: String, title: String?) {
 
     context.startActivity(chooser)
 }
+
+actual fun getClipboardText(): String? {
+    val context = KoinPlatformTools.defaultContext().get().get<Context>(named(KOIN_ACTIVITY_CONTEXT))
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+    return clipboard?.primaryClip?.getItemAt(0)?.text?.toString()
+}

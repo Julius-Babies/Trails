@@ -59,6 +59,12 @@ class DevicesRepositoryImpl(
             .flatMapLatest { devices -> devicesProxy(devices) }
     }
 
+    override fun getDevices(): Flow<List<Device>> {
+        return database.deviceDao.getDevices()
+            .map { items -> items.map { it.toModel() } }
+            .flatMapLatest { devices -> devicesProxy(devices) }
+    }
+
     override fun getDeviceById(id: Uuid): Flow<Device?> {
         return database.deviceDao.getDeviceById(id)
             .map { embeddedDevice -> embeddedDevice?.toModel() }

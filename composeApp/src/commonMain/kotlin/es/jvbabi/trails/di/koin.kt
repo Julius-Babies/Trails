@@ -22,6 +22,7 @@ import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
 import es.jvbabi.trails.domain.usecase.auth.LoginUseCase
 import es.jvbabi.trails.page.home.HomeViewModel
 import es.jvbabi.trails.page.setings.SettingsViewModel
+import es.jvbabi.trails.page.shares.add_share.AddShareViewModel
 import es.jvbabi.trails.page.shares.new_share.NewShareViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
@@ -88,5 +89,6 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
         viewModelOf(::HomeViewModel)
         viewModelOf(::SettingsViewModel)
         viewModelOf(::NewShareViewModel)
+        viewModelOf(::AddShareViewModel)
     })
 }

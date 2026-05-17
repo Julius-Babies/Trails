@@ -2,6 +2,7 @@ package es.jvbabi.trails.data.repository
 
 import co.touchlab.kermit.Logger
 import es.jvbabi.trails.data.database.TrailsDatabase
+import es.jvbabi.trails.data.database.entity.DbActiveShare
 import es.jvbabi.trails.data.database.entity.DbDevice
 import es.jvbabi.trails.data.database.entity.DbUser
 import es.jvbabi.trails.domain.model.Device
@@ -11,7 +12,9 @@ import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.MeResponse
 import es.jvbabi.trails.domain.repository.SnapshotRepository
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
+import es.jvbabi.trails.domain.repository.UseShareLinkResult
 import es.jvbabi.trails.domain.repository.UserRepository
+import es.jvbabi.trails.utils.NetworkRequestUnsuccessfulException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
@@ -19,10 +22,15 @@ import io.ktor.client.plugins.websocket.sendSerialized
 import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.bearerAuth
 import io.ktor.client.request.get
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsChannel
+import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.URLBuilder
 import io.ktor.http.URLProtocol
 import io.ktor.http.appendPathSegments
+import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.asByteWriteChannel
 import io.ktor.utils.io.copyAndClose
@@ -218,9 +226,7 @@ class TrailsServerRepositoryImpl(
             ) }
             .let { database.deviceDao.upsertDevices(it) }
 
-        val user = userRepository.getUser(userId).first() ?: throw IllegalStateException("User not found in database")
-
-        devicesRepository.getDevices(user).first()
+        devicesRepository.getDevices().first()
             .filterNot { devicesRepository.hasDeviceImage(it).first() }
             .forEach { fetchDeviceImageForDevice(it) }
     }
@@ -237,6 +243,57 @@ class TrailsServerRepositoryImpl(
         }
         val sink = fileRepository.getFileSink(devicesRepository.getFileNameForDeviceImage(device))
         response.bodyAsChannel().copyAndClose(sink.asByteWriteChannel())
+    }
+
+    override suspend fun useShareLink(hostname: String, id: String): UseShareLinkResult {
+        val url = URLBuilder("https://$hostname").apply {
+            appendPathSegments("api", "v1", "app", "share", "use")
+        }
+
+        val response = httpClient.post(url.buildString()) {
+            contentType(ContentType.Application.Json)
+            setBody(UseShareLinkRequest(id))
+        }
+
+        when (response.status) {
+            HttpStatusCode.NotFound -> return UseShareLinkResult.NotExisting
+            HttpStatusCode.Forbidden -> return UseShareLinkResult.Used
+        }
+
+        if (!response.status.isSuccess()) {
+            Logger.e(NetworkRequestUnsuccessfulException(response)) { "Error using share link" }
+            return UseShareLinkResult.Error("Error using share link: ${response.status}")
+        }
+
+        val body = response.body<UseShareLinkResponse>()
+        database.userDao.upsert(DbUser(
+            id = Uuid.parse(body.user.id),
+            homeserver = hostname,
+            username = body.user.username,
+        ))
+
+        database.deviceDao.upsertDevices(listOf(
+            DbDevice(
+                id = Uuid.parse(body.device.id),
+                manufacturer = body.device.manufacturer,
+                model = body.device.model,
+                friendlyName = body.device.friendlyName,
+                displayName = body.device.displayName,
+                ownerId = Uuid.parse(body.user.id),
+            )
+        ))
+
+        val device = devicesRepository.getDeviceById(Uuid.parse(body.device.id)).first() ?: throw IllegalStateException("Device not found after using share link")
+        if (!devicesRepository.hasDeviceImage(device).first()) {
+            fetchDeviceImageForDevice(device)
+        }
+
+        database.activeShareDao.upsert(DbActiveShare(
+            id = Uuid.parse(body.shareId),
+            deviceId = Uuid.parse(body.device.id),
+        ))
+
+        return UseShareLinkResult.Success
     }
 }
 
@@ -264,3 +321,21 @@ private data class DeviceResponse(
     @SerialName("friendly_name") val friendlyName: String,
     @SerialName("display_name") val displayName: String,
 )
+
+@Serializable
+private data class UseShareLinkRequest(
+    @SerialName("id") val id: String,
+)
+
+@Serializable
+private data class UseShareLinkResponse(
+    @SerialName("share_token") val shareId: String,
+    @SerialName("user") val user: User,
+    @SerialName("device") val device: DeviceResponse,
+) {
+    @Serializable
+    data class User(
+        @SerialName("id") val id: String,
+        @SerialName("username") val username: String,
+    )
+}

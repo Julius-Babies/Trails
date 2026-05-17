@@ -21,6 +21,8 @@ interface TrailsServerRepository {
     suspend fun getMeData(): MeResponse
     suspend fun updateUserDevices()
     suspend fun fetchDeviceImageForDevice(device: Device)
+
+    suspend fun useShareLink(hostname: String, id: String): UseShareLinkResult
 }
 
 @Serializable
@@ -29,3 +31,10 @@ data class MeResponse(
     @SerialName("username") val username: String,
     @SerialName("this_device_id") val thisDeviceId: String,
 )
+
+sealed class UseShareLinkResult {
+    data object NotExisting : UseShareLinkResult()
+    data object Used : UseShareLinkResult()
+    data class Error(val message: String) : UseShareLinkResult()
+    data object Success : UseShareLinkResult()
+}

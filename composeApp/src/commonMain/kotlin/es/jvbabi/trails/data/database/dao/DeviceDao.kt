@@ -16,6 +16,9 @@ interface DeviceDao {
     @Query("SELECT * FROM devices WHERE owner_id = :ownerId")
     fun getDevicesByOwner(ownerId: Uuid): Flow<List<EmbeddedDevice>>
 
+    @Query("SELECT * FROM devices")
+    fun getDevices(): Flow<List<EmbeddedDevice>>
+
     @Query("SELECT * FROM devices WHERE id = :deviceId")
     fun getDeviceById(deviceId: Uuid): Flow<EmbeddedDevice?>
 }

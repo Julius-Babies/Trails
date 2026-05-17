@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package es.jvbabi.trails.android
 
 import android.app.Notification
@@ -14,20 +16,27 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import co.touchlab.kermit.Logger
+import es.jvbabi.trails.domain.repository.DevicesRepository
+import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.LocationRepository
 import es.jvbabi.trails.domain.repository.SnapshotRepository
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChangedBy
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import kotlin.uuid.Uuid
 
 class AndroidLocationService: Service(), LocationListener, KoinComponent {
 
@@ -35,6 +44,8 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
 
     private val locationRepository by inject<LocationRepository>()
     private val snapshotRepository by inject<SnapshotRepository>()
+    private val devicesRepository by inject<DevicesRepository>()
+    private val keyValueRepository by inject<KeyValueRepository>()
     private val trailsServerRepository by inject<TrailsServerRepository>()
 
     companion object {
@@ -51,7 +62,17 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         serviceScope.launch {
-            trailsServerRepository.connect()
+            keyValueRepository
+                .get("trails.thisDeviceId")
+                .filterNotNull()
+                .flatMapLatest { devicesRepository.getDeviceById(Uuid.parse(it)) }
+                .filterNotNull()
+                .distinctUntilChangedBy {}
+                .collect {
+                    trailsServerRepository.connect()
+                }
+        }
+        serviceScope.launch {
             val notification = createNotification()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)

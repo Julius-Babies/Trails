@@ -29,7 +29,8 @@ fun Route.newShare() {
                     this.shareName = request.shareName
                     this.locationHistorySeconds = request.historyDurationSeconds
                     this.shareBatteryState = request.batteryState
-                    this.isLocked = !request.allowMultiuse
+                    this.isLocked = false
+                    this.allowMultiuse = request.allowMultiuse
                 }
             }
 
