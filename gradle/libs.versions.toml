@@ -9,6 +9,7 @@ androidx-lifecycle = "2.10.0"
 composeMultiplatform = "1.11.0"
 kotlin = "2.3.21"
 kotlinx-datetime = "0.8.0"
+kermit = "2.1.0"
 ksp = "2.3.8"
 ktor = "3.4.3"
 koin = "4.2.1"
@@ -17,7 +18,7 @@ moko-permissions = "0.20.1"
 
 haze = "2.0.0-alpha02"
 
-app-maplibre = "0.12.1"
+app-mapbox = "11.23.0"
 app-navigation3 = "1.1.1"
 
 room = "2.8.4"
@@ -37,7 +38,10 @@ compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMul
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeMultiplatform" }
 compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
 
-maplibre-compose = { module = "org.maplibre.compose:maplibre-compose", version.ref = "app-maplibre" }
+kermit = { module = "co.touchlab:kermit", version.ref = "kermit" }
+
+mapbox-android = { module = "com.mapbox.maps:android-ndk27", version.ref = "app-mapbox" }
+mapbox-compose = { module = "com.mapbox.extension:maps-compose-ndk27", version.ref = "app-mapbox" }
 navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "app-navigation3" }
 navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "app-navigation3" }
 navigation3-lifecycle = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "androidx-lifecycle" }

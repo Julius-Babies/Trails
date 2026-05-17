@@ -37,6 +37,11 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.browser)
+            val mapboxVersion = libs.versions.app.mapbox.get()
+            implementation("com.mapbox.maps:android-ndk27:$mapboxVersion") {
+                exclude(group = "com.google.android.gms", module = "play-services-cronet")
+            }
+            implementation("com.mapbox.extension:maps-compose-ndk27:$mapboxVersion")
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -47,8 +52,6 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
-
-            implementation(libs.maplibre.compose)
 
             implementation(libs.navigation3.runtime)
             implementation(libs.navigation3.ui)
@@ -65,6 +68,8 @@ kotlin {
             implementation(libs.moko.permissions.core)
             implementation(libs.moko.permissions.location)
             implementation(libs.moko.permissions.compose)
+
+            implementation(libs.kermit)
 
             implementation(libs.haze.blur)
             implementation(libs.haze.blur.materials)

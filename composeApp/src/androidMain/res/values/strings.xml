@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Trails</string>
+    <string name="mapbox_access_token">pk.eyJ1IjoianVsaXVzYmFiaWVzIiwiYSI6ImNtcDVjZ3h4NjBzd3kydHM5a3MweHAyeW8ifQ.0uOx1RSN1-LGiL_D8PX3Qw</string>
 </resources>

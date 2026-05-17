@@ -25,9 +25,17 @@ dependencyResolutionManagement {
                 includeGroupAndSubgroups("androidx")
                 includeGroupAndSubgroups("com.android")
                 includeGroupAndSubgroups("com.google")
+                includeGroupAndSubgroups("org.chromium")
             }
         }
         mavenCentral()
+        maven("https://api.mapbox.com/downloads/v2/releases/maven") {
+            credentials {
+                // Set in ~/.gradle/gradle.properties: MAPBOX_DOWNLOADS_TOKEN=your_token
+                username = "mapbox"
+                password = providers.gradleProperty("mapbox.token").orElse("").get()
+            }
+        }
     }
 }
 

@@ -27,8 +27,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -59,6 +63,13 @@ import es.jvbabi.trails.page.home.components.rememberDraggableCardSheetState
 import es.jvbabi.trails.page.shares.main.SharesScreen
 import kotlinx.coroutines.launch
 import co.touchlab.kermit.Logger
+import es.jvbabi.trails.domain.model.Device
+import es.jvbabi.trails.domain.model.Snapshot
+import es.jvbabi.trails.domain.model.User
+import es.jvbabi.trails.domain.repository.Location
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.Month
+import kotlin.uuid.Uuid
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import trails.composeapp.generated.resources.Res
@@ -232,14 +243,68 @@ fun HomeContent(
     }
 }
 
+@Composable
+internal fun rememberMockHomeState(): HomeState {
+    var deviceImage by remember { mutableStateOf<ByteArray?>(null) }
+
+    LaunchedEffect(Unit) {
+        deviceImage = Res.readBytes("files/device-sample.jpg")
+    }
+
+    val now = LocalDateTime(2026, Month.MAY, 17, 15, 0, 0)
+    val mockDevice = Device(
+        id = Uuid.random(),
+        manufacturer = "Google",
+        model = "Pixel 7",
+        friendlyName = "Pixel 7",
+        displayName = "Julius' Pixel 7",
+        owner = User(
+            id = Uuid.random(),
+            homeserver = "trails.jvbabi.es",
+            username = "julius",
+        ),
+        batteryState = Device.BatteryState.Shared(percentage = 85, isCharging = false),
+    )
+    val mockLocation = Location(
+        latitude = 40.4168,
+        longitude = -3.7038,
+        bearing = 45f,
+        bearingAccuracy = 10f,
+        locationAccuracy = 20f,
+        time = now,
+    )
+    val mockSnapshot = Snapshot(
+        device = mockDevice,
+        time = now,
+        location = mockLocation,
+        batteryState = es.jvbabi.trails.domain.repository.BatteryState(percentage = 72, isCharging = true),
+    )
+
+    return HomeState(
+        ownLocation = Location(
+            latitude = 40.4178,
+            longitude = -3.7030,
+            bearing = 0f,
+            bearingAccuracy = null,
+            locationAccuracy = 15f,
+            time = now,
+        ),
+        isConnectedToServer = true,
+        devices = listOf(
+            HomeState.HomeDevice(
+                device = mockDevice,
+                image = deviceImage,
+                snapshot = mockSnapshot,
+            ),
+        ),
+    )
+}
+
 @Preview
 @Composable
 fun HomeScreenPreview() {
     HomeContent(
-        state = HomeState(
-            ownLocation = null,
-            isConnectedToServer = true,
-        ),
+        state = rememberMockHomeState(),
         onOpenSettings = {},
         onEvent = {},
     )
