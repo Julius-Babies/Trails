@@ -71,7 +71,7 @@ class SettingsViewModel(
                     }
                 }
             }
-            is SettingsEvent.StartTracking -> backgroundServiceRepository.startService()
+            is SettingsEvent.StartTracking -> viewModelScope.launch { backgroundServiceRepository.startService() }
             is SettingsEvent.StopTracking -> backgroundServiceRepository.stopService()
         }
     }

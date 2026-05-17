@@ -22,6 +22,7 @@ import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
 import es.jvbabi.trails.domain.usecase.auth.LoginUseCase
 import es.jvbabi.trails.domain.usecase.communication.StartExternalConnectionsUseCase
 import es.jvbabi.trails.domain.usecase.communication.StopExternalConnectionsUseCase
+import es.jvbabi.trails.domain.usecase.home.GetHomeDeviceLocationsUseCase
 import es.jvbabi.trails.page.home.HomeViewModel
 import es.jvbabi.trails.page.setings.SettingsViewModel
 import es.jvbabi.trails.page.shares.add_share.AddShareViewModel
@@ -90,6 +91,7 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
 
         singleOf(::StartExternalConnectionsUseCase)
         singleOf(::StopExternalConnectionsUseCase)
+        singleOf(::GetHomeDeviceLocationsUseCase)
 
         viewModelOf(::HomeViewModel)
         viewModelOf(::SettingsViewModel)

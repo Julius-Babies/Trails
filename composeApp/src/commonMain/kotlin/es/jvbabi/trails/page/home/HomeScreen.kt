@@ -58,6 +58,7 @@ import es.jvbabi.trails.page.home.components.NavigationBar
 import es.jvbabi.trails.page.home.components.rememberDraggableCardSheetState
 import es.jvbabi.trails.page.shares.main.SharesScreen
 import kotlinx.coroutines.launch
+import co.touchlab.kermit.Logger
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import trails.composeapp.generated.resources.Res
@@ -108,6 +109,9 @@ fun HomeContent(
                         Box(Modifier.fillMaxSize())
                         Map(
                             state = state,
+                            onDeviceClick = { device ->
+                                Logger.i { "Map device clicked: ${device.device.displayName}" }
+                            }
                         )
 
                         Box(

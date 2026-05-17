@@ -2,11 +2,14 @@ package es.jvbabi.trails.page.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import es.jvbabi.trails.domain.model.Device
+import es.jvbabi.trails.domain.model.Snapshot
 import es.jvbabi.trails.domain.repository.BackgroundServiceRepository
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.Location
 import es.jvbabi.trails.domain.repository.LocationRepository
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
+import es.jvbabi.trails.domain.usecase.home.GetHomeDeviceLocationsUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -20,6 +23,7 @@ class HomeViewModel(
     private val locationRepository: LocationRepository,
     private val backgroundServiceRepository: BackgroundServiceRepository,
     private val trailsServerRepository: TrailsServerRepository,
+    private val getHomeDeviceLocationsUseCase: GetHomeDeviceLocationsUseCase,
 ): ViewModel() {
 
     val state: StateFlow<HomeState>
@@ -46,6 +50,12 @@ class HomeViewModel(
                     }
                 }
         }
+
+        viewModelScope.launch {
+            getHomeDeviceLocationsUseCase().collect { devices ->
+                state.update { it.copy(devices = devices) }
+            }
+        }
     }
 
     fun onEvent(event: HomeEvent) {
@@ -60,11 +70,18 @@ class HomeViewModel(
 data class HomeState(
     val ownLocation: Location? = null,
     val isConnectedToServer: Boolean = false,
-    val selectedTab: Tab = Tab.MyDevices
+    val selectedTab: Tab = Tab.MyDevices,
+    val devices: List<HomeDevice> = emptyList(),
 ) {
     enum class Tab {
         MyDevices, Things, Shares
     }
+
+    data class HomeDevice(
+        val device: Device,
+        val image: ByteArray?,
+        val snapshot: Snapshot,
+    )
 }
 
 sealed class HomeEvent {

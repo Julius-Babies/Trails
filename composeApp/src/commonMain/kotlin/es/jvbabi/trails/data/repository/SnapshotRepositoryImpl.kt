@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -129,13 +130,15 @@ private fun distanceMeters(
     latitude2: Double,
     longitude2: Double,
 ): Double {
-    val lat1 = Math.toRadians(latitude1)
-    val lat2 = Math.toRadians(latitude2)
-    val deltaLat = Math.toRadians(latitude2 - latitude1)
-    val deltaLon = Math.toRadians(longitude2 - longitude1)
+    val lat1 = toRadians(latitude1)
+    val lat2 = toRadians(latitude2)
+    val deltaLat = toRadians(latitude2 - latitude1)
+    val deltaLon = toRadians(longitude2 - longitude1)
 
     val a = sin(deltaLat / 2).let { it * it } +
         cos(lat1) * cos(lat2) * sin(deltaLon / 2).let { it * it }
     val c = 2 * atan2(sqrt(a), sqrt(1 - a))
     return EARTH_RADIUS_METERS * c
 }
+
+private fun toRadians(degrees: Double): Double = degrees * (PI / 180.0)

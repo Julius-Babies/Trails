@@ -9,6 +9,8 @@ import es.jvbabi.trails.data.DeviceSubscriptionRepository
 import es.jvbabi.trails.data.ShareSubscriptionMessage
 import es.jvbabi.trails.data.ShareSubscriptionRepository
 import es.jvbabi.trails.database.DatabaseManager
+import es.jvbabi.trails.database.Device
+import es.jvbabi.trails.database.Devices
 import io.ktor.serialization.*
 import io.ktor.server.auth.*
 import io.ktor.server.routing.*
@@ -29,6 +31,7 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 private typealias ActiveShareId = Uuid
+private typealias DeviceId = Uuid
 
 fun Route.app() {
 
@@ -41,6 +44,7 @@ fun Route.app() {
             val auth = call.principal<TrailsAppUserPrincipal>()
 
             val subscriptions = mutableMapOf<ActiveShareId, Job>()
+            val ownDeviceSubscriptions = mutableMapOf<DeviceId, Job>()
 
             val selfFlow =
                 if (auth != null) deviceSubscriptionRepository.getFlowForDeviceSubscription(db.transaction { auth.device.id.value }) else null
@@ -116,22 +120,16 @@ fun Route.app() {
 
                                                     is ShareSubscriptionMessage.Snapshot -> {
                                                         sendSerialized<TrailsWebSocketServerMessage>(
-                                                            TrailsWebSocketServerMessage.Snapshot(
+                                                            toServerSnapshotMessage(
                                                                 shareId = id.toString(),
                                                                 timestamp = message.time.toEpochMilliseconds(),
-                                                                location = TrailsWebSocketServerMessage.Snapshot.Location(
-                                                                    latitude = message.location.latitude,
-                                                                    longitude = message.location.longitude,
-                                                                    bearing = message.location.bearing,
-                                                                    bearingAccuracy = message.location.bearingAccuracy,
-                                                                    locationAccuracy = message.location.locationAccuracy,
-                                                                ),
-                                                                batteryState = message.batteryState?.let {
-                                                                    TrailsWebSocketServerMessage.Snapshot.BatteryState(
-                                                                        percentage = it.percentage,
-                                                                        isCharging = it.isCharging,
-                                                                    )
-                                                                }
+                                                                latitude = message.location.latitude,
+                                                                longitude = message.location.longitude,
+                                                                bearing = message.location.bearing,
+                                                                bearingAccuracy = message.location.bearingAccuracy,
+                                                                locationAccuracy = message.location.locationAccuracy,
+                                                                batteryPercentage = message.batteryState?.percentage,
+                                                                batteryCharging = message.batteryState?.isCharging,
                                                             )
                                                         )
                                                     }
@@ -143,13 +141,26 @@ fun Route.app() {
                                 }
                         }
 
+                        is TrailsWebSocketAppMessage.SubscribeToOwn -> {
+                            subscribeToOwnDevices(
+                                auth = auth,
+                                ownDeviceSubscriptions = ownDeviceSubscriptions,
+                                db = db,
+                                deviceSubscriptionRepository = deviceSubscriptionRepository,
+                                sendSnapshot = { message -> sendSerialized(message) },
+                                launchJob = { block -> launch { block() } },
+                            )
+                        }
+
                         is TrailsWebSocketAppMessage.ShareUnsubscribeAll -> {
                             subscriptions.forEach { it.value.cancel() }
+                            ownDeviceSubscriptions.forEach { it.value.cancel() }
                         }
 
                         is TrailsWebSocketAppMessage.ShareUnsubscribe -> {
                             val unsubscribeIds = message.shareIds.map { Uuid.parse(it) }
                             subscriptions.filterKeys { it in unsubscribeIds }.forEach { it.value.cancel() }
+                            ownDeviceSubscriptions.filterKeys { it in unsubscribeIds }.forEach { it.value.cancel() }
                         }
                     }
                 }
@@ -160,6 +171,88 @@ fun Route.app() {
 
 private const val MIN_DISTANCE_METERS = 10.0
 private const val EARTH_RADIUS_METERS = 6371000.0
+
+private suspend fun subscribeToOwnDevices(
+    auth: TrailsAppUserPrincipal?,
+    ownDeviceSubscriptions: MutableMap<DeviceId, Job>,
+    db: DatabaseManager,
+    deviceSubscriptionRepository: DeviceSubscriptionRepository,
+    sendSnapshot: suspend (TrailsWebSocketServerMessage) -> Unit,
+    launchJob: (suspend () -> Unit) -> Job,
+) {
+    val ownDeviceIds = auth?.let { principal ->
+        db.transaction {
+            Device.find { Devices.owner eq principal.user.id }
+                .map { it.id.value }
+                .filter { it != principal.device.id.value }
+        }
+    } ?: emptyList()
+
+    ownDeviceIds.forEach { deviceId ->
+        if (ownDeviceSubscriptions[deviceId]?.isActive == true) return@forEach
+
+        ownDeviceSubscriptions[deviceId] = launchJob {
+            deviceSubscriptionRepository.getFlowForDeviceSubscription(deviceId)
+                .collect { message ->
+                    when (message) {
+                        is DeviceSubscriptionMessage.Deleted -> {
+                            sendSnapshot(TrailsWebSocketServerMessage.ShareDeleted(deviceId.toString()))
+                        }
+
+                        is DeviceSubscriptionMessage.Snapshot -> {
+                            sendSnapshot(
+                                toServerSnapshotMessage(
+                                    shareId = deviceId.toString(),
+                                    timestamp = message.snapshot.createdAt.toEpochMilliseconds(),
+                                    latitude = message.snapshot.latitude,
+                                    longitude = message.snapshot.longitude,
+                                    bearing = message.snapshot.bearing.toFloat(),
+                                    bearingAccuracy = message.snapshot.bearingAccuracy?.toFloat(),
+                                    locationAccuracy = message.snapshot.locationAccuracy.toFloat(),
+                                    batteryPercentage = message.snapshot.batteryLevel?.let { (it * 100).toInt() },
+                                    batteryCharging = message.snapshot.batteryCharging,
+                                )
+                            )
+                        }
+                    }
+                }
+        }.also {
+            it.invokeOnCompletion { ownDeviceSubscriptions.remove(deviceId) }
+        }
+    }
+}
+
+private fun toServerSnapshotMessage(
+    shareId: String,
+    timestamp: Long,
+    latitude: Double,
+    longitude: Double,
+    bearing: Float,
+    bearingAccuracy: Float?,
+    locationAccuracy: Float,
+    batteryPercentage: Int?,
+    batteryCharging: Boolean?,
+): TrailsWebSocketServerMessage.Snapshot {
+    return TrailsWebSocketServerMessage.Snapshot(
+        shareId = shareId,
+        timestamp = timestamp,
+        location = TrailsWebSocketServerMessage.Snapshot.Location(
+            latitude = latitude,
+            longitude = longitude,
+            bearing = bearing,
+            bearingAccuracy = bearingAccuracy,
+            locationAccuracy = locationAccuracy,
+        ),
+        batteryState = batteryPercentage?.let { percentage ->
+            batteryCharging?.let { charging ->
+                TrailsWebSocketServerMessage.Snapshot.BatteryState(
+                    percentage = percentage,
+                    isCharging = charging,
+                )
+            }
+        }
+    )
+}
 
 private fun distanceMeters(
     latitude1: Double,
@@ -198,6 +291,10 @@ private sealed class TrailsWebSocketAppMessage {
     data class ShareSubscribe(
         @SerialName("share_ids") val shareIds: List<String>,
     ) : TrailsWebSocketAppMessage()
+
+    @Serializable
+    @SerialName("own.subscribe")
+    data object SubscribeToOwn : TrailsWebSocketAppMessage()
 
     @Serializable
     @SerialName("share.unsubscribe_all")

@@ -384,6 +384,10 @@ private sealed class TrailsWebSocketAppMessage {
     ) : TrailsWebSocketAppMessage()
 
     @Serializable
+    @SerialName("own.subscribe")
+    data object SubscribeToOwn : TrailsWebSocketAppMessage()
+
+    @Serializable
     @SerialName("share.unsubscribe_all")
     data object ShareUnsubscribeAll : TrailsWebSocketAppMessage()
 
@@ -485,6 +489,9 @@ private abstract class WebSocketClientBase(
                         val newShareIds = shares.map { it.id }.toSet() - subscribedShares
                         sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(
                             TrailsWebSocketAppMessage.ShareSubscribe(newShareIds.map { it.toString() })
+                        )
+                        sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(
+                            TrailsWebSocketAppMessage.SubscribeToOwn
                         )
                         subscribedShares.addAll(newShareIds)
 
