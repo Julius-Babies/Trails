@@ -8,8 +8,8 @@ import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.repository.DevicesRepository
 import es.jvbabi.trails.domain.repository.FileRepository
 import es.jvbabi.trails.domain.repository.KeyValueRepository
-import es.jvbabi.trails.domain.repository.LocationRepository
 import es.jvbabi.trails.domain.repository.MeResponse
+import es.jvbabi.trails.domain.repository.SnapshotRepository
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
 import es.jvbabi.trails.domain.repository.UserRepository
 import io.ktor.client.HttpClient
@@ -56,7 +56,7 @@ class TrailsServerRepositoryImpl(
     private val database: TrailsDatabase,
     private val httpClient: HttpClient,
     private val keyValueRepository: KeyValueRepository,
-    private val locationRepository: LocationRepository,
+    private val snapshotRepository: SnapshotRepository,
     private val devicesRepository: DevicesRepository,
     private val userRepository: UserRepository,
     private val fileRepository: FileRepository,
@@ -77,6 +77,8 @@ class TrailsServerRepositoryImpl(
                 appendPathSegments("api", "v1", "app", "ws")
             }
             val token = keyValueRepository.get("trails.token").first()!!
+            val currentDeviceId = keyValueRepository.get("trails.thisDeviceId").first() ?: throw IllegalStateException("Current device ID not set")
+            val device = devicesRepository.getDeviceById(Uuid.parse(currentDeviceId)).first() ?: throw IllegalStateException("Current device not found in database")
 
             logger.i { "Connecting to WS at ${url.buildString()}" }
 
@@ -90,7 +92,7 @@ class TrailsServerRepositoryImpl(
                 isConnected.value = true
 
                 val locationUpdater = scope.launch {
-                    locationRepository.getCurrentLocation()
+                    snapshotRepository.getCurrentSnapshotForDevice(device)
                         .filterNotNull()
                         .distinctUntilChangedBy { location ->
                             location.copy(
@@ -105,12 +107,13 @@ class TrailsServerRepositoryImpl(
                             logger.i { "Sending location update: $it" }
                             websocketSession.sendSerialized<TrailsWebSocketAppMessage>(
                                 TrailsWebSocketAppMessage.DataSnapshot(
-                                    latitude = it.latitude,
-                                    longitude = it.longitude,
-                                    bearing = it.bearing,
-                                    bearingAccuracy = it.bearingAccuracy,
-                                    locationAccuracy = it.locationAccuracy,
-                                    batteryLevel = it.batteryLevel,
+                                    latitude = it.location.latitude,
+                                    longitude = it.location.longitude,
+                                    bearing = it.location.bearing,
+                                    bearingAccuracy = it.location.bearingAccuracy,
+                                    locationAccuracy = it.location.locationAccuracy,
+                                    batteryLevel = it.batteryState?.percentage?.div(100f),
+                                    batteryCharging = it.batteryState?.isCharging,
                                     time = it.time.toInstant(TimeZone.currentSystemDefault()).epochSeconds,
                                 )
                             )
@@ -245,9 +248,10 @@ private sealed class TrailsWebSocketAppMessage {
         @SerialName("latitude") val latitude: Double,
         @SerialName("longitude") val longitude: Double,
         @SerialName("bearing") val bearing: Float,
-        @SerialName("bearing_accuracy") val bearingAccuracy: Float? = null,
+        @SerialName("bearing_accuracy") val bearingAccuracy: Float?,
         @SerialName("location_accuracy") val locationAccuracy: Float,
-        @SerialName("battery_level") val batteryLevel: Float? = null,
+        @SerialName("battery_level") val batteryLevel: Float?,
+        @SerialName("battery_charging") val batteryCharging: Boolean?,
         @SerialName("time") val time: Long,
     ) : TrailsWebSocketAppMessage()
 }

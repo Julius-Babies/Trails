@@ -21,6 +21,7 @@ class DataSnapshot(id: EntityID<Uuid>) : UuidEntity(id) {
     var bearing by DataSnapshots.bearing
     var bearingAccuracy by DataSnapshots.bearingAccuracy
     var batteryLevel by DataSnapshots.batteryLevel
+    var batteryCharging by DataSnapshots.batteryCharging
 }
 
 object DataSnapshots : UuidTable("data_snapshots") {
@@ -32,6 +33,7 @@ object DataSnapshots : UuidTable("data_snapshots") {
     val bearing = double("bearing")
     val bearingAccuracy = double("bearing_accuracy").nullable()
     val batteryLevel = float("battery_level").nullable()
+    val batteryCharging = bool("battery_charging").nullable()
 
     init {
         index(true, device, createdAt)

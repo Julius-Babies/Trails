@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "cf284b6e8c3eaab33ced85510c21f120",
+    "identityHash": "176e8e87fa48e31f8d1e001e7d1b862e",
     "entities": [
       {
         "tableName": "key_value",
@@ -40,9 +40,21 @@
         ]
       },
       {
-        "tableName": "location",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `bearing` REAL NOT NULL, `bearing_accuracy` REAL, `location_accuracy` REAL NOT NULL, `battery_level` REAL, `timestamp` INTEGER NOT NULL, PRIMARY KEY(`timestamp`))",
+        "tableName": "data_snapshot",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`timestamp` INTEGER NOT NULL, `device_id` TEXT NOT NULL, `latitude` REAL NOT NULL, `longitude` REAL NOT NULL, `bearing` REAL NOT NULL, `bearing_accuracy` REAL, `location_accuracy` REAL NOT NULL, `battery_level` REAL, `battery_charging` INTEGER, PRIMARY KEY(`timestamp`, `device_id`), FOREIGN KEY(`device_id`) REFERENCES `devices`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceId",
+            "columnName": "device_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
           {
             "fieldPath": "latitude",
             "columnName": "latitude",
@@ -78,18 +90,42 @@
             "affinity": "REAL"
           },
           {
-            "fieldPath": "timestamp",
-            "columnName": "timestamp",
-            "affinity": "INTEGER",
-            "notNull": true
+            "fieldPath": "batteryCharging",
+            "columnName": "battery_charging",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
           "autoGenerate": false,
           "columnNames": [
-            "timestamp"
+            "timestamp",
+            "device_id"
           ]
-        }
+        },
+        "indices": [
+          {
+            "name": "index_data_snapshot_device_id",
+            "unique": false,
+            "columnNames": [
+              "device_id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_data_snapshot_device_id` ON `${TABLE_NAME}` (`device_id`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "devices",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "device_id"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
       },
       {
         "tableName": "users",
@@ -205,7 +241,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'cf284b6e8c3eaab33ced85510c21f120')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '176e8e87fa48e31f8d1e001e7d1b862e')"
     ]
   }
 }

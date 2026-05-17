@@ -8,12 +8,14 @@ import es.jvbabi.trails.data.repository.DevicesRepositoryImpl
 import es.jvbabi.trails.data.repository.KeyValueRepositoryImpl
 import es.jvbabi.trails.data.repository.LocationRepositoryImpl
 import es.jvbabi.trails.data.repository.ShareRepositoryImpl
+import es.jvbabi.trails.data.repository.SnapshotRepositoryImpl
 import es.jvbabi.trails.data.repository.TrailsServerRepositoryImpl
 import es.jvbabi.trails.data.repository.UserRepositoryImpl
 import es.jvbabi.trails.domain.repository.DevicesRepository
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.LocationRepository
 import es.jvbabi.trails.domain.repository.ShareRepository
+import es.jvbabi.trails.domain.repository.SnapshotRepository
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
 import es.jvbabi.trails.domain.repository.UserRepository
 import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
@@ -76,6 +78,7 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
         singleOf(::LocationRepositoryImpl) bind LocationRepository::class
         singleOf(::DevicesRepositoryImpl) bind DevicesRepository::class
         singleOf(::UserRepositoryImpl) bind UserRepository::class
+        singleOf(::SnapshotRepositoryImpl) bind SnapshotRepository::class
         singleOf(::TrailsServerRepositoryImpl) bind TrailsServerRepository::class
         singleOf(::ShareRepositoryImpl) bind ShareRepository::class
 

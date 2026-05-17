@@ -39,6 +39,7 @@ fun Route.app() {
                                         this.bearingAccuracy = message.bearingAccuracy?.toDouble()
                                         this.locationAccuracy = message.locationAccuracy.toDouble()
                                         this.batteryLevel = message.batteryLevel
+                                        this.batteryCharging = message.batteryCharging
                                         this.createdAt = Instant.fromEpochSeconds(message.time)
                                         this.device = user.device
                                     }
@@ -68,6 +69,7 @@ private sealed class TrailsWebSocketAppMessage {
         @SerialName("bearing_accuracy") val bearingAccuracy: Float? = null,
         @SerialName("location_accuracy") val locationAccuracy: Float,
         @SerialName("battery_level") val batteryLevel: Float? = null,
+        @SerialName("battery_charging") val batteryCharging: Boolean? = null,
         @SerialName("time") val time: Long,
     ) : TrailsWebSocketAppMessage()
 }

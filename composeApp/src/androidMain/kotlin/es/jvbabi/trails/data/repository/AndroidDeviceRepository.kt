@@ -36,7 +36,6 @@ class AndroidDeviceRepository : DeviceRepository, KoinComponent {
 
     override fun getBatteryState(): SharedFlow<BatteryState> {
         return callbackFlow {
-
             val batteryReceiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
                     intent?.let {

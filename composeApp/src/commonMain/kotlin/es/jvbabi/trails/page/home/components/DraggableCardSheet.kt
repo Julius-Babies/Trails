@@ -371,7 +371,7 @@ fun DraggableCardSheet(
         PaddingValues(
             start = 8.dp,
             end = 8.dp,
-            top = systemBar.calculateTopPadding() * state.expandedProgress,
+            top = systemBar.calculateTopPadding() * state.expandedProgress + 16.dp * state.collapsedProgress * (1-state.expandedProgress),
             bottom = 8.dp + systemBar.calculateBottomPadding() * (if (state.hasSemiExpanded) state.collapsedProgress else state.progress)
         )
     }

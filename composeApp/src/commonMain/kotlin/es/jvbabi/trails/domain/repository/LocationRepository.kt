@@ -10,7 +10,6 @@ interface LocationRepository {
         bearing: Float,
         bearingAccuracy: Float?,
         locationAccuracy: Float,
-        batteryLevel: Float?
     )
     fun getCurrentLocation(): Flow<Location?>
 }
@@ -21,6 +20,5 @@ data class Location(
     val bearing: Float,
     val bearingAccuracy: Float?,
     val locationAccuracy: Float,
-    val batteryLevel: Float?,
     val time: LocalDateTime,
 )

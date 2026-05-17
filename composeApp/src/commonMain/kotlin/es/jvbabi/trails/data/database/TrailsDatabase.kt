@@ -6,17 +6,17 @@ import androidx.room.TypeConverters
 import es.jvbabi.trails.data.database.converter.UuidConverter
 import es.jvbabi.trails.data.database.dao.DeviceDao
 import es.jvbabi.trails.data.database.dao.KeyValueDao
-import es.jvbabi.trails.data.database.dao.LocationDao
+import es.jvbabi.trails.data.database.dao.DataSnapshotDao
 import es.jvbabi.trails.data.database.dao.UserDao
 import es.jvbabi.trails.data.database.entity.DbDevice
 import es.jvbabi.trails.data.database.entity.DbKeyValue
-import es.jvbabi.trails.data.database.entity.DbLocation
+import es.jvbabi.trails.data.database.entity.DbDataSnapshot
 import es.jvbabi.trails.data.database.entity.DbUser
 
 @Database(
     entities = [
         DbKeyValue::class,
-        DbLocation::class,
+        DbDataSnapshot::class,
         DbUser::class,
         DbDevice::class,
     ],
@@ -28,7 +28,7 @@ import es.jvbabi.trails.data.database.entity.DbUser
 )
 abstract class TrailsDatabase: RoomDatabase() {
     abstract val keyValueDao: KeyValueDao
-    abstract val locationDao: LocationDao
+    abstract val dataSnapshotDao: DataSnapshotDao
     abstract val userDao: UserDao
     abstract val deviceDao: DeviceDao
 }
