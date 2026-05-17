@@ -5,7 +5,7 @@ import java.io.File
 import kotlin.random.Random
 
 class ApplicationConfig(
-    baseUrl: String = "https://trails.werkbank.space",
+    baseUrl: String = "https://trailsdevelopment.jvbabi.es",
     storageDirectory: String = "./data"
 ) {
     val url = URLBuilder(baseUrl)

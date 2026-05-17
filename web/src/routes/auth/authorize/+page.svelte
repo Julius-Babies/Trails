@@ -13,7 +13,7 @@
     import {Loader} from "@lucide/svelte";
 
     const config: AuthentiktConfiguration = {
-        baseUrl: "https://trails.werkbank.space/api/v1/auth/authentikt/",
+        baseUrl: "https://trailsdevelopment.jvbabi.es/api/v1/auth/authentikt/",
         // debug: {show_overlay: false},
         debug: false
     }

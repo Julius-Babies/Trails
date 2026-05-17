@@ -4,10 +4,12 @@ import android.app.Application
 import dev.icerock.moko.permissions.PermissionsController
 import dev.icerock.moko.permissions.PermissionsControllerImpl
 import es.jvbabi.trails.data.repository.AndroidDeviceRepository
+import es.jvbabi.trails.data.repository.AndroidFileRepositoryImpl
 import es.jvbabi.trails.data.repository.BackgroundServiceRepositoryImpl
 import es.jvbabi.trails.di.initKoin
 import es.jvbabi.trails.domain.repository.BackgroundServiceRepository
 import es.jvbabi.trails.domain.repository.DeviceRepository
+import es.jvbabi.trails.domain.repository.FileRepository
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.dsl.bind
@@ -25,6 +27,7 @@ class MainApplication: Application() {
                 single { AndroidDeviceRepository() } bind DeviceRepository::class
                 single<PermissionsController> { PermissionsControllerImpl(get()) }
                 single<BackgroundServiceRepository> { BackgroundServiceRepositoryImpl() }
+                single<FileRepository> { AndroidFileRepositoryImpl(get()) }
             })
         }
     }

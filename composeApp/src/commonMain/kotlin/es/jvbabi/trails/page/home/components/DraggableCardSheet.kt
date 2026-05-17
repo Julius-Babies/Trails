@@ -432,7 +432,10 @@ fun DraggableCardSheet(
         }
 
         val shape = RoundedCornerShape(
-            WindowInsets.safeContent.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp)
+            topEnd = WindowInsets.safeContent.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp),
+            topStart = WindowInsets.safeContent.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp),
+            bottomEnd = WindowInsets.safeContent.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp) * (1-state.expandedProgress),
+            bottomStart = WindowInsets.safeContent.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp) * (1-state.expandedProgress),
         )
 
         Box(Modifier.fillMaxSize()) {

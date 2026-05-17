@@ -3,16 +3,22 @@ package es.jvbabi.trails.di
 import androidx.room.RoomDatabase
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import es.jvbabi.trails.data.database.TrailsDatabase
+import es.jvbabi.trails.data.database.converter.UuidConverter
+import es.jvbabi.trails.data.repository.DevicesRepositoryImpl
 import es.jvbabi.trails.data.repository.KeyValueRepositoryImpl
 import es.jvbabi.trails.data.repository.LocationRepositoryImpl
 import es.jvbabi.trails.data.repository.TrailsServerRepositoryImpl
+import es.jvbabi.trails.data.repository.UserRepositoryImpl
+import es.jvbabi.trails.domain.repository.DevicesRepository
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.LocationRepository
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
+import es.jvbabi.trails.domain.repository.UserRepository
 import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
 import es.jvbabi.trails.domain.usecase.auth.LoginUseCase
 import es.jvbabi.trails.page.home.HomeViewModel
 import es.jvbabi.trails.page.setings.SettingsViewModel
+import es.jvbabi.trails.page.shares.new_share.NewShareViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.HttpClientConfig
 import io.ktor.client.engine.cio.CIO
@@ -42,6 +48,7 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
             getDatabaseBuilder()
                 .setDriver(BundledSQLiteDriver())
                 .setQueryCoroutineContext(Dispatchers.IO)
+                .addTypeConverter(UuidConverter())
                 .build()
         }
 
@@ -65,6 +72,8 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
 
         singleOf(::KeyValueRepositoryImpl) bind KeyValueRepository::class
         singleOf(::LocationRepositoryImpl) bind LocationRepository::class
+        singleOf(::DevicesRepositoryImpl) bind DevicesRepository::class
+        singleOf(::UserRepositoryImpl) bind UserRepository::class
         singleOf(::TrailsServerRepositoryImpl) bind TrailsServerRepository::class
 
         singleOf(::HandleDeepLinkUseCase)
@@ -72,5 +81,6 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
 
         viewModelOf(::HomeViewModel)
         viewModelOf(::SettingsViewModel)
+        viewModelOf(::NewShareViewModel)
     })
 }

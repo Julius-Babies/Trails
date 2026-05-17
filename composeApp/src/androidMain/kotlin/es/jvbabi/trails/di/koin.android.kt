@@ -57,9 +57,4 @@ class TrailsTrustManager : X509TrustManager {
 }
 
 actual fun HttpClientConfig<CIOEngineConfig>.configureHttpClient() {
-    engine {
-        https {
-            trustManager = TrailsTrustManager()
-        }
-    }
 }

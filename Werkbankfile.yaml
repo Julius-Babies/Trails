@@ -1,6 +1,7 @@
 project:
   name: "Trails"
   id: "trails"
+  external_domain: "trailsdevelopment.jvbabi.es"
 
 services:
   - name: "api"

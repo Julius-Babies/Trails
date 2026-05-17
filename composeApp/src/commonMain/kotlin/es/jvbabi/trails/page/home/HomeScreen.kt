@@ -51,6 +51,7 @@ import es.jvbabi.trails.page.home.components.CardSheetValue
 import es.jvbabi.trails.page.home.components.DraggableCardSheet
 import es.jvbabi.trails.page.home.components.Map
 import es.jvbabi.trails.page.home.components.NavigationBar
+import es.jvbabi.trails.page.home.components.padding
 import es.jvbabi.trails.page.home.components.rememberDraggableCardSheetState
 import es.jvbabi.trails.page.shares.main.SharesScreen
 import kotlinx.coroutines.launch
@@ -107,7 +108,9 @@ fun HomeContent(
                         )
 
                         Box(
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier
+                                .padding(contentPadding)
+                                .fillMaxSize()
                         ) {
                             Column(
                                 modifier = Modifier

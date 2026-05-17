@@ -33,11 +33,13 @@ class HomeViewModel(
         }
 
         viewModelScope.launch {
-            keyValueRepository.get("trails.token")
+            keyValueRepository.get("trails.userId")
                 .filterNotNull()
                 .distinctUntilChanged()
                 .collectLatest {
                     backgroundServiceRepository.startService()
+                    trailsServerRepository.updateUserDevices()
+                    trailsServerRepository.getMeData()
 
                     trailsServerRepository.isConnected.collectLatest { isConnected ->
                         state.update { it.copy(isConnectedToServer = isConnected) }

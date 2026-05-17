@@ -6,7 +6,8 @@ export default defineConfig({
     plugins: [tailwindcss(), sveltekit()],
     server: {
         allowedHosts: [
-            "trails.werkbank.space"
+            "trails.werkbank.space",
+            "trailsdevelopment.jvbabi.es",
         ]
     }
 });

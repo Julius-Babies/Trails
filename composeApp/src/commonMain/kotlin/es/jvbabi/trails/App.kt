@@ -1,5 +1,7 @@
 package es.jvbabi.trails
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.tooling.preview.Preview
@@ -12,12 +14,17 @@ import es.jvbabi.trails.page.setings.SettingsScreen
 expect fun openUrl(url: String)
 
 @Composable
+expect fun dynamicTheme(dark: Boolean): ColorScheme
+
+@Composable
 @Preview
 fun App(
     startNavigation: Screen? = null
 ) {
 
-    MaterialTheme {
+    MaterialTheme(
+        colorScheme = dynamicTheme(isSystemInDarkTheme())
+    ) {
         val backstack = remember { mutableStateListOf<Screen>(Screen.Home) }
 
         LaunchedEffect(startNavigation) {

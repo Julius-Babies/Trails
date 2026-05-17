@@ -78,7 +78,7 @@ class SettingsViewModel(
 }
 
 data class SettingsState(
-    val homeServerUrl: String = "https://trails.werkbank.space", // TODO remove default value for prod, just for testing
+    val homeServerUrl: String = "https://trailsdevelopment.jvbabi.es", // TODO remove default value for prod, just for testing
     val showLoginDialog: Boolean = false,
     val hasLocationPermissions: Boolean? = null,
     val isBackgroundTrackingServiceRunning: Boolean = false,

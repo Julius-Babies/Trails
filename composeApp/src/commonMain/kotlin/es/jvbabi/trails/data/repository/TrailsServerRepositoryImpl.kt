@@ -1,17 +1,31 @@
 package es.jvbabi.trails.data.repository
 
 import co.touchlab.kermit.Logger
+import es.jvbabi.trails.data.database.TrailsDatabase
+import es.jvbabi.trails.data.database.entity.DbDevice
+import es.jvbabi.trails.data.database.entity.DbUser
+import es.jvbabi.trails.domain.model.Device
+import es.jvbabi.trails.domain.repository.DevicesRepository
+import es.jvbabi.trails.domain.repository.FileRepository
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.LocationRepository
+import es.jvbabi.trails.domain.repository.MeResponse
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
+import es.jvbabi.trails.domain.repository.UserRepository
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.sendSerialized
 import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.URLBuilder
 import io.ktor.http.URLProtocol
 import io.ktor.http.appendPathSegments
+import io.ktor.http.isSuccess
+import io.ktor.utils.io.asByteWriteChannel
+import io.ktor.utils.io.copyAndClose
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
@@ -36,12 +50,17 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
+import kotlin.uuid.Uuid
 
 class TrailsServerRepositoryImpl(
+    private val database: TrailsDatabase,
     private val httpClient: HttpClient,
     private val keyValueRepository: KeyValueRepository,
     private val locationRepository: LocationRepository,
-): TrailsServerRepository {
+    private val devicesRepository: DevicesRepository,
+    private val userRepository: UserRepository,
+    private val fileRepository: FileRepository,
+) : TrailsServerRepository {
 
     val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val logger = Logger.withTag("TrailsServerRepositoryImpl")
@@ -73,20 +92,28 @@ class TrailsServerRepositoryImpl(
                 val locationUpdater = scope.launch {
                     locationRepository.getCurrentLocation()
                         .filterNotNull()
-                        .distinctUntilChangedBy { location -> location.copy(time = Instant.DISTANT_PAST.toLocalDateTime(TimeZone.currentSystemDefault())) }
+                        .distinctUntilChangedBy { location ->
+                            location.copy(
+                                time = Instant.DISTANT_PAST.toLocalDateTime(
+                                    TimeZone.currentSystemDefault()
+                                )
+                            )
+                        }
                         .takeWhile { isConnected.value }
                         .collectLatest {
                             val websocketSession = websocketSession ?: return@collectLatest
                             logger.i { "Sending location update: $it" }
-                            websocketSession.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.DataSnapshot(
-                                latitude = it.latitude,
-                                longitude = it.longitude,
-                                bearing = it.bearing,
-                                bearingAccuracy = it.bearingAccuracy,
-                                locationAccuracy = it.locationAccuracy,
-                                batteryLevel = it.batteryLevel,
-                                time = it.time.toInstant(TimeZone.currentSystemDefault()).epochSeconds,
-                            ))
+                            websocketSession.sendSerialized<TrailsWebSocketAppMessage>(
+                                TrailsWebSocketAppMessage.DataSnapshot(
+                                    latitude = it.latitude,
+                                    longitude = it.longitude,
+                                    bearing = it.bearing,
+                                    bearingAccuracy = it.bearingAccuracy,
+                                    locationAccuracy = it.locationAccuracy,
+                                    batteryLevel = it.batteryLevel,
+                                    time = it.time.toInstant(TimeZone.currentSystemDefault()).epochSeconds,
+                                )
+                            )
                         }
                 }
 
@@ -100,7 +127,7 @@ class TrailsServerRepositoryImpl(
                 websocketSession = null
 
             } catch (e: Exception) {
-                Logger.e (e) { "Error connecting to WS: ${e.message}" }
+                Logger.e(e) { "Error connecting to WS: ${e.message}" }
                 isConnected.value = false
             }
 
@@ -120,6 +147,94 @@ class TrailsServerRepositoryImpl(
                 })
             }
     }
+
+    override fun getToken(): Flow<String?> {
+        return keyValueRepository.get("trails.token")
+    }
+
+    override fun getUserId(): Flow<Uuid?> {
+        return keyValueRepository.get("trails.userId")
+            .map { it?.let { Uuid.parse(it) } }
+    }
+
+    override suspend fun getMeData(): MeResponse {
+        val token = getToken().first() ?: throw IllegalStateException("Token not set")
+        val url = (getBaseUrl().first() ?: throw IllegalStateException("Base URL not set")).apply {
+            appendPathSegments("api", "v1", "me")
+        }
+
+        val response = httpClient.get(url.buildString()) {
+            bearerAuth(token)
+        }
+
+        if (!response.status.isSuccess()) {
+            throw IllegalStateException("Error fetching me data: ${response.status}")
+        }
+
+        val body = response.body<MeResponse>()
+
+        database.userDao.upsert(
+            DbUser(
+                id = Uuid.parse(body.id),
+                homeserver = url.host,
+                username = body.username,
+            )
+        )
+
+        keyValueRepository.setValue("trails.userId", body.id)
+        keyValueRepository.setValue("trails.thisDeviceId", body.thisDeviceId)
+
+        return body
+    }
+
+    override suspend fun updateUserDevices() {
+        val token = getToken().first() ?: throw IllegalStateException("Token not set")
+        val userId = getUserId().first() ?: throw IllegalStateException("User ID not set")
+        val url = (getBaseUrl().first() ?: throw IllegalStateException("Base URL not set")).apply {
+            appendPathSegments("api", "v1", "me", "devices")
+        }
+
+        val response = httpClient.get(url.buildString()) {
+            bearerAuth(token)
+        }
+
+        if (!response.status.isSuccess()) {
+            throw IllegalStateException("Error fetching devices: ${response.status}")
+        }
+
+        val body = response.body<List<DeviceResponse>>()
+
+        body
+            .map { DbDevice(
+                id = Uuid.parse(it.id),
+                manufacturer = it.manufacturer,
+                model = it.model,
+                friendlyName = it.friendlyName,
+                displayName = it.displayName,
+                ownerId = userId,
+            ) }
+            .let { database.deviceDao.upsertDevices(it) }
+
+        val user = userRepository.getUser(userId).first() ?: throw IllegalStateException("User not found in database")
+
+        devicesRepository.getDevices(user).first()
+            .filterNot { devicesRepository.hasDeviceImage(it).first() }
+            .forEach { fetchDeviceImageForDevice(it) }
+    }
+
+    override suspend fun fetchDeviceImageForDevice(device: Device) {
+        val url = URLBuilder("https://${device.owner.homeserver}").apply {
+            appendPathSegments("api", "v1", "devices", "image", "${device.manufacturer}-${device.model}")
+        }
+
+        val response = httpClient.get(url.buildString())
+        if (!response.status.isSuccess()) {
+            logger.w { "Device image not found for device ${device.id} at ${url.buildString()}" }
+            return
+        }
+        val sink = fileRepository.getFileSink(devicesRepository.getFileNameForDeviceImage(device))
+        response.bodyAsChannel().copyAndClose(sink.asByteWriteChannel())
+    }
 }
 
 @Serializable
@@ -136,3 +251,12 @@ private sealed class TrailsWebSocketAppMessage {
         @SerialName("time") val time: Long,
     ) : TrailsWebSocketAppMessage()
 }
+
+@Serializable
+private data class DeviceResponse(
+    @SerialName("id") val id: String,
+    @SerialName("manufacturer") val manufacturer: String,
+    @SerialName("model") val model: String,
+    @SerialName("friendly_name") val friendlyName: String,
+    @SerialName("display_name") val displayName: String,
+)
