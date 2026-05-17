@@ -3,6 +3,7 @@ package es.jvbabi.trails.data.repository
 import co.touchlab.kermit.Logger
 import es.jvbabi.trails.data.database.TrailsDatabase
 import es.jvbabi.trails.data.database.entity.DbActiveShare
+import es.jvbabi.trails.data.database.entity.DbDataSnapshot
 import es.jvbabi.trails.data.database.entity.DbDevice
 import es.jvbabi.trails.data.database.entity.DbUser
 import es.jvbabi.trails.domain.model.Device
@@ -19,6 +20,7 @@ import es.jvbabi.trails.utils.NetworkRequestUnsuccessfulException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
+import io.ktor.client.plugins.websocket.converter
 import io.ktor.client.plugins.websocket.sendSerialized
 import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.client.request.bearerAuth
@@ -33,11 +35,11 @@ import io.ktor.http.URLProtocol
 import io.ktor.http.appendPathSegments
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import io.ktor.serialization.deserialize
 import io.ktor.utils.io.asByteWriteChannel
 import io.ktor.utils.io.copyAndClose
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
-import io.ktor.websocket.readText
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -162,8 +164,35 @@ class TrailsServerRepositoryImpl(
                 }
 
                 for (frame in websocketSession!!.incoming) {
-                    if (frame is Frame.Text) logger.i { "Received WS message: ${frame.readText()}" }
+                    if (frame is Frame.Text) {
+                        val message = websocketSession!!.converter!!.deserialize<TrailsWebSocketServerMessage>(frame)
+                        logger.i { "Received WS message: $message" }
+
+                        when (message) {
+                            is TrailsWebSocketServerMessage.ShareDeleted -> {
+                                database.activeShareDao.deleteById(Uuid.parse(message.shareId))
+                            }
+
+                            is TrailsWebSocketServerMessage.Snapshot -> {
+                                val share = shareRepository.getShareById(Uuid.parse(message.shareId)).first() ?: continue
+                                database.dataSnapshotDao.upsert(
+                                    DbDataSnapshot(
+                                        latitude = message.location.latitude,
+                                        longitude = message.location.longitude,
+                                        bearing = message.location.bearing,
+                                        bearingAccuracy = message.location.bearingAccuracy,
+                                        locationAccuracy = message.location.locationAccuracy,
+                                        batteryLevel = message.batteryState?.percentage?.div(100f),
+                                        batteryCharging = message.batteryState?.isCharging,
+                                        deviceId = share.device.id,
+                                        timestamp = message.timestamp
+                                    )
+                                )
+                            }
+                        }
+                    }
                 }
+
                 locationUpdater.cancel()
                 appForegroundSyncer.cancel()
 
@@ -345,24 +374,70 @@ class TrailsServerRepositoryImpl(
         try {
             activeExternalSessions[server] = httpClient.webSocketSession(urlString = url.buildString())
 
-            isConnected.value = true
+            val appForegroundSyncer = scope.launch {
+                applicationRepository.getApplicationForegroundState().collectLatest { inForeground ->
+                    if (inForeground) {
+                        val subscribedShares = mutableSetOf<Uuid>()
+                        shareRepository.getShares()
+                            .map { it.filter { share -> share.device.owner.homeserver == server } }
+                            .map { it.toSet() }
+                            .distinctUntilChanged()
+                            .collectLatest { shares ->
+                                val newShareIds = shares.map { it.id }.toSet() - subscribedShares
+                                activeExternalSessions[server]?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.ShareSubscribe(newShareIds.map { it.toString() }))
+                                subscribedShares.addAll(newShareIds)
 
-            for (frame in websocketSession!!.incoming) {
-                if (frame is Frame.Text) logger.i { "Received WS message: ${frame.readText()}" }
+                                val removedShareIds = subscribedShares - shares.map { it.id }.toSet()
+                                activeExternalSessions[server]?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.ShareUnsubscribe(removedShareIds.map { it.toString() }))
+                                subscribedShares.removeAll(removedShareIds)
+                            }
+                    } else {
+                        activeExternalSessions[server]?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.ShareUnsubscribeAll)
+                    }
+                }
             }
 
-            isConnected.value = false
+            for (frame in activeExternalSessions[server]!!.incoming) {
+                if (frame is Frame.Text) {
+                    val message = activeExternalSessions[server]!!.converter!!.deserialize<TrailsWebSocketServerMessage>(frame)
+                    logger.i { "Received WS message: $message" }
+
+                    when (message) {
+                        is TrailsWebSocketServerMessage.ShareDeleted -> {
+                            database.activeShareDao.deleteById(Uuid.parse(message.shareId))
+                        }
+
+                        is TrailsWebSocketServerMessage.Snapshot -> {
+                            val share = shareRepository.getShareById(Uuid.parse(message.shareId)).first() ?: continue
+                            database.dataSnapshotDao.upsert(
+                                DbDataSnapshot(
+                                    latitude = message.location.latitude,
+                                    longitude = message.location.longitude,
+                                    bearing = message.location.bearing,
+                                    bearingAccuracy = message.location.bearingAccuracy,
+                                    locationAccuracy = message.location.locationAccuracy,
+                                    batteryLevel = message.batteryState?.percentage?.div(100f),
+                                    batteryCharging = message.batteryState?.isCharging,
+                                    deviceId = share.device.id,
+                                    timestamp = message.timestamp
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            appForegroundSyncer.cancel()
             activeExternalSessions[server]?.close()
             activeExternalSessions.remove(server)
 
         } catch (e: Exception) {
             Logger.e(e) { "Error connecting to WS: ${e.message}" }
-            isConnected.value = false
         }
 
         delay(5.seconds)
 
-        connectWithHomeserver().await()
+        connectWithOtherServer(server)
     }
 
     override suspend fun stopAllOtherServerConnections() {
@@ -403,6 +478,41 @@ private sealed class TrailsWebSocketAppMessage {
         @SerialName("share_ids") val shareIds: List<String>,
     ) : TrailsWebSocketAppMessage()
 }
+
+@Serializable
+private sealed class TrailsWebSocketServerMessage {
+    @Serializable
+    @SerialName("share.deleted")
+    data class ShareDeleted(
+        @SerialName("share_id") val shareId: String,
+    ) : TrailsWebSocketServerMessage()
+
+    @Serializable
+    @SerialName("share.snapshot")
+    data class Snapshot(
+        @SerialName("share_id") val shareId: String,
+        @SerialName("timestamp") val timestamp: Long,
+        @SerialName("location") val location: Location,
+        @SerialName("battery_state") val batteryState: BatteryState?,
+    ) : TrailsWebSocketServerMessage() {
+
+        @Serializable
+        data class Location(
+            @SerialName("latitude") val latitude: Double,
+            @SerialName("longitude") val longitude: Double,
+            @SerialName("bearing") val bearing: Float,
+            @SerialName("bearing_accuracy") val bearingAccuracy: Float?,
+            @SerialName("location_accuracy") val locationAccuracy: Float,
+        )
+
+        @Serializable
+        data class BatteryState(
+            @SerialName("percentage") val percentage: Int,
+            @SerialName("is_charging") val isCharging: Boolean,
+        )
+    }
+}
+
 
 @Serializable
 private data class DeviceResponse(

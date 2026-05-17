@@ -11,7 +11,7 @@ import kotlin.uuid.Uuid
 @Dao
 interface DataSnapshotDao {
     @Upsert
-    suspend fun upsert(location: DbDataSnapshot)
+    suspend fun upsert(snapshot: DbDataSnapshot)
 
     @Query("SELECT * FROM data_snapshot WHERE device_id = :deviceId ORDER BY timestamp DESC LIMIT 1")
     fun getLastSnapshot(deviceId: Uuid): Flow<EmbeddedDataSnapshot?>

@@ -17,9 +17,12 @@ import co.touchlab.kermit.Logger
 import dev.icerock.moko.permissions.PermissionsController
 import dev.icerock.moko.permissions.compose.BindEffect
 import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
+import es.jvbabi.trails.domain.usecase.communication.StartExternalConnectionsUseCase
+import es.jvbabi.trails.domain.usecase.communication.StopExternalConnectionsUseCase
 import es.jvbabi.trails.page.Screen
 import io.ktor.http.Url
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -35,6 +38,8 @@ class MainActivity : ComponentActivity(), KoinComponent {
 
     private val handleDeepLinkUseCase by inject<HandleDeepLinkUseCase>()
     private val permissionsController by inject<PermissionsController>()
+    private val startExternalConnectionsUseCase by inject<StartExternalConnectionsUseCase>()
+    private val stopExternalConnectionsUseCase by inject<StopExternalConnectionsUseCase>()
     
     companion object {
         val isVisible = MutableStateFlow(false)
@@ -47,6 +52,13 @@ class MainActivity : ComponentActivity(), KoinComponent {
         loadKoinModules(module { single(named(KOIN_ACTIVITY_CONTEXT)) { this@MainActivity as Context } })
 
         onNewIntent(intent)
+
+        lifecycleScope.launch {
+            isVisible.collectLatest { isVisible ->
+                if (isVisible) startExternalConnectionsUseCase()
+                else stopExternalConnectionsUseCase()
+            }
+        }
 
         isVisible.value = true
 

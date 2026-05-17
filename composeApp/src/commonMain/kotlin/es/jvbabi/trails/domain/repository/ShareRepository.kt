@@ -14,6 +14,7 @@ interface ShareRepository {
     ): ShareCreationResult
 
     fun getShares(): Flow<List<ActiveShare>>
+    fun getShareById(id: Uuid): Flow<ActiveShare?>
 }
 
 sealed class ShareCreationResult {

@@ -65,6 +65,10 @@ class ShareRepositoryImpl(
         return database.activeShareDao.getActiveShares()
             .map { shares -> shares.map { it.toModel() } }
     }
+
+    override fun getShareById(id: Uuid): Flow<ActiveShare?> {
+        return database.activeShareDao.getActiveShareById(id).map { it?.toModel() }
+    }
 }
 
 @Serializable
