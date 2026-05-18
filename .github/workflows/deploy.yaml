@@ -72,7 +72,9 @@ jobs:
   build-docker:
     runs-on: ubuntu-latest
     needs: [build-server, build-web]
-    permissions: write-all
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v5
         name: Checkout code
@@ -93,8 +95,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ secrets.GH_USERNAME }}
-          password: ${{ secrets.GH_REGISTRY_TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: List files
         run: find . -maxdepth 3 -not -path '*/\.*'
