@@ -98,9 +98,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: List files
-        run: find . -maxdepth 3 -not -path '*/\.*'
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
