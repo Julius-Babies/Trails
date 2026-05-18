@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.lifecycleScope
 import co.touchlab.kermit.Logger
+import com.mapbox.common.MapboxOptions
 import dev.icerock.moko.permissions.PermissionsController
 import dev.icerock.moko.permissions.compose.BindEffect
 import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
@@ -52,6 +53,8 @@ class MainActivity : ComponentActivity(), KoinComponent {
         loadKoinModules(module { single(named(KOIN_ACTIVITY_CONTEXT)) { this@MainActivity as Context } })
 
         onNewIntent(intent)
+
+        MapboxOptions.accessToken = BuildConfig.MAPBOX_API_KEY
 
         lifecycleScope.launch {
             isVisible.collectLatest { isVisible ->
