@@ -1,4 +1,4 @@
-FROM eclipse-temurin:24-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 
 WORKDIR /app
 COPY web_build /app/webstatic
