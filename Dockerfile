@@ -1,7 +1,7 @@
 FROM eclipse-temurin:24-jre-alpine
 
 WORKDIR /app
-COPY ./web_build /app/webstatic
-COPY ./server_build.jar /app/server.jar
+COPY web_build /app/webstatic
+COPY server-all.jar /app/server.jar
 
-ENTRYPOINT ["java", "-jar", "server.jar", "--static-web-path /app/webstatic"]
+ENTRYPOINT ["java", "-jar", "server.jar", "--static-web-path", "/app/webstatic"]
