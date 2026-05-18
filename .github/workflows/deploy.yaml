@@ -72,8 +72,7 @@ jobs:
   build-docker:
     runs-on: ubuntu-latest
     needs: [build-server, build-web]
-    permissions:
-      packages: write
+    permissions: write-all
     steps:
       - uses: actions/checkout@v5
         name: Checkout code
