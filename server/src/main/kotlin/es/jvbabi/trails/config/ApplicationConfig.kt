@@ -1,13 +1,24 @@
 package es.jvbabi.trails.config
 
+import es.jvbabi.trails.api.jsonInstance
 import io.ktor.http.URLBuilder
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import java.io.File
 import kotlin.random.Random
 
 class ApplicationConfig(
-    baseUrl: String = "https://trailsdevelopment.jvbabi.es",
     storageDirectory: String = "./data"
 ) {
+
+    private val baseUrl: String
+    init {
+        val configFile = File(storageDirectory).resolve("config.json")
+        val configContent = configFile.readText()
+        val config = jsonInstance.decodeFromString<ApplicationConfigFile>(configContent)
+        baseUrl = config.baseUrl
+    }
+
     val url = URLBuilder(baseUrl)
     val storage = File(storageDirectory).apply { mkdirs() }
     val deviceImages = this.storage.resolve("device-images").apply { mkdirs() }
@@ -17,3 +28,8 @@ class ApplicationConfig(
             file.readText()
         }
 }
+
+@Serializable
+data class ApplicationConfigFile(
+    @SerialName("base_url") val baseUrl: String,
+)

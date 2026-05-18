@@ -1,5 +1,6 @@
 package es.jvbabi.trails.di
 
+import es.jvbabi.trails.ApplicationLaunchConfig
 import es.jvbabi.trails.config.ApplicationConfig
 import es.jvbabi.trails.data.DeviceInformationRepository
 import es.jvbabi.trails.data.DeviceSubscriptionRepository
@@ -10,17 +11,21 @@ import org.koin.dsl.module
 import org.koin.ktor.ext.inject
 import org.koin.ktor.plugin.Koin
 
-private val module = module {
+private val coreModule = module {
     single { DatabaseManager() }
-    single { ApplicationConfig() }
     single { DeviceInformationRepository() }
     single { DeviceSubscriptionRepository() }
     single { ShareSubscriptionRepository() }
 }
 
-fun Application.installKoin() {
+fun Application.installKoin(
+    applicationLaunchConfig: ApplicationLaunchConfig,
+) {
     install(Koin) {
-        modules(module)
+        modules(
+            module { single { ApplicationConfig(applicationLaunchConfig.storageDirectory.absolutePath)} },
+            coreModule
+        )
     }
 
     monitor.subscribe(ApplicationStopping) {
