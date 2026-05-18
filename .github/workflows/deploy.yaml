@@ -96,4 +96,4 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ghcr.io/Julius-Babies/trails:latest
+          tags: ghcr.io/julius-babies/trails:latest
