@@ -9,12 +9,17 @@ import es.jvbabi.trails.di.installKoin
 import es.jvbabi.trails.routes.installRouting
 import io.ktor.server.application.Application
 
-fun Application.rootModule() {
+fun Application.rootModule(
+    webStaticRoot: String?
+) {
+    println("Use web static root: $webStaticRoot")
     installKoin()
     installWebsocket()
     installCallLogging()
     installContentNegotiation()
     installAuthentication()
     installAuthentikt()
-    installRouting()
+    installRouting(
+        webStaticRoot = webStaticRoot,
+    )
 }

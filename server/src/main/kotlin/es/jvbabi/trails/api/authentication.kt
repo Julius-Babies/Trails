@@ -55,7 +55,11 @@ fun Application.installAuthentication() {
                 else db.transaction {
                     val device = session.device
                     val user = device.owner
-                    TrailsAppUserPrincipal(user, device, session)
+                    TrailsAppUserPrincipal(
+                        user,
+                        device,
+                        session
+                    )
                 }
             }
         }

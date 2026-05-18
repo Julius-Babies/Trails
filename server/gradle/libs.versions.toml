@@ -1,6 +1,7 @@
 [versions]
 exposed = "1.2.0"
 bcrypt = "0.10.2"
+clikt = "5.1.0"
 csv = "1.10.0"
 gson = "2.14.0"
 koin = "4.2.1"
@@ -18,6 +19,8 @@ exposed-dao = { module = "org.jetbrains.exposed:exposed-dao", version.ref = "exp
 exposed-kotlin-datetime = { module = "org.jetbrains.exposed:exposed-kotlin-datetime", version.ref = "exposed" }
 sqlite = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
 
+clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
+
 csv = { module = "com.jsoizo:kotlin-csv-jvm", version.ref = "csv" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 
@@ -33,3 +36,4 @@ kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+application = { id = "application" }
