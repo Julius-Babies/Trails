@@ -14,8 +14,8 @@ function start_web {
 }
 
 function start_proxy {
-  cd /app/deploy
-  bun proxy.js
+  echo "Starting Caddy reverse proxy..."
+  caddy run --config /app/deploy/Caddyfile --adapter caddyfile
 }
 
 start_server & start_web & start_proxy & wait
