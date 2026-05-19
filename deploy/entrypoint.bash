@@ -7,6 +7,9 @@ function start_server {
 
 function start_web {
   cd /app/web
+  PUBLIC_BASE_URL=$(jq '.base_url' /app/config.json -r)
+  echo "Using base URL: $PUBLIC_BASE_URL"
+  echo "PUBLIC_BASE_URL=$PUBLIC_BASE_URL" > .env
   bun index.js
 }
 
