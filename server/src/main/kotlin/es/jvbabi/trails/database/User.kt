@@ -13,6 +13,8 @@ class User(id: EntityID<Uuid>) : UuidEntity(id) {
     var email by Users.email
     var password by Users.password
     var otp by Users.otp
+
+    val devices by Device referrersOn Devices.owner
 }
 
 object Users : UuidTable("users") {

@@ -28,37 +28,39 @@ class ShareSubscriptionRepository: KoinComponent {
             val deviceId = db.transaction { activeShare.share.device.id.value }
 
             return@getOrPut deviceSubscriptionRepository.getFlowForDeviceSubscription(deviceId)
-                .map { message ->
-                    when (message) {
-                        DeviceSubscriptionMessage.Deleted -> ShareSubscriptionMessage.Deleted
-                        is DeviceSubscriptionMessage.Snapshot -> {
-                            val share = db.transaction { activeShare.share }
-                            ShareSubscriptionMessage.Snapshot(
-                                device = db.transaction { share.device },
-                                time = message.snapshot.createdAt,
-                                location = ShareSubscriptionMessage.Snapshot.Location(
-                                    latitude = message.snapshot.latitude,
-                                    longitude = message.snapshot.longitude,
-                                    bearing = message.snapshot.bearing.toFloat(),
-                                    bearingAccuracy = message.snapshot.bearingAccuracy?.toFloat(),
-                                    locationAccuracy = message.snapshot.locationAccuracy.toFloat(),
-                                ),
-                                batteryState = when (share.shareBatteryState) {
-                                    false -> null
-                                    true -> {
-                                        val batteryLevel = message.snapshot.batteryLevel
-                                        val batteryCharging = message.snapshot.batteryCharging
-                                        if (batteryLevel == null || batteryCharging == null) null
-                                        else ShareSubscriptionMessage.Snapshot.BatteryState(
-                                            percentage = (batteryLevel * 100).roundToInt(),
-                                            isCharging = batteryCharging,
-                                        )
-                                    }
-                                }
+                .map { message -> shareProxy(activeShare, message) }
+        }
+    }
+
+    suspend fun shareProxy(share: ActiveShare?, message: DeviceSubscriptionMessage): ShareSubscriptionMessage {
+        return when (message) {
+            DeviceSubscriptionMessage.Deleted -> ShareSubscriptionMessage.Deleted
+            is DeviceSubscriptionMessage.Snapshot -> {
+                val share = share?.let { share -> db.transaction { share.share } }
+                ShareSubscriptionMessage.Snapshot(
+                    device = db.transaction { message.snapshot.device },
+                    time = message.snapshot.createdAt,
+                    location = ShareSubscriptionMessage.Snapshot.Location(
+                        latitude = message.snapshot.latitude,
+                        longitude = message.snapshot.longitude,
+                        bearing = message.snapshot.bearing.toFloat(),
+                        bearingAccuracy = message.snapshot.bearingAccuracy?.toFloat(),
+                        locationAccuracy = message.snapshot.locationAccuracy.toFloat(),
+                    ),
+                    batteryState = when (share?.shareBatteryState ?: true) {
+                        false -> null
+                        true -> {
+                            val batteryLevel = message.snapshot.batteryLevel
+                            val batteryCharging = message.snapshot.batteryCharging
+                            if (batteryLevel == null || batteryCharging == null) null
+                            else ShareSubscriptionMessage.Snapshot.BatteryState(
+                                percentage = (batteryLevel * 100).roundToInt(),
+                                isCharging = batteryCharging,
                             )
                         }
                     }
-                }
+                )
+            }
         }
     }
 }

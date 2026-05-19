@@ -12,7 +12,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -43,7 +42,6 @@ class GetHomeDeviceLocationsUseCase(
 
     private fun getHomeDevice(device: Device): Flow<HomeState.HomeDevice> {
         val snapshotFlow = snapshotRepository.getCurrentSnapshotForDevice(device)
-            .filterNotNull()
 
         val imageFlow = devicesRepository.hasDeviceImage(device)
             .map { hasImage ->

@@ -7,15 +7,13 @@ import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,15 +21,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import co.touchlab.kermit.Logger
-import es.jvbabi.trails.page.home.HomeState
-import es.jvbabi.trails.utils.rememberBitmapFromBytes
 import com.mapbox.geojson.Point
+import com.mapbox.maps.CameraBoundsOptions
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.MapOptions
+import com.mapbox.maps.SymbolScaleBehavior
 import com.mapbox.maps.ViewAnnotationAnchor
 import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.ComposeMapInitOptions
@@ -39,7 +36,6 @@ import com.mapbox.maps.extension.compose.MapEffect
 import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
 import com.mapbox.maps.extension.compose.annotation.ViewAnnotation
-import com.mapbox.maps.extension.compose.annotation.generated.PolygonAnnotation
 import com.mapbox.maps.extension.compose.style.standard.MapboxStandardStyle
 import com.mapbox.maps.plugin.PuckBearing
 import com.mapbox.maps.plugin.animation.MapAnimationOptions
@@ -48,9 +44,8 @@ import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.maps.viewannotation.annotationAnchor
 import com.mapbox.maps.viewannotation.geometry
 import com.mapbox.maps.viewannotation.viewAnnotationOptions
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
+import es.jvbabi.trails.page.home.HomeState
+import es.jvbabi.trails.utils.rememberBitmapFromBytes
 
 @Composable
 fun DeviceMarker(
@@ -83,7 +78,7 @@ fun DeviceMarker(
                 .padding(bottom = 6.dp)
                 .size(48.dp)
                 .clip(CircleShape)
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.primary)
                 // Ripple is drawn here, clipped to CircleShape
                 .indication(
                     interactionSource = interactionSource,
@@ -107,7 +102,7 @@ fun DeviceMarker(
                 .align(Alignment.BottomCenter)
                 .size(8.dp, 8.dp)
                 .clip(arrowShape)
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.primary)
         )
     }
 }
@@ -126,19 +121,18 @@ actual fun Map(
     state: HomeState,
     onDeviceClick: (HomeState.HomeDevice) -> Unit,
 ) {
-    val mapViewportState = rememberMapViewportState { }
-
-    var hasAutoFitted by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        mapViewportState.flyTo(
+    val mapViewportState = rememberMapViewportState {
+        flyTo(
             cameraOptions = cameraOptions {
                 center(Point.fromLngLat(10.4515, 51.1657))
                 zoom(6.0)
+                pitch(0.0)
             },
             MapAnimationOptions.mapAnimationOptions { duration(0) }
         )
     }
+
+    var hasAutoFitted by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         MapboxMap(
@@ -159,6 +153,12 @@ actual fun Map(
                     puckBearing = PuckBearing.HEADING
                     enabled = true
                 }
+                mapView.mapboxMap.setBounds(
+                    CameraBoundsOptions.Builder()
+                        .maxZoom(18.0)
+                        .build()
+                )
+                mapView.mapboxMap.symbolScaleBehavior = SymbolScaleBehavior.fixed(25f)
             }
 
             MapEffect(state.devices, state.ownLocation) { mapView ->
@@ -168,16 +168,20 @@ actual fun Map(
                 state.ownLocation?.let { loc ->
                     points.add(Point.fromLngLat(loc.longitude, loc.latitude))
                 }
-                state.devices.forEach { device ->
-                    val loc = device.snapshot.location
-                    points.add(Point.fromLngLat(loc.longitude, loc.latitude))
-                }
+                state.devices
+                    .filter { it.snapshot != null }
+                    .forEach { device ->
+                        val loc = device.snapshot!!.location
+                        points.add(Point.fromLngLat(loc.longitude, loc.latitude))
+                    }
 
                 if (points.isEmpty()) return@MapEffect
 
                 val cameraOptions = mapView.mapboxMap.cameraForCoordinates(
                     coordinates = points,
                     coordinatesPadding = EdgeInsets(300.0, 300.0, 300.0, 300.0),
+                    bearing = null,
+                    pitch = 60.0,
                 )
                 mapViewportState.flyTo(
                     cameraOptions = cameraOptions,
@@ -186,56 +190,30 @@ actual fun Map(
                 hasAutoFitted = true
             }
 
-            val loc = state.ownLocation
+            state.devices
+                .filterNot { device -> device.device.id == state.currentDevice?.id }
+                .filter { it.snapshot != null }
+                .forEach { device ->
+                    val position = device.snapshot!!.location
 
-            if (loc != null) {
-                val bearing = loc.bearing.toDouble()
-                val conePoints = remember(loc, bearing) {
-                    val spreadRad = 20.0 * PI / 180.0
-                    val distance = 0.0025
-                    val bearingRad = bearing * PI / 180.0
-                    val leftBearing = bearingRad - spreadRad
-                    val rightBearing = bearingRad + spreadRad
-
-                    val origin = Point.fromLngLat(loc.longitude, loc.latitude)
-                    val left = Point.fromLngLat(
-                        loc.longitude + distance * sin(leftBearing),
-                        loc.latitude + distance * cos(leftBearing)
-                    )
-                    val right = Point.fromLngLat(
-                        loc.longitude + distance * sin(rightBearing),
-                        loc.latitude + distance * cos(rightBearing)
-                    )
-
-                    listOf(origin, left, right)
-                }
-
-                PolygonAnnotation(points = listOf(conePoints)) {
-                    fillColor = Color(0xFF4A90D9).copy(alpha = 0.25f)
-                }
-            }
-
-            state.devices.forEach { device ->
-                val position = device.snapshot.location
-
-                ViewAnnotation(
-                    options = viewAnnotationOptions {
-                        geometry(Point.fromLngLat(position.longitude, position.latitude))
-                        allowOverlap(true)
-                        annotationAnchor {
-                            anchor(ViewAnnotationAnchor.BOTTOM)
+                    ViewAnnotation(
+                        options = viewAnnotationOptions {
+                            geometry(Point.fromLngLat(position.longitude, position.latitude))
+                            allowOverlap(true)
+                            annotationAnchor {
+                                anchor(ViewAnnotationAnchor.BOTTOM)
+                            }
                         }
+                    ) {
+                        DeviceMarker(
+                            imageBytes = device.image,
+                            onClick = {
+                                Logger.i { "Map device clicked: ${device.device.displayName}" }
+                                onDeviceClick(device)
+                            },
+                        )
                     }
-                ) {
-                    DeviceMarker(
-                        imageBytes = device.image,
-                        onClick = {
-                            Logger.i { "Map device clicked: ${device.device.displayName}" }
-                            onDeviceClick(device)
-                        },
-                    )
                 }
-            }
         }
     }
 }

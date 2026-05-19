@@ -8,6 +8,7 @@ export default defineConfig({
         allowedHosts: [
             "trails.werkbank.space",
             "trailsdevelopment.jvbabi.es",
-        ]
+        ],
+        host: true,
     }
 });

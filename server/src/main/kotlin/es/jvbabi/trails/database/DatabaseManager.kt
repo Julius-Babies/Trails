@@ -15,7 +15,7 @@ class DatabaseManager: KoinComponent {
     private val applicationConfig by inject<ApplicationConfig>()
 
     val database = when (val database = applicationConfig.database) {
-        is ApplicationConfigFile.Database.Sqlite -> Database.connect("jdbc:sqlite://${database.path}")
+        is ApplicationConfigFile.Database.Sqlite -> Database.connect("jdbc:sqlite://${applicationConfig.storage.resolve(database.path).absolutePath}")
         is ApplicationConfigFile.Database.Postgresql -> Database.connect("jdbc:postgresql://${database.host}:${database.port}/${database.database}", driver = "org.postgresql.Driver", user = database.username, password = database.password)
     }
 

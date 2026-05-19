@@ -56,6 +56,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.isActive
@@ -89,6 +90,7 @@ class TrailsServerRepositoryImpl(
         applicationRepository = applicationRepository,
         shareRepository = shareRepository,
         snapshotRepository = snapshotRepository,
+        devicesRepository = devicesRepository,
         database = database,
         logger = logger,
     )
@@ -97,6 +99,7 @@ class TrailsServerRepositoryImpl(
         applicationRepository = applicationRepository,
         shareRepository = shareRepository,
         snapshotRepository = snapshotRepository,
+        devicesRepository = devicesRepository,
         database = database,
         logger = logger,
     )
@@ -409,11 +412,22 @@ private sealed class TrailsWebSocketServerMessage {
     @Serializable
     @SerialName("share.snapshot")
     data class Snapshot(
-        @SerialName("share_id") val shareId: String,
+        @SerialName("target") val target: Target,
         @SerialName("timestamp") val timestamp: Long,
         @SerialName("location") val location: Location,
         @SerialName("battery_state") val batteryState: BatteryState?,
     ) : TrailsWebSocketServerMessage() {
+
+        @Serializable
+        sealed class Target {
+            @Serializable
+            @SerialName("share")
+            data class Share(@SerialName("id") val shareId: String) : Target()
+
+            @Serializable
+            @SerialName("device")
+            data class Device(@SerialName("id") val deviceId: String) : Target()
+        }
 
         @Serializable
         data class Location(
@@ -465,6 +479,7 @@ private abstract class WebSocketClientBase(
     protected val applicationRepository: ApplicationRepository,
     protected val shareRepository: ShareRepository,
     protected val snapshotRepository: SnapshotRepository,
+    protected val devicesRepository: DevicesRepository,
     protected val database: TrailsDatabase,
     protected val logger: Logger,
 ) {
@@ -480,6 +495,9 @@ private abstract class WebSocketClientBase(
     ) = scope.launch {
         applicationRepository.getApplicationForegroundState().collectLatest { inForeground ->
             if (inForeground) {
+                sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(
+                    TrailsWebSocketAppMessage.SubscribeToOwn
+                )
                 val subscribedShares = mutableSetOf<Uuid>()
                 shareRepository.getShares()
                     .map { it.filter { share -> share.device.owner.homeserver == serverHost } }
@@ -489,9 +507,6 @@ private abstract class WebSocketClientBase(
                         val newShareIds = shares.map { it.id }.toSet() - subscribedShares
                         sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(
                             TrailsWebSocketAppMessage.ShareSubscribe(newShareIds.map { it.toString() })
-                        )
-                        sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(
-                            TrailsWebSocketAppMessage.SubscribeToOwn
                         )
                         subscribedShares.addAll(newShareIds)
 
@@ -519,12 +534,19 @@ private abstract class WebSocketClientBase(
                     }
 
                     is TrailsWebSocketServerMessage.Snapshot -> {
-                        val share = shareRepository.getShareById(Uuid.parse(message.shareId)).first() ?: continue
+                        val device = when (message.target) {
+                            is TrailsWebSocketServerMessage.Snapshot.Target.Device -> devicesRepository.getDeviceById(Uuid.parse(message.target.deviceId)).firstOrNull()
+                            is TrailsWebSocketServerMessage.Snapshot.Target.Share -> shareRepository.getShareById(Uuid.parse(message.target.shareId)).firstOrNull()?.device
+                        }
+                        if (device == null) {
+                            logger.w { "Received snapshot for unknown device in WS message: $message" }
+                            continue
+                        }
                         val timestamp = Instant.fromEpochSeconds(message.timestamp)
                             .toLocalDateTime(TimeZone.currentSystemDefault())
                         snapshotRepository.storeSnapshot(
                             Snapshot(
-                                device = share.device,
+                                device = device,
                                 time = timestamp,
                                 location = Location(
                                     latitude = message.location.latitude,
@@ -554,6 +576,7 @@ private class HomeServerWebSocketClient(
     applicationRepository: ApplicationRepository,
     shareRepository: ShareRepository,
     snapshotRepository: SnapshotRepository,
+    devicesRepository: DevicesRepository,
     database: TrailsDatabase,
     logger: Logger,
 ) : WebSocketClientBase(
@@ -561,6 +584,7 @@ private class HomeServerWebSocketClient(
     applicationRepository = applicationRepository,
     shareRepository = shareRepository,
     snapshotRepository = snapshotRepository,
+    devicesRepository = devicesRepository,
     database = database,
     logger = logger,
 )
@@ -570,6 +594,7 @@ private class ExternalServerWebSocketClient(
     applicationRepository: ApplicationRepository,
     shareRepository: ShareRepository,
     snapshotRepository: SnapshotRepository,
+    devicesRepository: DevicesRepository,
     database: TrailsDatabase,
     logger: Logger,
 ) : WebSocketClientBase(
@@ -577,6 +602,7 @@ private class ExternalServerWebSocketClient(
     applicationRepository = applicationRepository,
     shareRepository = shareRepository,
     snapshotRepository = snapshotRepository,
+    devicesRepository = devicesRepository,
     database = database,
     logger = logger,
 )
