@@ -23,7 +23,9 @@ fun Application.installKoin(
 ) {
     install(Koin) {
         modules(
-            module { single { ApplicationConfig(applicationLaunchConfig.storageDirectory.absolutePath)} },
+            module { single { ApplicationConfig(
+                storageDirectory = applicationLaunchConfig.storageDirectory.absolutePath,
+            )} },
             coreModule
         )
     }

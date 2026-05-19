@@ -41,6 +41,7 @@ dependencies {
     implementation(libs.exposed.jdbc)
     implementation(libs.exposed.kotlin.datetime)
     implementation(libs.sqlite)
+    implementation(libs.postgres)
     implementation(libs.koin.ktor)
     implementation(libs.koin.loggerSlf4j)
     implementation(libs.logback.classic)

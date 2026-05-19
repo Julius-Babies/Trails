@@ -9,6 +9,7 @@ kotlin = "2.3.21"
 kotlinx-datetime = "0.8.0"
 logback = "1.5.32"
 sqlite = "3.53.1.0"
+postgres = "42.7.3"
 
 authentikt = "0.2.4"
 
@@ -18,6 +19,7 @@ exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "e
 exposed-dao = { module = "org.jetbrains.exposed:exposed-dao", version.ref = "exposed" }
 exposed-kotlin-datetime = { module = "org.jetbrains.exposed:exposed-kotlin-datetime", version.ref = "exposed" }
 sqlite = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
+postgres = { module = "org.postgresql:postgresql", version.ref = "postgres" }
 
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 

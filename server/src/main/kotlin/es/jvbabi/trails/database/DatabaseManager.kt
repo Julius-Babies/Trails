@@ -16,7 +16,7 @@ class DatabaseManager: KoinComponent {
         .storage
         .resolve("database.db")
         .absolutePath
-    val database = Database.connect("jdbc:sqlite:$databasePath")
+    val database = Database.connect(applicationConfig.databaseUrl)
 
     init {
         transaction(db = database) {
