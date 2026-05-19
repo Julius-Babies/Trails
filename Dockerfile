@@ -1,7 +1,17 @@
+FROM oven/bun:alpine AS bun-env
+
 FROM eclipse-temurin:25-jre-alpine
 
-WORKDIR /app
-COPY web_build /app/webstatic
-COPY server-all.jar /app/server.jar
+RUN apk add --no-cache bash
 
-ENTRYPOINT ["java", "-jar", "server.jar", "--static-web-path=/app/webstatic", "--storage-directory=/data"]
+RUN apk add --no-cache libstdc++
+COPY --from=bun-env /usr/local/bin/bun /usr/local/bin/bun
+
+WORKDIR /app
+COPY web_build /app/web
+COPY server-all.jar /app/server.jar
+COPY deploy /app/deploy
+
+EXPOSE 80
+
+ENTRYPOINT ["bash", "/app/deploy/entrypoint.bash"]

@@ -14,7 +14,6 @@
 	"devDependencies": {
 		"@fontsource-variable/geist": "^5.2.8",
 		"@internationalized/date": "^3.12.0",
-		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.57.0",
 		"@sveltejs/vite-plugin-svelte": "^7.0.0",
 		"@tailwindcss/vite": "^4.2.2",
@@ -32,6 +31,7 @@
 	},
 	"dependencies": {
 		"@Julius-Babies/authentikt-svelte": "^0.2.5",
-		"@lucide/svelte": "^1.16.0"
+		"@lucide/svelte": "^1.16.0",
+		"@sveltejs/adapter-node": "^5.5.4"
 	}
 }

@@ -7,18 +7,11 @@ import es.jvbabi.trails.routes.devices.image.deviceImage
 import es.jvbabi.trails.routes.me.devices
 import es.jvbabi.trails.routes.me.me
 import io.ktor.server.application.*
-import io.ktor.server.http.content.staticFiles
 import io.ktor.server.routing.*
 import routes.app.app
-import java.io.File
 
-fun Application.installRouting(
-    webStaticRoot: String?,
-) {
+fun Application.installRouting() {
     routing {
-        if (webStaticRoot != null) {
-            staticFiles("/", File(webStaticRoot))
-        }
         route("/api/v1") {
             route("/auth") {
                 route("/app-authorization") {
