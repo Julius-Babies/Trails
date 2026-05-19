@@ -18,5 +18,4 @@ function start_proxy {
   bun proxy.js
 }
 
-start_server & start_web
-start_proxy
+start_server & start_web & start_proxy & wait
