@@ -156,6 +156,9 @@ jobs:
         with:
           name: Trails.apk
 
+      - name: Rename APK artifact
+        run: mv Trails.apk "Trails ${{ env.TAG_DATE }}.apk"
+
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v2
