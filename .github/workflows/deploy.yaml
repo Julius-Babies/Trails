@@ -146,8 +146,8 @@ jobs:
 
       - name: Set date
         run: echo "DATE=$(date '+%d.%m.%Y %H:%M')" >> $GITHUB_ENV
-          - name: Set date for tag name
-            run: echo "TAG_DATE=$(date '+%Y%m%d_%H-%M')" >> $GITHUB_ENV
+      - name: Set date for tag name
+        run: echo "TAG_DATE=$(date '+%Y%m%d_%H-%M')" >> $GITHUB_ENV
 
       - name: Download Android APK artifact
         uses: actions/download-artifact@v8
