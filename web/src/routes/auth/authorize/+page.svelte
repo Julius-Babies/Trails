@@ -10,10 +10,10 @@
     import DeviceSelection from "./steps/device_selection/DeviceSelection.svelte";
     import EmailUserSelection from "./steps/email/EmailUserSelection.svelte";
     import Password from "./steps/password/Password.svelte";
-    import {PUBLIC_BASE_URL} from "$env/dynamic/public";
+    import { env } from '$env/dynamic/public';
 
     const config: AuthentiktConfiguration = {
-        baseUrl: PUBLIC_BASE_URL + "/api/v1/auth/authentikt/",
+        baseUrl: env.PUBLIC_BASE_URL + "/api/v1/auth/authentikt/",
         // debug: {show_overlay: false},
         debug: false
     }
