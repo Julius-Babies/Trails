@@ -31,7 +31,7 @@ class ApplicationConfig(
 @Serializable
 data class ApplicationConfigFile(
     @SerialName("base_url") val baseUrl: String,
-    @SerialName("database_url") val database: Database? = null,
+    @SerialName("database") val database: Database? = null,
 ) {
     @Serializable
     sealed class Database {
