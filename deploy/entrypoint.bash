@@ -2,7 +2,7 @@
 set -e
 
 function start_server {
-  java -jar /app/server.jar --storage-directory=/data --bind-address=127.0.0.1
+  java -jar /app/server.jar --storage-directory=/data --bind-host=127.0.0.1
 }
 
 function start_web {
