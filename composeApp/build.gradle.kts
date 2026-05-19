@@ -11,6 +11,13 @@ plugins {
     alias(libs.plugins.androidx.room)
 }
 
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use { load(it) }
+    }
+}
+
 kotlin {
     compilerOptions {
         freeCompilerArgs.add("-Xexplicit-backing-fields")
@@ -42,7 +49,7 @@ kotlin {
             implementation("com.mapbox.maps:android-ndk27:$mapboxVersion") {
                 exclude(group = "com.google.android.gms", module = "play-services-cronet")
             }
-            implementation("com.mapbox.extension:maps-compose-ndk27:$mapboxVersion")
+            implementation(libs.mapbox.compose)
         }
         commonMain.dependencies {
             implementation(libs.compose.runtime)
@@ -87,9 +94,6 @@ kotlin {
     }
 }
 
-val properties = Properties()
-properties.load(project.rootProject.file("local.properties").inputStream())
-
 dependencies {
     add("kspAndroid", libs.androidx.room.compiler)
     add("kspIosSimulatorArm64", libs.androidx.room.compiler)
@@ -108,6 +112,17 @@ android {
         buildConfig = true
     }
 
+    if (listOf("signing.default.file", "signing.default.storepassword", "signing.default.keyalias", "signing.default.keypassword").all { localProperties.containsKey(it) }) {
+        signingConfigs {
+            create("default") {
+                storeFile = file(localProperties["signing.default.file"]!!)
+                storePassword = localProperties["signing.default.storepassword"].toString()
+                keyAlias = localProperties["signing.default.keyalias"].toString()
+                keyPassword = localProperties["signing.default.keypassword"].toString()
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "es.jvbabi.trails"
         minSdk = libs.versions.android.minSdk.get().toInt()
@@ -115,7 +130,7 @@ android {
         versionCode = 1
         versionName = "1.0"
 
-        buildConfigField("String", "MAPBOX_API_KEY", "\"${properties.getProperty("mapbox.public-token")}\"")
+        buildConfigField("String", "MAPBOX_API_KEY", "\"${localProperties.getProperty("mapbox.public-token")}\"")
     }
     packaging {
         resources {
@@ -125,7 +140,7 @@ android {
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.findByName("default")
         }
     }
     compileOptions {
