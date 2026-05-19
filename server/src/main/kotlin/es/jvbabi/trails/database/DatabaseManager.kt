@@ -2,6 +2,7 @@ package es.jvbabi.trails.database
 
 import database.DataSnapshots
 import es.jvbabi.trails.config.ApplicationConfig
+import es.jvbabi.trails.config.ApplicationConfigFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -12,11 +13,11 @@ import org.koin.core.component.inject
 
 class DatabaseManager: KoinComponent {
     private val applicationConfig by inject<ApplicationConfig>()
-    private val databasePath = applicationConfig
-        .storage
-        .resolve("database.db")
-        .absolutePath
-    val database = Database.connect(applicationConfig.databaseUrl)
+
+    val database = when (val database = applicationConfig.database) {
+        is ApplicationConfigFile.Database.Sqlite -> Database.connect("jdbc:sqlite://${database.path}")
+        is ApplicationConfigFile.Database.Postgresql -> Database.connect("jdbc:postgresql://${database.host}:${database.port}/${database.database}", driver = "org.postgresql.Driver", user = database.username, password = database.password)
+    }
 
     init {
         transaction(db = database) {

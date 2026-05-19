@@ -11,15 +11,12 @@ class ApplicationConfig(
     storageDirectory: String = "./data",
 ) {
 
-    private val baseUrl: String
-    val databaseUrl: String
-    init {
-        val configFile = File(storageDirectory).resolve("config.json")
-        val configContent = configFile.readText()
-        val config = jsonInstance.decodeFromString<ApplicationConfigFile>(configContent)
-        baseUrl = config.baseUrl
-        databaseUrl = config.databaseUrl ?: "jdbc:sqlite:${storageDirectory}/database.db"
-    }
+    private val configFile = File(storageDirectory).resolve("config.json")
+    private val configContent = configFile.readText()
+    private val config = jsonInstance.decodeFromString<ApplicationConfigFile>(configContent)
+
+    private val baseUrl = config.baseUrl
+    val database = config.database ?: ApplicationConfigFile.Database.Sqlite(path = File(storageDirectory).resolve("database.db").absolutePath)
 
     val url = URLBuilder(baseUrl)
     val storage = File(storageDirectory).apply { mkdirs() }
@@ -34,5 +31,22 @@ class ApplicationConfig(
 @Serializable
 data class ApplicationConfigFile(
     @SerialName("base_url") val baseUrl: String,
-    @SerialName("database_url") val databaseUrl: String? = null,
-)
+    @SerialName("database_url") val database: Database? = null,
+) {
+    @Serializable
+    sealed class Database {
+        @Serializable
+        @SerialName("sqlite")
+        data class Sqlite(@SerialName("path") val path: String) : Database()
+
+        @Serializable
+        @SerialName("postgresql")
+        data class Postgresql(
+            @SerialName("host") val host: String,
+            @SerialName("port") val port: Int,
+            @SerialName("database") val database: String,
+            @SerialName("username") val username: String,
+            @SerialName("password") val password: String,
+        ) : Database()
+    }
+}
