@@ -18,6 +18,7 @@ import es.jvbabi.trails.domain.repository.ShareRepository
 import es.jvbabi.trails.domain.repository.SnapshotRepository
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
 import es.jvbabi.trails.domain.repository.UseShareLinkResult
+import es.jvbabi.trails.domain.repository.UserRepository
 import es.jvbabi.trails.utils.NetworkRequestUnsuccessfulException
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -79,6 +80,7 @@ class TrailsServerRepositoryImpl(
     private val devicesRepository: DevicesRepository,
     private val shareRepository: ShareRepository,
     private val applicationRepository: ApplicationRepository,
+    private val userRepository: UserRepository,
     private val fileRepository: FileRepository,
 ) : TrailsServerRepository {
 
@@ -237,6 +239,7 @@ class TrailsServerRepositoryImpl(
     override suspend fun updateUserDevices() {
         val token = getToken().first() ?: throw IllegalStateException("Token not set")
         val userId = getUserId().first() ?: throw IllegalStateException("User ID not set")
+        val user = userRepository.getUser(userId).firstOrNull() ?: throw IllegalStateException("User not found in database")
         val url = (getBaseUrl().first() ?: throw IllegalStateException("Base URL not set")).apply {
             appendPathSegments("api", "v1", "me", "devices")
         }
@@ -265,6 +268,9 @@ class TrailsServerRepositoryImpl(
         devicesRepository.getDevices().first()
             .filterNot { devicesRepository.hasDeviceImage(it).first() }
             .forEach { fetchDeviceImageForDevice(it) }
+
+        val ownDevices = devicesRepository.getDevices(user).first()
+        devicesRepository.removeDevices(ownDevices.filter { device -> body.none { it.id == device.id.toString() } })
     }
 
     override suspend fun fetchDeviceImageForDevice(device: Device) {

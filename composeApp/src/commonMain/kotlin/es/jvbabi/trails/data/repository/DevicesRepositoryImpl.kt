@@ -71,6 +71,10 @@ class DevicesRepositoryImpl(
             .flatMapLatest { device -> device?.let { deviceProxy(it) } ?: flowOf(null) }
     }
 
+    override suspend fun removeDevices(devices: List<Device>) {
+        database.deviceDao.deleteDevicesByIds(devices.map { it.id })
+    }
+
     override fun hasDeviceImage(device: Device): Flow<Boolean> = flow {
         while (currentCoroutineContext().isActive) {
             val fileName = getFileNameForDeviceImage(device)

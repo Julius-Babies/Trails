@@ -21,4 +21,7 @@ interface DeviceDao {
 
     @Query("SELECT * FROM devices WHERE id = :deviceId")
     fun getDeviceById(deviceId: Uuid): Flow<EmbeddedDevice?>
+
+    @Query("DELETE FROM devices WHERE id IN (:deviceIds)")
+    suspend fun deleteDevicesByIds(deviceIds: List<Uuid>)
 }
