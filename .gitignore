@@ -20,3 +20,5 @@ node_modules/
 
 /server-all.jar
 /web_build
+
+/keystore.jks
