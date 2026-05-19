@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -31,12 +30,10 @@ class GetHomeDeviceLocationsUseCase(
 ) {
     operator fun invoke(): Flow<List<HomeState.HomeDevice>> {
         return keyValueRepository.get("trails.userId")
-            .filterNotNull()
-            .flatMapLatest { userRepository.getUser(Uuid.parse(it)) }
-            .filterNotNull()
-            .distinctUntilChangedBy { it.id }
+            .flatMapLatest { it?.let { id -> userRepository.getUser(Uuid.parse(id)) } ?: flowOf(null) }
+            .distinctUntilChangedBy { it?.id }
             .flatMapLatest { user ->
-                val ownedDevices = devicesRepository.getDevices(user)
+                val ownedDevices = user?.let { devicesRepository.getDevices(user) } ?: flowOf(emptyList())
                 val sharedDevices = shareRepository.getShares()
                     .map { shares -> shares.map { it.device } }
 

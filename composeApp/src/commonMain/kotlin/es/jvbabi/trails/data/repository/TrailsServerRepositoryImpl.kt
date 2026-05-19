@@ -348,6 +348,7 @@ class TrailsServerRepositoryImpl(
         }
 
         try {
+            Logger.i { "Connecting with external server $server" }
             activeExternalSessions[server] = httpClient.webSocketSession(urlString = url.buildString())
 
             externalServerSocketClient.run(activeExternalSessions[server]!!, server)
