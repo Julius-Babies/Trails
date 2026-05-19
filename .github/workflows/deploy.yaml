@@ -127,11 +127,14 @@ jobs:
       - name: Build Android APK
         run: ./gradlew assembleRelease
 
+      - name: Rename APK artifact
+        run: mv composeApp/build/outputs/apk/release/composeApp-release.apk Trails.apk
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v7
         with:
           name: Trails.apk
-          path: composeApp/build/outputs/apk/release/composeApp-release.apk
+          path: Trails.apk
           compression-level: 0
           if-no-files-found: error
 
@@ -153,14 +156,11 @@ jobs:
         with:
           name: Trails.apk
 
-      - name: List files
-        run: tree -a
-
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          files: composeApp/build/outputs/apk/release/composeApp-release.apk
+          files: Trails ${{ env.TAG_DATE }}.apk
           draft: false
           prerelease: false
           make_latest: true
