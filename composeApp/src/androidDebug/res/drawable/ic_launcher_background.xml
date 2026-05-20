@@ -14,23 +14,11 @@
   ~ limitations under the License.
   -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="64dp"
     android:height="64dp"
     android:viewportWidth="64"
     android:viewportHeight="64">
   <path
-      android:pathData="M0,0l64,0l0,64l-64,0z">
-    <aapt:attr name="android:fillColor">
-      <gradient
-          android:startX="6"
-          android:startY="8"
-          android:endX="60"
-          android:endY="58"
-          android:type="linear">
-        <item android:offset="0" android:color="#FF7400B6"/>
-        <item android:offset="1" android:color="#FF1E0034"/>
-      </gradient>
-    </aapt:attr>
-  </path>
+      android:pathData="M0,0l64,0l0,64l-64,0z"
+      android:fillColor="#43B600"/>
 </vector>

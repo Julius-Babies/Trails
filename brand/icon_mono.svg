@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 64 64" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;">
+    <g transform="matrix(0.275912,0,0,0.275912,29.795614,31.499607)">
+        <g transform="matrix(1,0,0,1,-50,-50)">
+            <g transform="matrix(4.166667,0,0,4.166667,0,0)">
+                <circle cx="6" cy="12" r="3" style="fill:none;stroke:white;stroke-width:2px;"/>
+            </g>
+            <g transform="matrix(4.166667,0,0,4.166667,0,8)">
+                <circle cx="18" cy="19" r="3" style="fill:white;"/>
+            </g>
+            <g transform="matrix(4.166667,0,0,4.166667,0,0)">
+                <path d="M8.59,13.51L18.06,21.09" style="fill:none;fill-rule:nonzero;stroke:white;stroke-width:2px;"/>
+            </g>
+            <g transform="matrix(4.166667,0,0,4.166667,0,0)">
+                <path d="M13.854,7.499L8.59,10.49" style="fill:none;fill-rule:nonzero;stroke:white;stroke-width:2px;"/>
+            </g>
+        </g>
+    </g>
+    <g transform="matrix(0.275992,0,0,0.275992,36.716901,25.215194)">
+        <g transform="matrix(1,0,0,1,-50,-50)">
+            <g transform="matrix(4.166667,0,0,4.166667,0,0)">
+                <clipPath id="_clip1">
+                    <path d="M24,0L24,24L0,24L0,0L24,0ZM12,7C10.344,7 9,8.344 9,10C9,11.656 10.344,13 12,13C13.656,13 15,11.656 15,10C15,8.344 13.656,7 12,7Z"/>
+                </clipPath>
+                <g clip-path="url(#_clip1)">
+                    <path d="M17.84,10C17.84,12.593 13.981,19.473 12.601,21.799C12.374,22.181 11.621,22.184 11.399,21.799C9.779,18.993 6.16,13.073 6.16,10C6.16,5.611 9.291,4.16 12,4.16C14.949,4.16 17.84,5.611 17.84,10" style="fill:white;fill-rule:nonzero;"/>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>
