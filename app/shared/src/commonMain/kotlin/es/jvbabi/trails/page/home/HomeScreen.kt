@@ -185,7 +185,7 @@ fun HomeContent(
                         .fillMaxSize()
                         .hazeEffect(hazeState) {
                             blurEffect {
-                                blurRadius = 16.dp + draggableCardSheetState.progress * 4.dp
+                                blurRadius = 8.dp + draggableCardSheetState.progress * 4.dp
                                 style = hazeStyle
                             }
                         }
@@ -236,7 +236,7 @@ fun HomeContent(
                     Column(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .background(blendColor(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, draggableCardSheetState.progress/2f))
+                            .background(blendColor(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, draggableCardSheetState.progress/2f).copy(alpha = draggableCardSheetState.progress))
                             .padding(bottom = 16.dp * draggableCardSheetState.progress)
                             .fillMaxWidth()
                             .height(collapsedHeight + 8.dp),
