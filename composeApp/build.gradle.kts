@@ -1,5 +1,3 @@
-import com.android.build.api.dsl.androidLibrary
-import org.gradle.kotlin.dsl.invoke
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
