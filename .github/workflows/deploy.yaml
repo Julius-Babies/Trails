@@ -128,7 +128,7 @@ jobs:
         run: ./gradlew :app:android:assembleRelease
 
       - name: Rename APK artifact
-        run: mv composeApp/build/outputs/apk/release/composeApp-release.apk Trails.apk
+        run: mv app/android/build/outputs/apk/release/android-release.apk Trails.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v7
