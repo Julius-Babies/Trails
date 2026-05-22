@@ -34,7 +34,7 @@ fun NavigationBar(
     ) {
         Item(
             icon = painterResource(Res.drawable.smartphone),
-            label = "Meine Geräte",
+            label = "Geräte",
             isSelected = selectedTab == HomeState.Tab.MyDevices,
             draggableCardSheetState = draggableCardSheetState,
             onSelect = { onSelect(HomeState.Tab.MyDevices) }

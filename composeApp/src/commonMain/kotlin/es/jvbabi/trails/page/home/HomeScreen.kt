@@ -67,6 +67,7 @@ import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.model.Snapshot
 import es.jvbabi.trails.domain.model.User
 import es.jvbabi.trails.domain.repository.Location
+import es.jvbabi.trails.page.devices.main.DevicesTab
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.Month
 import kotlin.uuid.Uuid
@@ -204,7 +205,10 @@ fun HomeContent(
                             targetState = state.selectedTab,
                         ) { selectedTab ->
                             when (selectedTab) {
-                                HomeState.Tab.MyDevices -> Text("Hier könnten deine Geräte sein!")
+                                HomeState.Tab.MyDevices -> DevicesTab(
+                                    contentPadding = contentPadding,
+                                    nestedScrollConnection = draggableCardSheetState.nestedScrollConnection,
+                                )
                                 HomeState.Tab.Things -> Text("Hier könnten deine Gegenstände sein!")
                                 HomeState.Tab.Shares -> SharesScreen(
                                     nestedScrollConnection = draggableCardSheetState.nestedScrollConnection,

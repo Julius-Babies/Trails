@@ -3,7 +3,9 @@ package es.jvbabi.trails
 import android.app.ComponentCaller
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.view.RoundedCorner
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -12,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import co.touchlab.kermit.Logger
 import com.mapbox.common.MapboxOptions
@@ -44,6 +47,7 @@ class MainActivity : ComponentActivity(), KoinComponent {
     
     companion object {
         val isVisible = MutableStateFlow(false)
+        val cornerRadiusBottom = MutableStateFlow(0.dp)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -107,6 +111,20 @@ class MainActivity : ComponentActivity(), KoinComponent {
             lifecycleScope.launch {
                 handleDeepLinkUseCase(Url(data.toString()))
             }
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+
+        super.onWindowFocusChanged(hasFocus)
+        if (!hasFocus) return
+
+        val insets = window.decorView.rootWindowInsets ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val bottomRight = insets.getRoundedCorner(RoundedCorner.POSITION_BOTTOM_RIGHT) ?: return
+            val radiusDp = bottomRight.radius / resources.displayMetrics.density
+            cornerRadiusBottom.value = radiusDp.dp
         }
     }
 }

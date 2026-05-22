@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import es.jvbabi.trails.page.home.components.internal.AnchoredDraggableState
+import es.jvbabi.trails.utils.getBottomBorderRadius
 import es.jvbabi.trails.page.home.components.internal.DraggableAnchors
 import es.jvbabi.trails.page.home.components.internal.animateTo
 import es.jvbabi.trails.page.home.components.internal.draggableAnchors
@@ -431,11 +432,12 @@ fun DraggableCardSheet(
             newAnchors to newTarget
         }
 
+        val bottomRadius = getBottomBorderRadius()
         val shape = RoundedCornerShape(
-            topEnd = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp),
-            topStart = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp),
-            bottomEnd = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp) * (1-state.expandedProgress),
-            bottomStart = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding().coerceAtLeast(16.dp) * (1-state.expandedProgress),
+            topEnd = (bottomRadius - horizontalContainerPadding).coerceAtLeast(16.dp),
+            topStart = (bottomRadius - horizontalContainerPadding).coerceAtLeast(16.dp),
+            bottomEnd = (bottomRadius - horizontalContainerPadding).coerceAtLeast(16.dp),
+            bottomStart = (bottomRadius - horizontalContainerPadding).coerceAtLeast(16.dp),
         )
 
         Box(Modifier.fillMaxSize()) {
