@@ -2,6 +2,7 @@ package es.jvbabi.trails.data.database.dao
 
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
 import es.jvbabi.trails.data.database.entity.DbDevice
 import es.jvbabi.trails.data.database.entity.embedded.EmbeddedDevice
@@ -13,12 +14,15 @@ interface DeviceDao {
     @Upsert
     suspend fun upsertDevices(device: List<DbDevice>)
 
+    @Transaction
     @Query("SELECT * FROM devices WHERE owner_id = :ownerId")
     fun getDevicesByOwner(ownerId: Uuid): Flow<List<EmbeddedDevice>>
 
+    @Transaction
     @Query("SELECT * FROM devices")
     fun getDevices(): Flow<List<EmbeddedDevice>>
 
+    @Transaction
     @Query("SELECT * FROM devices WHERE id = :deviceId")
     fun getDeviceById(deviceId: Uuid): Flow<EmbeddedDevice?>
 
