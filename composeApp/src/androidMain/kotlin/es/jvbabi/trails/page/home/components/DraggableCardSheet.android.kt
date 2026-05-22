@@ -2,7 +2,6 @@ package es.jvbabi.trails.page.home.components
 
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.runtime.Composable
-import kotlinx.coroutines.flow.Flow
 
 @Composable
 internal actual fun SheetBackHandler(

@@ -13,6 +13,8 @@ import androidx.core.net.toUri
 import org.koin.core.qualifier.named
 import org.koin.mp.KoinPlatformTools
 
+const val KOIN_ACTIVITY_CONTEXT = "koin_activity_context"
+
 actual fun openUrl(url: String) {
     val context = KoinPlatformTools.defaultContext().get().get<Context>(named(KOIN_ACTIVITY_CONTEXT))
     val customTabsIntent = CustomTabsIntent.Builder()

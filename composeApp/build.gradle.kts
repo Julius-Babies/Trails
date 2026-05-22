@@ -1,10 +1,12 @@
+import com.android.build.api.dsl.androidLibrary
+import org.gradle.kotlin.dsl.invoke
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.kotlinMultiplatform)
-    alias(libs.plugins.androidApplication)
+    alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.ksp)
@@ -24,9 +26,16 @@ kotlin {
         optIn.add("kotlin.uuid.ExperimentalUuidApi")
     }
 
-    androidTarget {
+    androidLibrary {
+        compileSdk = libs.versions.android.compileSdk.get().toInt()
+        namespace = "es.jvbabi.trails.shared.compose"
+
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
+        }
+
+        androidResources {
+            enable = true
         }
     }
     
@@ -39,18 +48,17 @@ kotlin {
             isStatic = true
         }
     }
-    
+
     sourceSets {
         androidMain.dependencies {
-            implementation(libs.compose.uiToolingPreview)
-            implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.browser)
             val mapboxVersion = libs.versions.app.mapbox.get()
-            implementation("com.mapbox.maps:android-ndk27:$mapboxVersion") {
+            api("com.mapbox.maps:android-ndk27:$mapboxVersion") {
                 exclude(group = "com.google.android.gms", module = "play-services-cronet")
             }
             implementation(libs.mapbox.compose)
         }
+
         commonMain.dependencies {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
@@ -65,7 +73,7 @@ kotlin {
             implementation(libs.navigation3.ui)
             implementation(libs.navigation3.lifecycle)
 
-            implementation(libs.koin.compose)
+            api(libs.koin.compose)
             implementation(libs.koin.compose.navigation3)
 
             implementation(libs.kotlinx.datetime)
@@ -73,16 +81,16 @@ kotlin {
             implementation(libs.androidx.room.runtime)
             implementation(libs.androidx.sqlite.bundled)
 
-            implementation(libs.moko.permissions.core)
+            api(libs.moko.permissions.core)
+            api(libs.moko.permissions.compose)
             implementation(libs.moko.permissions.location)
-            implementation(libs.moko.permissions.compose)
 
-            implementation(libs.kermit)
+            api(libs.kermit)
 
             implementation(libs.haze.blur)
             implementation(libs.haze.blur.materials)
 
-            implementation(libs.ktor.client.core)
+            api(libs.ktor.client.core)
             implementation(libs.ktor.client.cio)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.client.websocket)
@@ -104,57 +112,7 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
-android {
-    namespace = "es.jvbabi.trails"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
-
-    buildFeatures {
-        buildConfig = true
-    }
-
-    if (listOf("signing.default.file", "signing.default.storepassword", "signing.default.keyalias", "signing.default.keypassword").all { localProperties.containsKey(it) }) {
-        signingConfigs {
-            create("default") {
-                storeFile = file(localProperties["signing.default.file"]!!)
-                storePassword = localProperties["signing.default.storepassword"].toString()
-                keyAlias = localProperties["signing.default.keyalias"].toString()
-                keyPassword = localProperties["signing.default.keypassword"].toString()
-            }
-        }
-    }
-
-    defaultConfig {
-        applicationId = "es.jvbabi.trails"
-        minSdk = libs.versions.android.minSdk.get().toInt()
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
-
-        buildConfigField("String", "MAPBOX_API_KEY", "\"${localProperties.getProperty("mapbox.public-token")}\"")
-    }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-        }
-    }
-    buildTypes {
-        release {
-            isMinifyEnabled = false
-            signingConfig = signingConfigs.findByName("default")
-        }
-
-        debug {
-            applicationIdSuffix = ".debug"
-            versionNameSuffix = "-debug"
-        }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
-}
-
 dependencies {
-    debugImplementation(libs.compose.uiTooling)
+    androidRuntimeClasspath(libs.compose.uiTooling)
 }
 

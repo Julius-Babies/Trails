@@ -24,8 +24,11 @@ import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
 import es.jvbabi.trails.domain.usecase.communication.StartExternalConnectionsUseCase
 import es.jvbabi.trails.domain.usecase.communication.StopExternalConnectionsUseCase
 import es.jvbabi.trails.page.Screen
+import es.jvbabi.trails.data.repository.ApplicationRepositoryImpl
+import es.jvbabi.trails.utils.KOIN_KEY_CORNER_RADIUS
 import io.ktor.http.Url
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
@@ -33,8 +36,6 @@ import org.koin.core.component.inject
 import org.koin.core.context.loadKoinModules
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
-
-const val KOIN_ACTIVITY_CONTEXT = "koin_activity_context"
 
 class MainActivity : ComponentActivity(), KoinComponent {
 
@@ -54,7 +55,11 @@ class MainActivity : ComponentActivity(), KoinComponent {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        loadKoinModules(module { single(named(KOIN_ACTIVITY_CONTEXT)) { this@MainActivity as Context } })
+        loadKoinModules(module {
+            single(named(KOIN_ACTIVITY_CONTEXT)) { this@MainActivity as Context }
+            single(named(KOIN_KEY_CORNER_RADIUS)) { cornerRadiusBottom.asStateFlow() }
+            single(named(ApplicationRepositoryImpl.KOIN_KEY_APP_IN_FOREGROUND_FLOW)) { isVisible.asStateFlow() }
+        })
 
         onNewIntent(intent)
 

@@ -125,7 +125,7 @@ jobs:
           mapbox_secret_token: ${{ secrets.MAPBOX_SECRET_TOKEN }}
 
       - name: Build Android APK
-        run: ./gradlew assembleRelease
+        run: ./gradlew :app:android:assembleRelease
 
       - name: Rename APK artifact
         run: mv composeApp/build/outputs/apk/release/composeApp-release.apk Trails.apk

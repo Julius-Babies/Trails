@@ -1,8 +1,13 @@
 package es.jvbabi.trails.utils
 
 import androidx.compose.ui.unit.Dp
-import es.jvbabi.trails.MainActivity
+import kotlinx.coroutines.flow.StateFlow
+import org.koin.core.qualifier.named
+import org.koin.mp.KoinPlatformTools
+
+const val KOIN_KEY_CORNER_RADIUS = "corner_radius"
 
 actual fun getBottomBorderRadius(): Dp {
-    return MainActivity.cornerRadiusBottom.value
+    val cornerRadiusState = KoinPlatformTools.defaultContext().get().get<StateFlow<Dp>>(named(KOIN_KEY_CORNER_RADIUS))
+    return cornerRadiusState.value
 }
