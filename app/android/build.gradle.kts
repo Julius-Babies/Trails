@@ -40,7 +40,7 @@ android {
         buildConfig = true
     }
 
-    if (listOf("signing.default.file", "signing.default.storepassword", "signing.default.keyalias", "signing.default.keypassword").all { localProperties.containsKey(it) }) {
+    if (listOf("signing.default.file", "signing.default.storepassword", "signing.default.keyalias", "signinapkg.default.keypassword").all { localProperties.containsKey(it) }) {
         signingConfigs {
             create("default") {
                 storeFile = rootProject.file(localProperties["signing.default.file"]!!)
@@ -68,7 +68,11 @@ android {
     }
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFile(
+                getDefaultProguardFile("proguard-android-optimize.txt")
+            )
             signingConfig = signingConfigs.findByName("default")
         }
 
