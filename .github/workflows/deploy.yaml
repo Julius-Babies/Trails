@@ -127,14 +127,11 @@ jobs:
       - name: Build Android APK
         run: ./gradlew :app:android:assembleRelease
 
-      - name: Rename APK artifact
-        run: mv app/android/build/outputs/apk/release/android-release.apk Trails.apk
-
-      - name: Upload APK artifact
+      - name: Upload APK artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: Trails.apk
-          path: Trails.apk
+          name: android-apks
+          path: app/android/build/outputs/apk/release/
           compression-level: 0
           if-no-files-found: error
 
@@ -154,19 +151,24 @@ jobs:
       - name: Set date for tag name
         run: echo "TAG_DATE=$(date '+%Y%m%d_%H-%M')" >> $GITHUB_ENV
 
-      - name: Download Android APK artifact
+      - name: Download Android APK artifacts
         uses: actions/download-artifact@v8
         with:
-          name: Trails.apk
+          name: android-apks
+          path: apks/
 
-      - name: Rename APK artifact
-        run: mv Trails.apk "Trails ${{ env.TAG_DATE }}.apk"
+      - name: Rename APK artifacts for release
+        run: |
+          for apk in apks/*.apk; do
+            base=$(basename "$apk")
+            mv "$apk" "apks/Trails ${{ env.TAG_DATE }} ${base}"
+          done
 
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          files: Trails ${{ env.TAG_DATE }}.apk
+          files: apks/Trails*
           draft: false
           prerelease: false
           make_latest: true

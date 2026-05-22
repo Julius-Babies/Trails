@@ -40,7 +40,16 @@ android {
         buildConfig = true
     }
 
-    if (listOf("signing.default.file", "signing.default.storepassword", "signing.default.keyalias", "signinapkg.default.keypassword").all { localProperties.containsKey(it) }) {
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = true
+        }
+    }
+
+    if (listOf("signing.default.file", "signing.default.storepassword", "signing.default.keyalias", "signing.default.keypassword").all { localProperties.containsKey(it) }) {
         signingConfigs {
             create("default") {
                 storeFile = rootProject.file(localProperties["signing.default.file"]!!)
@@ -49,6 +58,8 @@ android {
                 keyPassword = localProperties["signing.default.keypassword"].toString()
             }
         }
+    } else {
+        println("Warning: signing configuration not found in local.properties, release builds will not be signed.")
     }
 
     defaultConfig {
