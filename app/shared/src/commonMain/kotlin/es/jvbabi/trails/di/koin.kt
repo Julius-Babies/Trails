@@ -29,9 +29,6 @@ import es.jvbabi.trails.page.setings.SettingsViewModel
 import es.jvbabi.trails.page.shares.add_share.AddShareViewModel
 import es.jvbabi.trails.page.shares.new_share.NewShareViewModel
 import io.ktor.client.HttpClient
-import io.ktor.client.HttpClientConfig
-import io.ktor.client.engine.cio.CIO
-import io.ktor.client.engine.cio.CIOEngineConfig
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
@@ -47,7 +44,6 @@ import org.koin.dsl.bind
 import org.koin.dsl.module
 
 expect fun getDatabaseBuilder(): RoomDatabase.Builder<TrailsDatabase>
-expect fun HttpClientConfig<CIOEngineConfig>.configureHttpClient()
 
 fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
     appDeclaration()
@@ -61,23 +57,23 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
                 .build()
         }
 
-        single<HttpClient> { HttpClient(CIO) {
+        single<HttpClient> {
             val jsonInstance = Json {
                 prettyPrint = true
                 isLenient = true
                 ignoreUnknownKeys = true
             }
 
-            install(ContentNegotiation) {
-                json(jsonInstance)
-            }
+            HttpClient {
+                install(ContentNegotiation) {
+                    json(jsonInstance)
+                }
 
-            install(WebSockets) {
-                contentConverter = KotlinxWebsocketSerializationConverter(jsonInstance)
+                install(WebSockets) {
+                    contentConverter = KotlinxWebsocketSerializationConverter(jsonInstance)
+                }
             }
-
-            configureHttpClient()
-        } }
+        }
 
         singleOf(::KeyValueRepositoryImpl) bind KeyValueRepository::class
         singleOf(::LocationRepositoryImpl) bind LocationRepository::class

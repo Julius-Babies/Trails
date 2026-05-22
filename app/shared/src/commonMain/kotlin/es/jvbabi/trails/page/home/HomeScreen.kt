@@ -73,8 +73,8 @@ import kotlinx.datetime.Month
 import kotlin.uuid.Uuid
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
-import trails.composeapp.generated.resources.Res
-import trails.composeapp.generated.resources.settings
+import trails.app.shared.generated.resources.Res
+import trails.app.shared.generated.resources.settings
 
 @Composable
 fun HomeScreen(

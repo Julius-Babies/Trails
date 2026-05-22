@@ -41,41 +41,50 @@ class DeviceInformationRepository: Closeable, KoinComponent {
 
     suspend fun getDeviceInformation(manufacturer: String, model: String): DeviceInformationData {
         var friendlyName = model
-        httpClient
-            .prepareGet("https://storage.googleapis.com/play_public/supported_devices.csv")
-            .execute { response ->
-                if (!response.status.isSuccess()) return@execute
-                val inputStream = response
-                    .bodyAsChannel()
-                    .toInputStream()
 
-                val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_16LE))
+        if (manufacturer.equals("Apple", ignoreCase = true)) {
+            val appleListResponse = httpClient.get(URLBuilder("https://raw.githubusercontent.com/kyle-seongwoo-jun/apple-device-identifiers/main/ios-device-identifiers.json").buildString())
+            val appleList = appleListResponse.bodyAsText()
+            val appleListJson = Json.decodeFromString<Map<String, String>>(appleList)
+            friendlyName = appleListJson[model] ?: model
+        } else {
+            httpClient
+                .prepareGet("https://storage.googleapis.com/play_public/supported_devices.csv")
+                .execute { response ->
+                    if (!response.status.isSuccess()) return@execute
+                    val inputStream = response
+                        .bodyAsChannel()
+                        .toInputStream()
 
-                var line: String? = reader.readLine()
-                while (line != null) {
-                    val cleanLine = line.removePrefix("\uFEFF")
+                    val reader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_16LE))
 
-                    if (cleanLine.isBlank()) {
-                        line = reader.readLine()
-                        continue
-                    }
+                    var line: String? = reader.readLine()
+                    while (line != null) {
+                        val cleanLine = line.removePrefix("\uFEFF")
 
-                    try {
-                        val csvLine = csvReader().readAll(cleanLine).firstOrNull()
-                        if (csvLine != null) {
-                            if (csvLine[0].equals(manufacturer, ignoreCase = true) && csvLine[2].equals(model, ignoreCase = true)) {
-                                friendlyName = csvLine[1]
-                                return@execute
-                            }
+                        if (cleanLine.isBlank()) {
+                            line = reader.readLine()
+                            continue
                         }
-                    } catch (e: Exception) {
-                        println("Fehler in Zeile: $cleanLine")
-                        e.printStackTrace()
-                    }
 
-                    line = reader.readLine()
+                        try {
+                            val csvLine = csvReader().readAll(cleanLine).firstOrNull()
+                            if (csvLine != null) {
+                                if (csvLine[0].equals(manufacturer, ignoreCase = true) && csvLine[2].equals(model, ignoreCase = true)) {
+                                    friendlyName = csvLine[1]
+                                    return@execute
+                                }
+                            }
+                        } catch (e: Exception) {
+                            println("Fehler in Zeile: $cleanLine")
+                            e.printStackTrace()
+                        }
+
+                        line = reader.readLine()
+                    }
                 }
-            }
+        }
+
 
         val response = httpClient.get(URLBuilder("https://mobile-specs-api-sandy.vercel.app/").apply {
             appendPathSegments("search")

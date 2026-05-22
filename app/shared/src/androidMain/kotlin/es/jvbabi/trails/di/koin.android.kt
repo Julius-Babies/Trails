@@ -4,8 +4,6 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import es.jvbabi.trails.data.database.TrailsDatabase
-import io.ktor.client.HttpClientConfig
-import io.ktor.client.engine.cio.CIOEngineConfig
 import org.koin.mp.KoinPlatformTools
 
 actual fun getDatabaseBuilder(): RoomDatabase.Builder<TrailsDatabase> {
@@ -15,7 +13,4 @@ actual fun getDatabaseBuilder(): RoomDatabase.Builder<TrailsDatabase> {
         context = context,
         name = context.getDatabasePath("trails.db").absolutePath
     )
-}
-
-actual fun HttpClientConfig<CIOEngineConfig>.configureHttpClient() {
 }

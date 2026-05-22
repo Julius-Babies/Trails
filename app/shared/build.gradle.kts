@@ -55,6 +55,7 @@ kotlin {
                 exclude(group = "com.google.android.gms", module = "play-services-cronet")
             }
             implementation(libs.mapbox.compose)
+            implementation(libs.ktor.client.cio)
         }
 
         commonMain.dependencies {
@@ -89,11 +90,15 @@ kotlin {
             implementation(libs.haze.blur.materials)
 
             api(libs.ktor.client.core)
-            implementation(libs.ktor.client.cio)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.client.websocket)
             implementation(libs.ktor.serialization.kotlinx.json)
         }
+
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
+        }
+
         commonTest.dependencies {
             implementation(libs.kotlin.test)
         }

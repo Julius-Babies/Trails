@@ -39,9 +39,9 @@ import es.jvbabi.trails.page.shares.SharesScreen
 import es.jvbabi.trails.page.shares.add_share.AddShareScreen
 import es.jvbabi.trails.page.shares.new_share.NewShareScreen
 import org.jetbrains.compose.resources.painterResource
-import trails.composeapp.generated.resources.Res
-import trails.composeapp.generated.resources.plus
-import trails.composeapp.generated.resources.share_2
+import trails.app.shared.generated.resources.Res
+import trails.app.shared.generated.resources.plus
+import trails.app.shared.generated.resources.share_2
 
 @Composable
 fun SharesScreen(

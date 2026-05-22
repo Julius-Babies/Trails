@@ -1,7 +1,9 @@
 package es.jvbabi.trails.data.database
 
+import androidx.room.ConstructedBy
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.RoomDatabaseConstructor
 import androidx.room.TypeConverters
 import es.jvbabi.trails.data.database.converter.UuidConverter
 import es.jvbabi.trails.data.database.dao.ActiveShareDao
@@ -26,6 +28,7 @@ import es.jvbabi.trails.data.database.entity.DbUser
     version = 1,
     exportSchema = true,
 )
+@ConstructedBy(AppDatabaseConstructor::class)
 @TypeConverters(
     UuidConverter::class,
 )
@@ -35,4 +38,9 @@ abstract class TrailsDatabase: RoomDatabase() {
     abstract val userDao: UserDao
     abstract val deviceDao: DeviceDao
     abstract val activeShareDao: ActiveShareDao
+}
+
+@Suppress("KotlinNoActualForExpect")
+expect object AppDatabaseConstructor : RoomDatabaseConstructor<TrailsDatabase> {
+    override fun initialize(): TrailsDatabase
 }

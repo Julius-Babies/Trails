@@ -30,9 +30,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import es.jvbabi.trails.getClipboardText
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
-import trails.composeapp.generated.resources.Res
-import trails.composeapp.generated.resources.clipboard
-import trails.composeapp.generated.resources.link
+import trails.app.shared.generated.resources.Res
+import trails.app.shared.generated.resources.clipboard
+import trails.app.shared.generated.resources.link
 
 @Composable
 fun AddShareScreen(

@@ -16,10 +16,10 @@ import androidx.compose.ui.unit.dp
 import es.jvbabi.trails.page.home.HomeState
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
-import trails.composeapp.generated.resources.Res
-import trails.composeapp.generated.resources.shapes
-import trails.composeapp.generated.resources.smartphone
-import trails.composeapp.generated.resources.users
+import trails.app.shared.generated.resources.Res
+import trails.app.shared.generated.resources.shapes
+import trails.app.shared.generated.resources.smartphone
+import trails.app.shared.generated.resources.users
 
 @Composable
 fun NavigationBar(

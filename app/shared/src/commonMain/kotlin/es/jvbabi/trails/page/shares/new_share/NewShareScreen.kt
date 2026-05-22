@@ -68,15 +68,15 @@ import es.jvbabi.trails.utils.rememberBitmapFromBytes
 import es.jvbabi.trails.utils.toDp
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
-import trails.composeapp.generated.resources.Res
-import trails.composeapp.generated.resources.battery_medium
-import trails.composeapp.generated.resources.check
-import trails.composeapp.generated.resources.circle_alert
-import trails.composeapp.generated.resources.link
-import trails.composeapp.generated.resources.map_pin_time
-import trails.composeapp.generated.resources.tag
-import trails.composeapp.generated.resources.users
-import trails.composeapp.generated.resources.x
+import trails.app.shared.generated.resources.Res
+import trails.app.shared.generated.resources.battery_medium
+import trails.app.shared.generated.resources.check
+import trails.app.shared.generated.resources.circle_alert
+import trails.app.shared.generated.resources.link
+import trails.app.shared.generated.resources.map_pin_time
+import trails.app.shared.generated.resources.tag
+import trails.app.shared.generated.resources.users
+import trails.app.shared.generated.resources.x
 import kotlin.uuid.Uuid
 
 @Composable

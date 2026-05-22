@@ -25,8 +25,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
-import trails.composeapp.generated.resources.Res
-import trails.composeapp.generated.resources.arrow_left
+import trails.app.shared.generated.resources.Res
+import trails.app.shared.generated.resources.arrow_left
 
 @Composable
 fun SettingsScreen(
