@@ -3,6 +3,10 @@ package es.jvbabi.trails.page.home
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -36,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
@@ -44,37 +50,41 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.times
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import co.touchlab.kermit.Logger
 import dev.chrisbanes.haze.blur.blurEffect
 import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import es.jvbabi.trails.ThemeWrapper
+import es.jvbabi.trails.domain.model.Device
+import es.jvbabi.trails.domain.model.Snapshot
+import es.jvbabi.trails.domain.model.User
+import es.jvbabi.trails.domain.repository.Location
+import es.jvbabi.trails.page.devices.main.DevicesTab
 import es.jvbabi.trails.page.home.components.CardSheetValue
 import es.jvbabi.trails.page.home.components.DraggableCardSheet
 import es.jvbabi.trails.page.home.components.Map
 import es.jvbabi.trails.page.home.components.NavigationBar
 import es.jvbabi.trails.page.home.components.rememberDraggableCardSheetState
 import es.jvbabi.trails.page.shares.main.SharesScreen
+import es.jvbabi.trails.utils.blendColor
 import kotlinx.coroutines.launch
-import co.touchlab.kermit.Logger
-import es.jvbabi.trails.domain.model.Device
-import es.jvbabi.trails.domain.model.Snapshot
-import es.jvbabi.trails.domain.model.User
-import es.jvbabi.trails.domain.repository.Location
-import es.jvbabi.trails.page.devices.main.DevicesTab
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.Month
-import kotlin.uuid.Uuid
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import trails.app.shared.generated.resources.Res
 import trails.app.shared.generated.resources.settings
+import kotlin.uuid.Uuid
 
 @Composable
 fun HomeScreen(
@@ -175,11 +185,11 @@ fun HomeContent(
                         .fillMaxSize()
                         .hazeEffect(hazeState) {
                             blurEffect {
-                                blurRadius = 4.dp + draggableCardSheetState.progress * 4.dp
+                                blurRadius = 16.dp + draggableCardSheetState.progress * 4.dp
                                 style = hazeStyle
                             }
                         }
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = draggableCardSheetState.progress))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = draggableCardSheetState.progress/(1/0.8f) + 0.8f))
                 ) {
                     Box(
                         modifier = Modifier
@@ -201,8 +211,10 @@ fun HomeContent(
                             .clipToBounds()
                             .bottomFadeOut(active = draggableCardSheetState.isUserDragging && draggableCardSheetState.progress < 0.5f)
                     ) {
-                        AnimatedContent(
+                        if (!LocalInspectionMode.current) AnimatedContent(
                             targetState = state.selectedTab,
+                            modifier = Modifier.fillMaxSize(),
+                            transitionSpec = { fadeIn(tween(100)) togetherWith fadeOut(tween(100)) }
                         ) { selectedTab ->
                             when (selectedTab) {
                                 HomeState.Tab.MyDevices -> DevicesTab(
@@ -224,22 +236,19 @@ fun HomeContent(
                     Column(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(bottom = contentPadding.bottom * draggableCardSheetState.collapsedProgress)
+                            .background(blendColor(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, draggableCardSheetState.progress/2f))
+                            .padding(bottom = 16.dp * draggableCardSheetState.progress)
                             .fillMaxWidth()
-                            .height(collapsedHeight - 8.dp),
+                            .height(collapsedHeight + 8.dp),
                         verticalArrangement = Arrangement.Bottom
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            NavigationBar(
-                                selectedTab = state.selectedTab,
-                                draggableCardSheetState = draggableCardSheetState,
-                                onSelect = { onEvent(HomeEvent.SelectTab(it)) }
-                            )
-                        }
+                        HorizontalDivider(Modifier.alpha(draggableCardSheetState.progress))
+                        NavigationBar(
+                            modifier = Modifier.weight(1f),
+                            selectedTab = state.selectedTab,
+                            draggableCardSheetState = draggableCardSheetState,
+                            onSelect = { onEvent(HomeEvent.SelectTab(it)) }
+                        )
                     }
                 }
             }
@@ -305,6 +314,7 @@ internal fun rememberMockHomeState(): HomeState {
 }
 
 @Preview
+@PreviewWrapper(wrapper = ThemeWrapper::class)
 @Composable
 fun HomeScreenPreview() {
     HomeContent(

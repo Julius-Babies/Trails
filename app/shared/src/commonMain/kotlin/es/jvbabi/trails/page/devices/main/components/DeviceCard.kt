@@ -31,6 +31,7 @@ import es.jvbabi.trails.domain.repository.BatteryState
 import es.jvbabi.trails.domain.repository.Location
 import es.jvbabi.trails.page.home.HomeState
 import es.jvbabi.trails.ui.components.BatteryIcon
+import es.jvbabi.trails.ui.components.BatteryOrientation
 import es.jvbabi.trails.utils.rememberBitmapFromBytes
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -93,6 +94,7 @@ fun DeviceCard(
         if (device.snapshot?.batteryState != null) BatteryIcon(
             percentage = device.snapshot.batteryState.percentage,
             isCharging = device.snapshot.batteryState.isCharging,
+            orientation = BatteryOrientation.Right,
             modifier = Modifier
                 .padding(end = 8.dp)
                 .height(24.dp)

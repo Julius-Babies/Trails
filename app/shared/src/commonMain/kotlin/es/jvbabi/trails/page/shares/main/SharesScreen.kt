@@ -15,7 +15,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MediumFloatingActionButton
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -32,7 +31,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
-import co.touchlab.kermit.Logger
 import es.jvbabi.trails.page.home.bottomFadeOut
 import es.jvbabi.trails.page.home.components.PaddingValues
 import es.jvbabi.trails.page.shares.SharesScreen
@@ -55,6 +53,7 @@ fun SharesScreen(
 
     key(contentPadding, nestedScrollConnection) {
         NavDisplay(
+            modifier = Modifier.fillMaxSize(),
             backStack = backstack,
             onBack = { backstack.removeLastOrNull() },
             entryProvider = { key ->

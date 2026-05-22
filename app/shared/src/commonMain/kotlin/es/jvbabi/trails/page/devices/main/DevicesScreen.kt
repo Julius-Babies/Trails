@@ -35,6 +35,7 @@ fun DevicesTab(
 
     key(contentPadding) {
         NavDisplay(
+            modifier = Modifier.fillMaxSize(),
             backStack = backstack,
             onBack = { backstack.removeLastOrNull() },
             entryProvider = { key ->
@@ -80,10 +81,10 @@ fun DevicesContent(
     ) {
         Text(
             text = "Geräte",
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.headlineLarge,
             modifier = Modifier
                 .padding(horizontal = 16.dp)
-                .padding(top = 8.dp)
+                .padding(top = 16.dp)
         )
 
         Column(
@@ -93,32 +94,36 @@ fun DevicesContent(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = contentPadding.bottom)
         ) {
-            Text(
-                text = "Meine Geräte",
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
-
-            state.myDevices.forEach { myDevice ->
-                DeviceCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    device = myDevice,
-                    onClick = {}
+            if (state.myDevices.isNotEmpty()) {
+                Text(
+                    text = "Meine Geräte",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 )
+
+                state.myDevices.forEach { myDevice ->
+                    DeviceCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        device = myDevice,
+                        onClick = {}
+                    )
+                }
             }
 
-            Text(
-                text = "Mit mir geteilte Geräte",
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
-
-            state.foreignDevices.forEach { foreignDevice ->
-                DeviceCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    device = foreignDevice,
-                    onClick = {}
+            if (state.foreignDevices.isNotEmpty()) {
+                Text(
+                    text = "Mit mir geteilte Geräte",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 )
+
+                state.foreignDevices.forEach { foreignDevice ->
+                    DeviceCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        device = foreignDevice,
+                        onClick = {}
+                    )
+                }
             }
         }
     }

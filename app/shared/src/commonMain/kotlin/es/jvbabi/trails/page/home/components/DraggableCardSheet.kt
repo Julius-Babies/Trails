@@ -34,6 +34,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
@@ -373,7 +374,7 @@ fun DraggableCardSheet(
             start = 8.dp,
             end = 8.dp,
             top = systemBar.calculateTopPadding() * state.expandedProgress + 16.dp * state.collapsedProgress * (1-state.expandedProgress),
-            bottom = 8.dp + systemBar.calculateBottomPadding() * (if (state.hasSemiExpanded) state.collapsedProgress else state.progress)
+            bottom = systemBar.calculateBottomPadding() * (if (state.hasSemiExpanded) state.collapsedProgress else state.progress)
         )
     }
 
@@ -432,7 +433,7 @@ fun DraggableCardSheet(
             newAnchors to newTarget
         }
 
-        val bottomRadius = getBottomBorderRadius()
+        val bottomRadius = if (LocalInspectionMode.current) 16.dp else getBottomBorderRadius()
         val shape = RoundedCornerShape(
             topEnd = (bottomRadius - horizontalContainerPadding).coerceAtLeast(16.dp),
             topStart = (bottomRadius - horizontalContainerPadding).coerceAtLeast(16.dp),

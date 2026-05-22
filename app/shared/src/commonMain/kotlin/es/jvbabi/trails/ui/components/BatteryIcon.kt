@@ -36,13 +36,21 @@ private val ColorMedium   = Color(0xFFFFCC00)  // yellow – 20-59 %
 private val ColorLow      = Color(0xFFFF3B30)  // red    – 0-19 %
 private val ColorShell    = Color(0x44000000)  // semi-transparent body background
 
+enum class BatteryOrientation(val rotation: Float) {
+    Up(0f),
+    Right(90f),
+    Down(180f),
+    Left(-90f),
+}
+
 /**
- * A borderless, vertical battery icon drawn with Canvas.
+ * A battery icon drawn with Canvas.
  *
  * @param modifier    Controls size. Recommended aspect ratio ≈ 1 : 2 (width : height).
  * @param percentage  Charge level in [0, 100]. Fill rises from the bottom.
  * @param isCharging  Shows a lightning bolt and switches fill to cyan with a pulse.
  * @param emptyColor  Tint of the unfilled body background.
+ * @param orientation Which direction the battery cap faces.
  */
 @Composable
 fun BatteryIcon(
@@ -50,6 +58,7 @@ fun BatteryIcon(
     percentage: Int = 80,
     isCharging: Boolean = false,
     emptyColor: Color = ColorShell,
+    orientation: BatteryOrientation = BatteryOrientation.Up,
 ) {
     val clampedPct = percentage.coerceIn(0, 100)
 
@@ -77,14 +86,14 @@ fun BatteryIcon(
     }
 
     val fillColor = when {
-        clampedPct >= 60 -> ColorFull
-        clampedPct >= 20 -> ColorMedium
+        clampedPct >= 30 -> ColorFull
+        clampedPct >= 15 -> ColorMedium
         else             -> ColorLow
     }
 
     androidx.compose.foundation.Canvas(
         // graphicsLayer is required for BlendMode ops to composite correctly
-        modifier = modifier.graphicsLayer { alpha = 0.99f },
+        modifier = modifier.graphicsLayer { alpha = 0.99f; rotationZ = orientation.rotation },
     ) {
         drawBattery(
             pct        = clampedPct / 100f,
@@ -242,7 +251,7 @@ private fun BatteryIconPreview() {
     ) {
         BatteryIcon(modifier = Modifier.size(36.dp, 72.dp), percentage = 100)
         BatteryIcon(modifier = Modifier.size(36.dp, 72.dp), percentage = 60)
-        BatteryIcon(modifier = Modifier.size(36.dp, 72.dp), percentage = 35)
+        BatteryIcon(modifier = Modifier.size(36.dp, 72.dp), percentage = 25)
         BatteryIcon(modifier = Modifier.size(36.dp, 72.dp), percentage = 10)
         BatteryIcon(modifier = Modifier.size(36.dp, 72.dp), percentage = 55, isCharging = true)
         BatteryIcon(modifier = Modifier.size(36.dp, 72.dp), percentage = 0,  isCharging = true)
