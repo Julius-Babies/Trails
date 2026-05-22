@@ -40,4 +40,4 @@ dependencyResolutionManagement {
 }
 
 include(":app:android")
-include(":composeApp")
+include(":app:shared")

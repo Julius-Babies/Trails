@@ -24,7 +24,7 @@ kotlin {
         optIn.add("kotlin.uuid.ExperimentalUuidApi")
     }
 
-    androidLibrary {
+    android {
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         namespace = "es.jvbabi.trails.shared.compose"
 
