@@ -5,9 +5,6 @@ on:
 jobs:
   build-server:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./server
     steps:
       - uses: actions/checkout@v5
         name: Checkout code
@@ -23,15 +20,12 @@ jobs:
 
       - name: Build with Gradle
         run: >
-          ./gradlew buildServerJar
+          ./gradlew :server:buildServerJar
           -Pmaven.pkg.github.com.user=${{ secrets.GH_USERNAME }}
           -Pmaven.pkg.github.com.token=${{ secrets.GH_REGISTRY_TOKEN }}
 
       - name: Rename artifact
-        run: mv build/libs/server*.jar build/libs/server-all.jar
-
-      - name: Copy JAR to workspace root
-        run: cp build/libs/server-all.jar ../server-all.jar
+        run: mv server/build/libs/server*.jar server-all.jar
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7

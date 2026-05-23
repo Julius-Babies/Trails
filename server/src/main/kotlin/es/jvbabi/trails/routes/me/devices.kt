@@ -5,11 +5,10 @@ import es.jvbabi.trails.api.TrailsAppUserPrincipal
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.Device
 import es.jvbabi.trails.database.Devices
+import es.jvbabi.trails.shared.dto.DeviceResponse
 import io.ktor.server.auth.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.v1.core.eq
 import org.koin.ktor.ext.inject
 
@@ -38,12 +37,3 @@ fun Route.devices() {
         }
     }
 }
-
-@Serializable
-data class DeviceResponse(
-    @SerialName("id") val id: String,
-    @SerialName("manufacturer") val manufacturer: String,
-    @SerialName("model") val model: String,
-    @SerialName("friendly_name") val friendlyName: String,
-    @SerialName("display_name") val displayName: String,
-)

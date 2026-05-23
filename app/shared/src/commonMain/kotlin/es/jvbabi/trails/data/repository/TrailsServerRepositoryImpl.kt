@@ -13,7 +13,12 @@ import es.jvbabi.trails.domain.repository.ApplicationRepository
 import es.jvbabi.trails.domain.repository.DevicesRepository
 import es.jvbabi.trails.domain.repository.FileRepository
 import es.jvbabi.trails.domain.repository.KeyValueRepository
-import es.jvbabi.trails.domain.repository.MeResponse
+import es.jvbabi.trails.shared.dto.DeviceResponse
+import es.jvbabi.trails.shared.dto.MeResponse
+import es.jvbabi.trails.shared.dto.UseShareLinkRequest
+import es.jvbabi.trails.shared.dto.UseShareLinkResponse
+import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketAppMessage
+import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketServerMessage
 import es.jvbabi.trails.domain.repository.ShareRepository
 import es.jvbabi.trails.domain.repository.SnapshotRepository
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
@@ -66,8 +71,6 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -372,115 +375,6 @@ class TrailsServerRepositoryImpl(
     }
 }
 
-@Serializable
-private sealed class TrailsWebSocketAppMessage {
-    @SerialName("data_snapshot")
-    @Serializable
-    data class DataSnapshot(
-        @SerialName("latitude") val latitude: Double,
-        @SerialName("longitude") val longitude: Double,
-        @SerialName("bearing") val bearing: Float,
-        @SerialName("bearing_accuracy") val bearingAccuracy: Float?,
-        @SerialName("location_accuracy") val locationAccuracy: Float,
-        @SerialName("battery_level") val batteryLevel: Float?,
-        @SerialName("battery_charging") val batteryCharging: Boolean?,
-        @SerialName("time") val time: Long,
-    ) : TrailsWebSocketAppMessage()
-
-    @Serializable
-    @SerialName("share.subscribe")
-    data class ShareSubscribe(
-        @SerialName("share_ids") val shareIds: List<String>,
-    ) : TrailsWebSocketAppMessage()
-
-    @Serializable
-    @SerialName("own.subscribe")
-    data object SubscribeToOwn : TrailsWebSocketAppMessage()
-
-    @Serializable
-    @SerialName("share.unsubscribe_all")
-    data object ShareUnsubscribeAll : TrailsWebSocketAppMessage()
-
-    @Serializable
-    @SerialName("share.unsubscribe")
-    data class ShareUnsubscribe(
-        @SerialName("share_ids") val shareIds: List<String>,
-    ) : TrailsWebSocketAppMessage()
-}
-
-@Serializable
-private sealed class TrailsWebSocketServerMessage {
-    @Serializable
-    @SerialName("share.deleted")
-    data class ShareDeleted(
-        @SerialName("share_id") val shareId: String,
-    ) : TrailsWebSocketServerMessage()
-
-    @Serializable
-    @SerialName("share.snapshot")
-    data class Snapshot(
-        @SerialName("target") val target: Target,
-        @SerialName("timestamp") val timestamp: Long,
-        @SerialName("location") val location: Location,
-        @SerialName("battery_state") val batteryState: BatteryState?,
-    ) : TrailsWebSocketServerMessage() {
-
-        @Serializable
-        sealed class Target {
-            @Serializable
-            @SerialName("share")
-            data class Share(@SerialName("id") val shareId: String) : Target()
-
-            @Serializable
-            @SerialName("device")
-            data class Device(@SerialName("id") val deviceId: String) : Target()
-        }
-
-        @Serializable
-        data class Location(
-            @SerialName("latitude") val latitude: Double,
-            @SerialName("longitude") val longitude: Double,
-            @SerialName("bearing") val bearing: Float,
-            @SerialName("bearing_accuracy") val bearingAccuracy: Float?,
-            @SerialName("location_accuracy") val locationAccuracy: Float,
-        )
-
-        @Serializable
-        data class BatteryState(
-            @SerialName("percentage") val percentage: Int,
-            @SerialName("is_charging") val isCharging: Boolean,
-        )
-    }
-}
-
-
-@Serializable
-private data class DeviceResponse(
-    @SerialName("id") val id: String,
-    @SerialName("manufacturer") val manufacturer: String,
-    @SerialName("model") val model: String,
-    @SerialName("friendly_name") val friendlyName: String,
-    @SerialName("display_name") val displayName: String,
-)
-
-@Serializable
-private data class UseShareLinkRequest(
-    @SerialName("id") val id: String,
-)
-
-@Serializable
-private data class UseShareLinkResponse(
-    @SerialName("share_token") val shareId: String,
-    @SerialName("user") val user: User,
-    @SerialName("device") val device: DeviceResponse,
-) {
-    @Serializable
-    data class User(
-        @SerialName("id") val id: String,
-        @SerialName("username") val username: String,
-    )
-}
-
 private abstract class WebSocketClientBase(
     protected val scope: CoroutineScope,
     protected val applicationRepository: ApplicationRepository,
@@ -541,9 +435,9 @@ private abstract class WebSocketClientBase(
                     }
 
                     is TrailsWebSocketServerMessage.Snapshot -> {
-                        val device = when (message.target) {
-                            is TrailsWebSocketServerMessage.Snapshot.Target.Device -> devicesRepository.getDeviceById(Uuid.parse(message.target.deviceId)).firstOrNull()
-                            is TrailsWebSocketServerMessage.Snapshot.Target.Share -> shareRepository.getShareById(Uuid.parse(message.target.shareId)).firstOrNull()?.device
+                        val device = when (val target = message.target) {
+                            is TrailsWebSocketServerMessage.Snapshot.Target.Device -> devicesRepository.getDeviceById(Uuid.parse(target.deviceId)).firstOrNull()
+                            is TrailsWebSocketServerMessage.Snapshot.Target.Share -> shareRepository.getShareById(Uuid.parse(target.shareId)).firstOrNull()?.device
                         }
                         if (device == null) {
                             logger.w { "Received snapshot for unknown device in WS message: $message" }

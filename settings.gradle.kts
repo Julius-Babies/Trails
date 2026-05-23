@@ -36,8 +36,18 @@ dependencyResolutionManagement {
                 password = providers.gradleProperty("mapbox.token").orElse("").get()
             }
         }
+        maven {
+            name = "GitHub Authentikt"
+            url = uri("https://maven.pkg.github.com/Julius-Babies/authentikt")
+            credentials {
+                username = providers.gradleProperty("maven.pkg.github.com.user").orElse("").get()
+                password = providers.gradleProperty("maven.pkg.github.com.token").orElse("").get()
+            }
+        }
     }
 }
 
 include(":app:android")
 include(":app:shared")
+include(":shared")
+include(":server")

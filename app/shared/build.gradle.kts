@@ -49,54 +49,56 @@ kotlin {
 
     sourceSets {
         androidMain.dependencies {
-            implementation(libs.androidx.browser)
+            implementation(libs.app.androidx.browser)
             val mapboxVersion = libs.versions.app.mapbox.get()
             api("com.mapbox.maps:android-ndk27:$mapboxVersion") {
                 exclude(group = "com.google.android.gms", module = "play-services-cronet")
             }
-            implementation(libs.mapbox.compose)
-            implementation(libs.ktor.client.cio)
+            implementation(libs.app.mapbox.compose)
+            implementation(libs.app.ktor.client.cio)
         }
 
         commonMain.dependencies {
-            implementation(libs.compose.runtime)
-            implementation(libs.compose.foundation)
-            implementation(libs.compose.material3)
-            implementation(libs.compose.ui)
-            implementation(libs.compose.components.resources)
-            implementation(libs.compose.uiToolingPreview)
-            implementation(libs.androidx.lifecycle.viewmodelCompose)
-            implementation(libs.androidx.lifecycle.runtimeCompose)
+            implementation(projects.shared)
 
-            implementation(libs.navigation3.runtime)
-            implementation(libs.navigation3.ui)
-            implementation(libs.navigation3.lifecycle)
+            implementation(libs.app.compose.runtime)
+            implementation(libs.app.compose.foundation)
+            implementation(libs.app.compose.material3)
+            implementation(libs.app.compose.ui)
+            implementation(libs.app.compose.components.resources)
+            implementation(libs.app.compose.uiToolingPreview)
+            implementation(libs.app.androidx.lifecycle.viewmodelCompose)
+            implementation(libs.app.androidx.lifecycle.runtimeCompose)
 
-            api(libs.koin.compose)
-            implementation(libs.koin.compose.navigation3)
+            implementation(libs.app.navigation3.runtime)
+            implementation(libs.app.navigation3.ui)
+            implementation(libs.app.navigation3.lifecycle)
 
-            implementation(libs.kotlinx.datetime)
+            api(libs.app.koin.compose)
+            implementation(libs.app.koin.compose.navigation3)
 
-            implementation(libs.androidx.room.runtime)
-            implementation(libs.androidx.sqlite.bundled)
+            implementation(libs.app.kotlinx.datetime)
 
-            api(libs.moko.permissions.core)
-            api(libs.moko.permissions.compose)
-            implementation(libs.moko.permissions.location)
+            implementation(libs.app.androidx.room.runtime)
+            implementation(libs.app.androidx.sqlite.bundled)
 
-            api(libs.kermit)
+            api(libs.app.moko.permissions.core)
+            api(libs.app.moko.permissions.compose)
+            implementation(libs.app.moko.permissions.location)
 
-            implementation(libs.haze.blur)
-            implementation(libs.haze.blur.materials)
+            api(libs.app.kermit)
 
-            api(libs.ktor.client.core)
-            implementation(libs.ktor.client.content.negotiation)
-            implementation(libs.ktor.client.websocket)
-            implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(libs.app.haze.blur)
+            implementation(libs.app.haze.blur.materials)
+
+            api(libs.app.ktor.client.core)
+            implementation(libs.app.ktor.client.content.negotiation)
+            implementation(libs.app.ktor.client.websockets)
+            implementation(libs.app.ktor.serialization.kotlinx.json)
         }
 
         iosMain.dependencies {
-            implementation(libs.ktor.client.darwin)
+            implementation(libs.app.ktor.client.darwin)
         }
 
         commonTest.dependencies {
@@ -106,9 +108,9 @@ kotlin {
 }
 
 dependencies {
-    add("kspAndroid", libs.androidx.room.compiler)
-    add("kspIosSimulatorArm64", libs.androidx.room.compiler)
-    add("kspIosArm64", libs.androidx.room.compiler)
+    add("kspAndroid", libs.app.androidx.room.compiler)
+    add("kspIosSimulatorArm64", libs.app.androidx.room.compiler)
+    add("kspIosArm64", libs.app.androidx.room.compiler)
 }
 
 room {
@@ -116,6 +118,5 @@ room {
 }
 
 dependencies {
-    androidRuntimeClasspath(libs.compose.uiTooling)
+    androidRuntimeClasspath(libs.app.compose.uiTooling)
 }
-

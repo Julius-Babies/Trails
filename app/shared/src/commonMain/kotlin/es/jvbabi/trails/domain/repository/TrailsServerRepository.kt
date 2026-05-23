@@ -1,12 +1,11 @@
 package es.jvbabi.trails.domain.repository
 
 import es.jvbabi.trails.domain.model.Device
+import es.jvbabi.trails.shared.dto.MeResponse
 import io.ktor.http.URLBuilder
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlin.uuid.Uuid
 
 interface TrailsServerRepository {
@@ -27,13 +26,6 @@ interface TrailsServerRepository {
 
     suspend fun useShareLink(hostname: String, id: String): UseShareLinkResult
 }
-
-@Serializable
-data class MeResponse(
-    @SerialName("id") val id: String,
-    @SerialName("username") val username: String,
-    @SerialName("this_device_id") val thisDeviceId: String,
-)
 
 sealed class UseShareLinkResult {
     data object NotExisting : UseShareLinkResult()

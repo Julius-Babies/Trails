@@ -11,7 +11,8 @@ import es.jvbabi.trails.data.ShareSubscriptionRepository
 import es.jvbabi.trails.database.ActiveShare
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.Device
-import es.jvbabi.trails.database.Devices
+import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketAppMessage
+import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketServerMessage
 import io.ktor.serialization.*
 import io.ktor.server.auth.*
 import io.ktor.server.routing.*
@@ -21,8 +22,6 @@ import io.ktor.websocket.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import org.koin.ktor.ext.inject
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
@@ -210,83 +209,4 @@ private fun distanceMeters(
     return EARTH_RADIUS_METERS * c
 }
 
-@Serializable
-private sealed class TrailsWebSocketAppMessage {
-    @SerialName("data_snapshot")
-    @Serializable
-    data class DataSnapshot(
-        @SerialName("latitude") val latitude: Double,
-        @SerialName("longitude") val longitude: Double,
-        @SerialName("bearing") val bearing: Float,
-        @SerialName("bearing_accuracy") val bearingAccuracy: Float?,
-        @SerialName("location_accuracy") val locationAccuracy: Float,
-        @SerialName("battery_level") val batteryLevel: Float?,
-        @SerialName("battery_charging") val batteryCharging: Boolean?,
-        @SerialName("time") val time: Long,
-    ) : TrailsWebSocketAppMessage()
 
-    @Serializable
-    @SerialName("share.subscribe")
-    data class ShareSubscribe(
-        @SerialName("share_ids") val shareIds: List<String>,
-    ) : TrailsWebSocketAppMessage()
-
-    @Serializable
-    @SerialName("own.subscribe")
-    data object SubscribeToOwn : TrailsWebSocketAppMessage()
-
-    @Serializable
-    @SerialName("share.unsubscribe_all")
-    data object ShareUnsubscribeAll : TrailsWebSocketAppMessage()
-
-    @Serializable
-    @SerialName("share.unsubscribe")
-    data class ShareUnsubscribe(
-        @SerialName("share_ids") val shareIds: List<String>,
-    ) : TrailsWebSocketAppMessage()
-}
-
-@Serializable
-private sealed class TrailsWebSocketServerMessage {
-    @Serializable
-    @SerialName("share.deleted")
-    data class ShareDeleted(
-        @SerialName("share_id") val shareId: String,
-    ) : TrailsWebSocketServerMessage()
-
-    @Serializable
-    @SerialName("share.snapshot")
-    data class Snapshot(
-        @SerialName("target") val target: Target,
-        @SerialName("timestamp") val timestamp: Long,
-        @SerialName("location") val location: Location,
-        @SerialName("battery_state") val batteryState: BatteryState?,
-    ) : TrailsWebSocketServerMessage() {
-
-        @Serializable
-        sealed class Target {
-            @Serializable
-            @SerialName("share")
-            data class Share(@SerialName("id") val shareId: String) : Target()
-
-            @Serializable
-            @SerialName("device")
-            data class Device(@SerialName("id") val deviceId: String) : Target()
-        }
-
-        @Serializable
-        data class Location(
-            @SerialName("latitude") val latitude: Double,
-            @SerialName("longitude") val longitude: Double,
-            @SerialName("bearing") val bearing: Float,
-            @SerialName("bearing_accuracy") val bearingAccuracy: Float?,
-            @SerialName("location_accuracy") val locationAccuracy: Float,
-        )
-
-        @Serializable
-        data class BatteryState(
-            @SerialName("percentage") val percentage: Int,
-            @SerialName("is_charging") val isCharging: Boolean,
-        )
-    }
-}

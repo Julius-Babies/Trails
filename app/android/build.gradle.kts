@@ -27,8 +27,8 @@ kotlin {
     }
 
     dependencies {
-        implementation(libs.compose.uiToolingPreview)
-        implementation(libs.androidx.activity.compose)
+        implementation(libs.app.compose.uiToolingPreview)
+        implementation(libs.app.androidx.activity.compose)
         implementation(projects.app.shared)
     }
 }

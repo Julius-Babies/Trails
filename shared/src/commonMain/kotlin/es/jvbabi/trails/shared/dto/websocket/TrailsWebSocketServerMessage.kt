@@ -1,0 +1,49 @@
+package es.jvbabi.trails.shared.dto.websocket
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable
+sealed class TrailsWebSocketServerMessage {
+    @Serializable
+    @SerialName("share.deleted")
+    data class ShareDeleted(
+        @SerialName("share_id") val shareId: String,
+    ) : TrailsWebSocketServerMessage()
+
+    @Serializable
+    @SerialName("share.snapshot")
+    data class Snapshot(
+        @SerialName("target") val target: Target,
+        @SerialName("timestamp") val timestamp: Long,
+        @SerialName("location") val location: Location,
+        @SerialName("battery_state") val batteryState: BatteryState?,
+    ) : TrailsWebSocketServerMessage() {
+
+        @Serializable
+        sealed class Target {
+            @Serializable
+            @SerialName("share")
+            data class Share(@SerialName("id") val shareId: String) : Target()
+
+            @Serializable
+            @SerialName("device")
+            data class Device(@SerialName("id") val deviceId: String) : Target()
+        }
+
+        @Serializable
+        data class Location(
+            @SerialName("latitude") val latitude: Double,
+            @SerialName("longitude") val longitude: Double,
+            @SerialName("bearing") val bearing: Float,
+            @SerialName("bearing_accuracy") val bearingAccuracy: Float?,
+            @SerialName("location_accuracy") val locationAccuracy: Float,
+        )
+
+        @Serializable
+        data class BatteryState(
+            @SerialName("percentage") val percentage: Int,
+            @SerialName("is_charging") val isCharging: Boolean,
+        )
+    }
+}
