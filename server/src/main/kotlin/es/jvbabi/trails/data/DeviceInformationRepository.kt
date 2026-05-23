@@ -70,7 +70,7 @@ class DeviceInformationRepository: Closeable, KoinComponent {
                         try {
                             val csvLine = csvReader().readAll(cleanLine).firstOrNull()
                             if (csvLine != null) {
-                                if (csvLine[0].equals(manufacturer, ignoreCase = true) && csvLine[2].equals(model, ignoreCase = true)) {
+                                if (csvLine[0].equals(manufacturer, ignoreCase = true) && (csvLine[2].equals(model, ignoreCase = true) || csvLine[3].equals(model, ignoreCase = true))) {
                                     friendlyName = csvLine[1]
                                     return@execute
                                 }
