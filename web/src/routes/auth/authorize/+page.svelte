@@ -4,6 +4,7 @@
         AuthentiktDebug,
         type AuthentiktConfiguration,
         DoneRenderer,
+        OIDCRenderer,
         useAuthentiktContext
     } from "@Julius-Babies/authentikt-svelte";
     import LinkFlow from "./steps/init/LinkFlow.svelte";
@@ -44,6 +45,7 @@
                         <DeviceSelection />
                         <EmailUserSelection />
                         <Password />
+                        <OIDCRenderer />
                         <DoneRenderer>
                             {#snippet children(plugin)}
                                 <div class="flex flex-col items-center justify-center w-full h-full gap-4">

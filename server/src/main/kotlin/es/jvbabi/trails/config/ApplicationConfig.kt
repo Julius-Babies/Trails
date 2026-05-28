@@ -13,7 +13,7 @@ class ApplicationConfig(
 
     private val configFile = File(storageDirectory).resolve("config.json")
     private val configContent = configFile.readText()
-    private val config = jsonInstance.decodeFromString<ApplicationConfigFile>(configContent)
+    val config = jsonInstance.decodeFromString<ApplicationConfigFile>(configContent)
 
     private val baseUrl = config.baseUrl
     val database = config.database ?: ApplicationConfigFile.Database.Sqlite(path = File(storageDirectory).resolve("database.db").absolutePath)
@@ -32,6 +32,7 @@ class ApplicationConfig(
 data class ApplicationConfigFile(
     @SerialName("base_url") val baseUrl: String,
     @SerialName("database") val database: Database? = null,
+    @SerialName("auth") val auth: Auth? = null,
 ) {
     @Serializable
     sealed class Database {
@@ -48,5 +49,21 @@ data class ApplicationConfigFile(
             @SerialName("username") val username: String,
             @SerialName("password") val password: String,
         ) : Database()
+    }
+
+    @Serializable
+    data class Auth(
+        @SerialName("oauth") val oauth: OAuth? = null,
+    ) {
+        @Serializable
+        data class OAuth(
+            @SerialName("client_id") val clientId: String,
+            @SerialName("client_secret") val clientSecret: String,
+            @SerialName("authorization_endpoint") val authorizationEndpoint: String,
+            @SerialName("token_endpoint") val tokenEndpoint: String,
+            @SerialName("userinfo_endpoint") val userinfoEndpoint: String,
+            @SerialName("redirect_uri") val redirectUri: String,
+            @SerialName("scopes") val scopes: List<String> = listOf("openid", "profile", "email")
+        )
     }
 }

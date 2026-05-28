@@ -18,7 +18,7 @@
     const authentikt = useAuthentiktContext();
     const namespace = "trails/device-selection";
 
-    const selfPlugin = authentikt.registerStepPlugin<DeviceSelectPluginInstance>(
+    const selfPlugin = authentikt.registerPlugin<DeviceSelectPluginInstance>(
         namespace,
         DeviceSelection,
         (auth, ns) => new DeviceSelectionPlugin(auth, ns)

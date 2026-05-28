@@ -18,9 +18,9 @@ import kotlin.uuid.Uuid
  * create it and add it to the user's devices. If it may be already existing, we need to ask the user to select it.
  * Otherwise, we create a new one. If the user has already selected a device, we just return null.
  *
- * @return The next authentication step we would want to go to to get more device information or just null if we're done.
+ * @return The next authentication step we would want to go to get more device information or just null if we're done.
  */
-suspend fun authSessionDeviceSelection(session: Session<*>, user: User): BasePlugin<*>? {
+suspend fun authSessionDeviceSelection(session: Session<User>, user: User): BasePlugin<User, *>? {
     val db = GlobalContext.get().get<DatabaseManager>()
     val deviceSelectionAuthentiktPlugin = GlobalContext.get().get<DeviceSelectionAuthentiktPlugin>()
     val deviceInformationRepository = GlobalContext.get().get<DeviceInformationRepository>()

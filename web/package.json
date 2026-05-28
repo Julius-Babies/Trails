@@ -30,7 +30,7 @@
 		"vite": "^8.0.7"
 	},
 	"dependencies": {
-		"@Julius-Babies/authentikt-svelte": "^0.2.5",
+		"@Julius-Babies/authentikt-svelte": "^0.3.0",
 		"@lucide/svelte": "^1.16.0",
 		"@sveltejs/adapter-node": "^5.5.4"
 	}

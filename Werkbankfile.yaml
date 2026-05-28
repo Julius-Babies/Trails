@@ -20,3 +20,4 @@ services:
 
 dependencies:
   androiddns: true
+  keycloak: true

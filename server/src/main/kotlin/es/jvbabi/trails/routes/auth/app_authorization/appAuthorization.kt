@@ -24,7 +24,8 @@ fun Route.appAuthorization() {
 
         val destination = URLBuilder(applicationConfig.url).apply {
             appendPathSegments("auth", "authorize")
-            parameters.append("session_id", session.sessionId)
+            parameters.append("_authentikt_flow_active", "true")
+            parameters.append("_authentikt_session_id", session.sessionId)
         }.buildString()
 
         call.respondRedirect(destination)

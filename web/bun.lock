@@ -5,7 +5,7 @@
     "": {
       "name": "web",
       "dependencies": {
-        "@Julius-Babies/authentikt-svelte": "^0.2.5",
+        "@Julius-Babies/authentikt-svelte": "^0.3.0",
         "@lucide/svelte": "^1.16.0",
         "@sveltejs/adapter-node": "^5.5.4",
       },
@@ -30,7 +30,7 @@
     },
   },
   "packages": {
-    "@Julius-Babies/authentikt-svelte": ["@Julius-Babies/authentikt-svelte@0.2.5", "https://npm.pkg.github.com/download/@Julius-Babies/authentikt-svelte/0.2.5/b877212118ee90a6f33f34c538134a26c7c1de31", { "dependencies": { "@lucide/svelte": "^1.8.0", "@zerodevx/svelte-json-view": "^1.0.11" }, "peerDependencies": { "svelte": "^5.0.0" } }, "sha512-fyho8xnZ/gxdl1S4pN3OyiYXEjG2/rRz8wz3lgicwAhGeh/fIj5GAOdALAxFfNES3o1SWuwAm1jz/vrRE8Ws9Q=="],
+    "@Julius-Babies/authentikt-svelte": ["@Julius-Babies/authentikt-svelte@0.3.0", "https://npm.pkg.github.com/download/@Julius-Babies/authentikt-svelte/0.3.0/cb67173a6256c5b9ee7844980bac8e4f388c1644", { "dependencies": { "@lucide/svelte": "^1.8.0", "@zerodevx/svelte-json-view": "^1.0.11" }, "peerDependencies": { "svelte": "^5.0.0" } }, "sha512-41HVs7uJdD8QdQ+wHr550Mc1D7aLrIKpvYcjuuPwCwYxR2FwW2qokKJOH0mcGuxJPcz018ZvKGFgee0BS1e4yA=="],
 
     "@emnapi/core": ["@emnapi/core@1.10.0", "", { "dependencies": { "@emnapi/wasi-threads": "1.2.1", "tslib": "^2.4.0" } }, "sha512-yq6OkJ4p82CAfPl0u9mQebQHKPJkY7WrIuk205cTYnYe+k2Z8YBh11FrbRG/H6ihirqcacOgl2BIO8oyMQLeXw=="],
 

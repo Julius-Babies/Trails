@@ -1,6 +1,6 @@
 package es.jvbabi.trails.data
 
-import com.github.doyaaaaaken.kotlincsv.dsl.csvReader
+import com.jsoizo.kotlincsv.csvReader
 import es.jvbabi.trails.config.ApplicationConfig
 import io.ktor.client.*
 import io.ktor.client.call.*

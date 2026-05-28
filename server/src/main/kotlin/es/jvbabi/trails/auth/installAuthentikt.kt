@@ -5,12 +5,10 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import es.jvbabi.authentikt.core.AuthentiktUser
 import es.jvbabi.authentikt.core.installAuthentikt
-import es.jvbabi.authentikt.core.step.plugins.builtin.DonePlugin
-import es.jvbabi.authentikt.core.step.plugins.builtin.PasswordPlugin
-import es.jvbabi.authentikt.core.step.plugins.builtin.TotpPlugin
-import es.jvbabi.authentikt.core.userselection.plugins.builtin.EmailUserSelectionPlugin
+import es.jvbabi.authentikt.core.step.plugins.builtin.*
 import es.jvbabi.trails.config.ApplicationConfig
 import es.jvbabi.trails.database.*
+import io.ktor.client.call.*
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.util.AttributeKey
@@ -50,27 +48,55 @@ fun Application.installAuthentikt() {
     val instance = installAuthentikt {
         apiPrefix = "/api/v1/auth"
 
-        val emailPlugin = EmailUserSelectionPlugin {
-            findUserByEmail { email ->
-                val user = db.transaction { User.find { (Users.email eq email) or (Users.username eq email) }.firstOrNull() }
-                user?.let { TrailsAuthentiktUser(it) }
+        var emailPlugin: EmailUserSelectionPlugin<User>? = null
+        var passwordPlugin: PasswordPlugin<User>? = null
+        var totpPlugin: TotpPlugin<User>? = null
+        var oauthPlugin: OIDCPlugin<User>? = null
+
+        if (applicationConfig.config.auth?.oauth == null) {
+            emailPlugin = EmailUserSelectionPlugin {
+                findUserByEmail { email ->
+                    val user = db.transaction { User.find { (Users.email eq email) or (Users.username eq email) }.firstOrNull() }
+                    user?.let { TrailsAuthentiktUser(it) }
+                }
+
+                withUsername = true
             }
+            install(emailPlugin)
 
-            withUsername = true
-        }
-        install(emailPlugin)
-
-        val passwordPlugin = PasswordPlugin<User> {
-            checkPassword { user, password ->
-                return@checkPassword BCrypt.verifyer().verify(password.toCharArray(), db.transaction { user.password }).verified
+            passwordPlugin = PasswordPlugin {
+                checkPassword { user, password ->
+                    return@checkPassword BCrypt.verifyer().verify(password.toCharArray(), db.transaction { user.password }).verified
+                }
             }
-        }
-        install(passwordPlugin)
+            install(passwordPlugin)
 
-        val totpPlugin = TotpPlugin<User> {
-            getSecret { user -> db.transaction { user.otp!! } }
+            totpPlugin = TotpPlugin {
+                getSecret { user -> db.transaction { user.otp!! } }
+            }
+            install(totpPlugin)
+        } else {
+            oauthPlugin = OIDCPlugin {
+                clientId = applicationConfig.config.auth!!.oauth!!.clientId
+                clientSecret = applicationConfig.config.auth!!.oauth!!.clientSecret
+                baseUrl = applicationConfig.config.baseUrl
+                authorizationEndpoint = applicationConfig.config.auth!!.oauth!!.authorizationEndpoint
+                userInfoEndpoint = applicationConfig.config.auth!!.oauth!!.userinfoEndpoint
+                tokenEndpoint = applicationConfig.config.auth!!.oauth!!.tokenEndpoint
+                uiLoginBaseUrl = URLBuilder(applicationConfig.config.baseUrl).apply {
+                    appendPathSegments("auth", "authorize")
+                }.buildString()
+                scopes(*applicationConfig.config.auth!!.oauth!!.scopes.toTypedArray())
+
+                onUserInfo { response ->
+                    val map = response.body<Map<String, String>>()
+                    val user = db.transaction { User.find { Users.email eq map["email"]!! }.firstOrNull() }
+                    if (user == null) return@onUserInfo UserInfo.Result.Failure("user not found")
+                    return@onUserInfo UserInfo.Result.Success(TrailsAuthentiktUser(user))
+                }
+            }
+            install(oauthPlugin)
         }
-        install(totpPlugin)
 
         val donePlugin = DonePlugin<User> {
             onSuccess { session, user ->
@@ -115,17 +141,23 @@ fun Application.installAuthentikt() {
 
         install(deviceSelectionAuthentiktPlugin)
 
-        authorization { session, user ->
-            when {
-                !session.has(passwordPlugin) -> passwordPlugin
-                db.transaction { user.user.otp } != null && !session.has(totpPlugin) -> totpPlugin
-                else -> {
-                    val nextStep = authSessionDeviceSelection(session, user.user)
-                    if (nextStep != null) return@authorization nextStep
+        authorization { session ->
+            val user = session.identifiedUser
 
-                    return@authorization donePlugin
+            if (applicationConfig.config.auth?.oauth == null) {
+                when {
+                    user == null -> return@authorization emailPlugin!!
+                    !session.has(passwordPlugin!!) -> return@authorization passwordPlugin
+                    db.transaction { user.user.otp } != null && !session.has(totpPlugin!!) -> return@authorization totpPlugin
                 }
+            } else {
+                if (user == null) return@authorization oauthPlugin!!
             }
+
+            val nextStep = authSessionDeviceSelection(session, user.user)
+            if (nextStep != null) return@authorization nextStep
+
+            return@authorization donePlugin
         }
     }
 

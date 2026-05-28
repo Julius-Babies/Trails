@@ -1,6 +1,7 @@
 package es.jvbabi.trails.auth
 
 import com.google.gson.annotations.SerializedName
+import es.jvbabi.authentikt.core.AuthentiktInstance
 import es.jvbabi.authentikt.core.session.Session
 import es.jvbabi.authentikt.core.session.SessionKey
 import es.jvbabi.authentikt.core.step.BaseState
@@ -41,7 +42,7 @@ class DeviceSelectionAuthentiktState(
     }
 }
 
-class DeviceSelectionAuthentiktPlugin: BasePlugin<DeviceSelectionAuthentiktState>(namespace = "trails/device-selection"), KoinComponent {
+class DeviceSelectionAuthentiktPlugin: BasePlugin<User, DeviceSelectionAuthentiktState>(namespace = "trails/device-selection"), KoinComponent {
 
     private val db by inject<DatabaseManager>()
 
@@ -71,7 +72,10 @@ class DeviceSelectionAuthentiktPlugin: BasePlugin<DeviceSelectionAuthentiktState
         return DeviceSelectionAuthentiktState(devices)
     }
 
-    override fun installRoutes(inRoute: Route) {
+    override fun installRoutes(
+        inRoute: Route,
+        authentiktInstance: AuthentiktInstance<User>
+    ) {
         with(inRoute) {
             post("/select") {
                 val request = call.receive<DeviceSelectionRequest>()
