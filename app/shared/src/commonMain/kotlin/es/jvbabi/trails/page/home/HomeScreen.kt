@@ -155,25 +155,6 @@ fun HomeContent(
                                     )
                                 }
                             }
-
-                            Row(
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .padding(bottom = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(12.dp)
-                                        .clip(CircleShape)
-                                        .background(if (state.isConnectedToServer) Color.Green else Color.Red)
-                                )
-
-                                Text(
-                                    text = if (state.isConnectedToServer) "Verbunden mit Trails Server" else "Nicht verbunden mit Trails Server",
-                                )
-                            }
                         }
                     }
                 }

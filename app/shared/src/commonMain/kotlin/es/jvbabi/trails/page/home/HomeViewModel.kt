@@ -61,10 +61,6 @@ class HomeViewModel(
                     backgroundServiceRepository.startService()
                     trailsServerRepository.updateUserDevices()
                     trailsServerRepository.getMeData()
-
-                    trailsServerRepository.isConnected.collectLatest { isConnected ->
-                        state.update { it.copy(isConnectedToServer = isConnected) }
-                    }
                 }
         }
 
@@ -86,7 +82,6 @@ class HomeViewModel(
 
 data class HomeState(
     val ownLocation: Location? = null,
-    val isConnectedToServer: Boolean = false,
     val selectedTab: Tab = Tab.MyDevices,
     val currentDevice: Device? = null,
     val devices: List<HomeDevice> = emptyList(),
