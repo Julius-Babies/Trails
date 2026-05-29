@@ -31,10 +31,12 @@ import es.jvbabi.trails.page.shares.new_share.NewShareViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.plugins.websocket.pingInterval
 import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.json.Json
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.singleOf
@@ -71,6 +73,7 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
 
                 install(WebSockets) {
                     contentConverter = KotlinxWebsocketSerializationConverter(jsonInstance)
+                    pingInterval = 10.seconds
                 }
             }
         }

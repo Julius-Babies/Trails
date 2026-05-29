@@ -32,7 +32,10 @@ class DevicesRepositoryImpl(
 
     private fun deviceProxy(device: Device): Flow<Device> {
         return keyValueRepository.get("trails.thisDeviceId")
-            .map { it?.let { Uuid.parse(it) } }
+            .map { id ->
+                if (id == null) null
+                else try { Uuid.parse(id) } catch (_: IllegalArgumentException) { null }
+            }
             .flatMapLatest { thisDeviceId ->
                 if (thisDeviceId != device.id) flowOf(device)
                 else deviceRepository.getBatteryState().map { batteryState ->

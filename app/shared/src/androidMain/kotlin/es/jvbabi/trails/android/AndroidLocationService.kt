@@ -13,6 +13,7 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import co.touchlab.kermit.Logger
@@ -36,6 +37,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import kotlin.time.Duration.Companion.hours
 import kotlin.uuid.Uuid
 
 class AndroidLocationService: Service(), LocationListener, KoinComponent {
@@ -54,6 +56,7 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
     }
 
     private lateinit var locationManager: LocationManager
+    private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -61,11 +64,22 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val pm = getSystemService(POWER_SERVICE) as PowerManager
+        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Trails:LocationWakeLock")
+        wakeLock?.acquire(1.hours.inWholeMilliseconds)
+
         serviceScope.launch {
             keyValueRepository
                 .get("trails.thisDeviceId")
                 .filterNotNull()
-                .flatMapLatest { devicesRepository.getDeviceById(Uuid.parse(it)) }
+                .flatMapLatest { id ->
+                    try {
+                        devicesRepository.getDeviceById(Uuid.parse(id))
+                    } catch (e: IllegalArgumentException) {
+                        Logger.e(e) { "Invalid device ID in store: $id" }
+                        kotlinx.coroutines.flow.flowOf(null)
+                    }
+                }
                 .filterNotNull()
                 .distinctUntilChangedBy {}
                 .collect {
@@ -151,6 +165,8 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
 
     override fun onDestroy() {
         super.onDestroy()
+        wakeLock?.release()
+        wakeLock = null
         serviceScope.cancel()
         locationManager.removeUpdates(this)
         _isRunning.value = false

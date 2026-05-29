@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -49,7 +50,13 @@ class SnapshotRepositoryImpl(
         val device = keyValueRepository
             .get("trails.thisDeviceId")
             .filterNotNull()
-            .flatMapLatest { devicesRepository.getDeviceById(Uuid.parse(it)) }
+            .flatMapLatest { id ->
+                try {
+                    devicesRepository.getDeviceById(Uuid.parse(id))
+                } catch (_: IllegalArgumentException) {
+                    flowOf(null)
+                }
+            }
             .filterNotNull()
 
         job = combine(
@@ -87,7 +94,7 @@ class SnapshotRepositoryImpl(
         snapshotsByDevice[deviceId] = snapshot
         val timestamp = snapshot.time.toInstant(TimeZone.currentSystemDefault()).epochSeconds
 
-        if (batteryChanged || movedEnough || previousSnapshot == null || previousDbTimestamp == null) {
+        if (batteryChanged || movedEnough || previousDbTimestamp == null) {
             database.dataSnapshotDao.upsert(
                 DbDataSnapshot(
                     timestamp = timestamp,

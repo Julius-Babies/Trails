@@ -5,73 +5,31 @@ import es.jvbabi.trails.data.database.TrailsDatabase
 import es.jvbabi.trails.data.database.entity.DbActiveShare
 import es.jvbabi.trails.data.database.entity.DbDevice
 import es.jvbabi.trails.data.database.entity.DbUser
-import es.jvbabi.trails.domain.model.Snapshot
-import es.jvbabi.trails.domain.repository.BatteryState
-import es.jvbabi.trails.domain.repository.Location
 import es.jvbabi.trails.domain.model.Device
-import es.jvbabi.trails.domain.repository.ApplicationRepository
-import es.jvbabi.trails.domain.repository.DevicesRepository
-import es.jvbabi.trails.domain.repository.FileRepository
-import es.jvbabi.trails.domain.repository.KeyValueRepository
+import es.jvbabi.trails.domain.model.Snapshot
+import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.shared.dto.DeviceResponse
 import es.jvbabi.trails.shared.dto.MeResponse
 import es.jvbabi.trails.shared.dto.UseShareLinkRequest
 import es.jvbabi.trails.shared.dto.UseShareLinkResponse
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketAppMessage
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketServerMessage
-import es.jvbabi.trails.domain.repository.ShareRepository
-import es.jvbabi.trails.domain.repository.SnapshotRepository
-import es.jvbabi.trails.domain.repository.TrailsServerRepository
-import es.jvbabi.trails.domain.repository.UseShareLinkResult
-import es.jvbabi.trails.domain.repository.UserRepository
 import es.jvbabi.trails.utils.NetworkRequestUnsuccessfulException
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
-import io.ktor.client.plugins.websocket.converter
-import io.ktor.client.plugins.websocket.sendSerialized
-import io.ktor.client.plugins.websocket.webSocketSession
-import io.ktor.client.request.bearerAuth
-import io.ktor.client.request.get
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.client.statement.bodyAsChannel
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.URLBuilder
-import io.ktor.http.URLProtocol
-import io.ktor.http.appendPathSegments
-import io.ktor.http.contentType
-import io.ktor.http.isSuccess
-import io.ktor.serialization.deserialize
-import io.ktor.utils.io.asByteWriteChannel
-import io.ktor.utils.io.copyAndClose
-import io.ktor.websocket.Frame
-import io.ktor.websocket.close
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.distinctUntilChangedBy
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.takeWhile
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.plugins.websocket.*
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import io.ktor.serialization.*
+import io.ktor.utils.io.*
+import io.ktor.websocket.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -111,23 +69,29 @@ class TrailsServerRepositoryImpl(
 
     override val isConnected: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
-    override fun connectWithHomeserver(): Deferred<Boolean> {
+    override fun connectWithHomeserver(): Deferred<Boolean> = connectWithHomeserver(0)
+
+    private fun connectWithHomeserver(retryCount: Int): Deferred<Boolean> {
         if (this.isConnected.value) return CompletableDeferred(true)
 
         val connectedDeferred = CompletableDeferred<Boolean>()
 
+        val maxRetries = 30
         scope.launch {
-            val url = this@TrailsServerRepositoryImpl.getBaseUrl().first()!!.apply {
-                protocol = URLProtocol.WSS
-                appendPathSegments("api", "v1", "app", "ws")
-            }
-            val token = keyValueRepository.get("trails.token").first()!!
-            val currentDeviceId = keyValueRepository.get("trails.thisDeviceId").first() ?: throw IllegalStateException("Current device ID not set")
-            val device = devicesRepository.getDeviceById(Uuid.parse(currentDeviceId)).first() ?: throw IllegalStateException("Current device not found in database")
-
-            logger.i { "Connecting to WS at ${url.buildString()}" }
-
             try {
+                val url = this@TrailsServerRepositoryImpl.getBaseUrl().first()?.apply {
+                    protocol = URLProtocol.WSS
+                    appendPathSegments("api", "v1", "app", "ws")
+                } ?: throw IllegalStateException("Base URL not set")
+                val token = keyValueRepository.get("trails.token").first()
+                    ?: throw IllegalStateException("Token not set")
+                val currentDeviceId = keyValueRepository.get("trails.thisDeviceId").first()
+                    ?: throw IllegalStateException("Current device ID not set")
+                val device = runCatching { devicesRepository.getDeviceById(Uuid.parse(currentDeviceId)).first() }
+                    .getOrNull() ?: throw IllegalStateException("Current device not found in database")
+
+                logger.i { "Connecting to WS at ${url.buildString()}" }
+
                 websocketSession = httpClient.webSocketSession(
                     urlString = url.buildString()
                 ) {
@@ -166,7 +130,7 @@ class TrailsServerRepositoryImpl(
                         }
                 }
 
-                val serverHost = getBaseUrl().first()!!.host
+                val serverHost = getBaseUrl().first()?.host ?: throw IllegalStateException("Server host not set")
                 homeServerSocketClient.run(websocketSession!!, serverHost)
 
                 locationUpdater.cancel()
@@ -180,10 +144,16 @@ class TrailsServerRepositoryImpl(
                 isConnected.value = false
             }
 
-            delay(5.seconds)
-
-            val reconnectResult = connectWithHomeserver().await()
-            if (!connectedDeferred.isCompleted) connectedDeferred.complete(reconnectResult)
+            if (!connectedDeferred.isCompleted) {
+                if (retryCount < maxRetries) {
+                    val delayMs = minOf(30_000L, 5_000L * (1L shl minOf(retryCount, 6)))
+                    delay(delayMs.milliseconds)
+                    val reconnectResult = connectWithHomeserver(retryCount + 1).await()
+                    connectedDeferred.complete(reconnectResult)
+                } else {
+                    connectedDeferred.complete(false)
+                }
+            }
         }
 
         return connectedDeferred
@@ -206,7 +176,7 @@ class TrailsServerRepositoryImpl(
 
     override fun getUserId(): Flow<Uuid?> {
         return keyValueRepository.get("trails.userId")
-            .map { it?.let { Uuid.parse(it) } }
+            .map { it?.let { id -> runCatching { Uuid.parse(id) }.getOrNull() } }
     }
 
     override suspend fun getMeData(): MeResponse {
@@ -344,7 +314,9 @@ class TrailsServerRepositoryImpl(
     typealias ServerHost = String
     private val activeExternalSessions = mutableMapOf<ServerHost, DefaultClientWebSocketSession>()
 
-    override suspend fun connectWithOtherServer(server: String) {
+    override suspend fun connectWithOtherServer(server: String) = connectWithOtherServer(server, 0)
+
+    private suspend fun connectWithOtherServer(server: String, retryCount: Int) {
         if (activeExternalSessions[server]?.isActive == true) return
         val url = URLBuilder("wss://$server").apply {
             appendPathSegments("api", "v1", "app", "ws")
@@ -363,9 +335,12 @@ class TrailsServerRepositoryImpl(
             Logger.e(e) { "Error connecting to WS: ${e.message}" }
         }
 
-        delay(5.seconds)
-
-        connectWithOtherServer(server)
+        val maxRetries = 30
+        if (retryCount < maxRetries) {
+            val delayMs = minOf(30_000L, 5_000L * (1L shl minOf(retryCount, 6)))
+            delay(delayMs.milliseconds)
+            connectWithOtherServer(server, retryCount + 1)
+        }
     }
 
     override suspend fun stopAllOtherServerConnections() {
@@ -431,13 +406,13 @@ private abstract class WebSocketClientBase(
 
                 when (message) {
                     is TrailsWebSocketServerMessage.ShareDeleted -> {
-                        database.activeShareDao.deleteById(Uuid.parse(message.shareId))
+                        runCatching { Uuid.parse(message.shareId) }.getOrNull()?.let { database.activeShareDao.deleteById(it) }
                     }
 
                     is TrailsWebSocketServerMessage.Snapshot -> {
                         val device = when (val target = message.target) {
-                            is TrailsWebSocketServerMessage.Snapshot.Target.Device -> devicesRepository.getDeviceById(Uuid.parse(target.deviceId)).firstOrNull()
-                            is TrailsWebSocketServerMessage.Snapshot.Target.Share -> shareRepository.getShareById(Uuid.parse(target.shareId)).firstOrNull()?.device
+                            is TrailsWebSocketServerMessage.Snapshot.Target.Device -> runCatching { Uuid.parse(target.deviceId) }.getOrNull()?.let { devicesRepository.getDeviceById(it).firstOrNull() }
+                            is TrailsWebSocketServerMessage.Snapshot.Target.Share -> runCatching { Uuid.parse(target.shareId) }.getOrNull()?.let { shareRepository.getShareById(it).firstOrNull()?.device }
                         }
                         if (device == null) {
                             logger.w { "Received snapshot for unknown device in WS message: $message" }
