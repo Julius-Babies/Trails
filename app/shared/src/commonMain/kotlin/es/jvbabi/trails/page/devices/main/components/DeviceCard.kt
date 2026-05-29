@@ -34,8 +34,11 @@ import es.jvbabi.trails.ui.components.BatteryIcon
 import es.jvbabi.trails.ui.components.BatteryOrientation
 import es.jvbabi.trails.utils.rememberBitmapFromBytes
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import nl.jacobras.humanreadable.HumanReadable
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.minutes
 import kotlin.uuid.Uuid
 
 @Composable
@@ -86,8 +89,26 @@ fun DeviceCard(
             )
             Text(
                 text = device.device.friendlyName + " (" + device.device.model + ")",
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = buildString {
+                    if (device.snapshot == null) {
+                        append("Noch nie gesehen")
+                        return@buildString
+                    }
+                    val instant = device.snapshot.time.toInstant(TimeZone.currentSystemDefault())
+                    if (Clock.System.now().minus(instant) <= 1.minutes) {
+                        append("Eben gerade gesehen")
+                        return@buildString
+                    }
+
+                    append("Zuletzt ")
+                    append(HumanReadable.timeAgo(instant))
+                    append(" gesehen")
+                },
+                style = MaterialTheme.typography.bodySmall,
             )
         }
 
@@ -96,7 +117,7 @@ fun DeviceCard(
             isCharging = device.snapshot.batteryState.isCharging,
             orientation = BatteryOrientation.Right,
             modifier = Modifier
-                .padding(end = 8.dp)
+                .padding(horizontal = 8.dp)
                 .height(24.dp)
                 .width(12.dp),
         )

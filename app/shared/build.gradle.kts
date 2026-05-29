@@ -91,6 +91,8 @@ kotlin {
             implementation(libs.app.haze.blur)
             implementation(libs.app.haze.blur.materials)
 
+            implementation(libs.app.human.readable)
+
             api(libs.app.ktor.client.core)
             implementation(libs.app.ktor.client.content.negotiation)
             implementation(libs.app.ktor.client.websockets)
