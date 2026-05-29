@@ -283,7 +283,6 @@ internal fun rememberMockHomeState(): HomeState {
             locationAccuracy = 15f,
             time = now,
         ),
-        isConnectedToServer = true,
         devices = listOf(
             HomeState.HomeDevice(
                 device = mockDevice,
