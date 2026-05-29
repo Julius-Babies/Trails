@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -194,25 +195,27 @@ actual fun Map(
                 .filterNot { device -> device.device.id == state.currentDevice?.id }
                 .filter { it.snapshot != null }
                 .forEach { device ->
-                    val position = device.snapshot!!.location
+                    key(device.device.id) {
+                        val position = device.snapshot!!.location
 
-                    ViewAnnotation(
-                        options = viewAnnotationOptions {
-                            geometry(Point.fromLngLat(position.longitude, position.latitude))
-                            allowOverlap(true)
-                            allowOverlapWithPuck(true)
-                            annotationAnchor {
-                                anchor(ViewAnnotationAnchor.BOTTOM)
+                        ViewAnnotation(
+                            options = viewAnnotationOptions {
+                                geometry(Point.fromLngLat(position.longitude, position.latitude))
+                                allowOverlap(true)
+                                allowOverlapWithPuck(true)
+                                annotationAnchor {
+                                    anchor(ViewAnnotationAnchor.BOTTOM)
+                                }
                             }
+                        ) {
+                            DeviceMarker(
+                                imageBytes = device.image,
+                                onClick = {
+                                    Logger.i { "Map device clicked: ${device.device.displayName}" }
+                                    onDeviceClick(device)
+                                },
+                            )
                         }
-                    ) {
-                        DeviceMarker(
-                            imageBytes = device.image,
-                            onClick = {
-                                Logger.i { "Map device clicked: ${device.device.displayName}" }
-                                onDeviceClick(device)
-                            },
-                        )
                     }
                 }
         }
