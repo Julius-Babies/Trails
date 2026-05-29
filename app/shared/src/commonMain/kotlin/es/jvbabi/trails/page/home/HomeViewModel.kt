@@ -4,6 +4,7 @@ package es.jvbabi.trails.page.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import co.touchlab.kermit.Logger
 import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.model.Snapshot
 import es.jvbabi.trails.domain.repository.BackgroundServiceRepository
@@ -18,8 +19,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.uuid.Uuid
@@ -47,9 +51,16 @@ class HomeViewModel(
             keyValueRepository.get("trails.thisDeviceId")
                 .filterNotNull()
                 .distinctUntilChanged()
-                .flatMapLatest { devicesRepository.getDeviceById(Uuid.parse(it)) }
-                .collectLatest {
-                    state.update { it.copy(currentDevice = it.currentDevice) }
+                .flatMapLatest { id ->
+                    try {
+                        devicesRepository.getDeviceById(Uuid.parse(id))
+                    } catch (e: IllegalArgumentException) {
+                        Logger.e(e) { "Invalid device ID: $id" }
+                        flowOf(null)
+                    }
+                }
+                .collectLatest { device ->
+                    state.update { it.copy(currentDevice = device) }
                 }
         }
 
@@ -57,17 +68,17 @@ class HomeViewModel(
             keyValueRepository.get("trails.userId")
                 .filterNotNull()
                 .distinctUntilChanged()
-                .collectLatest {
-                    backgroundServiceRepository.startService()
-                    trailsServerRepository.updateUserDevices()
-                    trailsServerRepository.getMeData()
+                .flatMapLatest {
+                    flow {
+                        backgroundServiceRepository.startService()
+                        trailsServerRepository.updateUserDevices()
+                        trailsServerRepository.getMeData()
+                        emitAll(getHomeDeviceLocationsUseCase())
+                    }
                 }
-        }
-
-        viewModelScope.launch {
-            getHomeDeviceLocationsUseCase().collect { devices ->
-                state.update { it.copy(devices = devices) }
-            }
+                .collect { devices ->
+                    state.update { it.copy(devices = devices) }
+                }
         }
     }
 

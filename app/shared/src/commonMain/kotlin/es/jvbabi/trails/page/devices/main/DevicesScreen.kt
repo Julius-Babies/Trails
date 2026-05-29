@@ -142,7 +142,7 @@ fun DevicesContent(
             }
         }
 
-        if (state.isConnectedToHomeServer != null && state.isConnectedToHomeServer !is DevicesState.HomeServerConnectionState.NotLoggedIn) Row(
+        if (state.isConnectedToHomeServer != null) Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 8.dp)

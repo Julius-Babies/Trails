@@ -11,9 +11,7 @@ import es.jvbabi.trails.page.home.HomeState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -46,16 +44,9 @@ class DevicesViewModel(
         }
 
         viewModelScope.launch {
-            combine(
-                keyValueRepository.get("trails.userId")
-                    .map { it == null }
-                    .distinctUntilChanged(),
-                trailsServerRepository.isConnected.asFlow()
-            ) { isNotLoggedIn, isConnected ->
-                if (isNotLoggedIn) DevicesState.HomeServerConnectionState.NotLoggedIn
-                else if (isConnected) DevicesState.HomeServerConnectionState.Connected
-                else DevicesState.HomeServerConnectionState.Disconnected
-            }.collectLatest { state.value = state.value.copy(isConnectedToHomeServer = it) }
+            trailsServerRepository.isConnected.collectLatest { connected ->
+                state.update { it.copy(isConnectedToHomeServer = if (connected) DevicesState.HomeServerConnectionState.Connected else DevicesState.HomeServerConnectionState.Disconnected) }
+            }
         }
     }
 }
@@ -66,7 +57,6 @@ data class DevicesState(
     val isConnectedToHomeServer: HomeServerConnectionState? = null
 ) {
     sealed class HomeServerConnectionState {
-        data object NotLoggedIn : HomeServerConnectionState()
         data object Connected : HomeServerConnectionState()
         data object Disconnected : HomeServerConnectionState()
     }

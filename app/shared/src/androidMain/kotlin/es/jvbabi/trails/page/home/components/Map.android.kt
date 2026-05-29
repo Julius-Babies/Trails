@@ -200,6 +200,7 @@ actual fun Map(
                         options = viewAnnotationOptions {
                             geometry(Point.fromLngLat(position.longitude, position.latitude))
                             allowOverlap(true)
+                            allowOverlapWithPuck(true)
                             annotationAnchor {
                                 anchor(ViewAnnotationAnchor.BOTTOM)
                             }

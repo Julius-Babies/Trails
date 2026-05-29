@@ -39,7 +39,8 @@ class GetHomeDeviceLocationsUseCase(
 
                 combine(ownedDevices, sharedDevices) { owned, shared ->
                     (owned + shared).distinctBy { it.id }
-                }.flatMapLatest { devices ->
+                }.distinctUntilChangedBy { list -> list.map { it.id } }
+                    .flatMapLatest { devices ->
                     if (devices.isEmpty()) return@flatMapLatest flowOf(emptyList())
 
                     combine(devices.map { device ->
