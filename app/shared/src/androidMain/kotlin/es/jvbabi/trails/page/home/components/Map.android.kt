@@ -16,13 +16,13 @@ import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import co.touchlab.kermit.Logger
 import com.mapbox.geojson.Point
@@ -31,6 +31,7 @@ import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.MapOptions
 import com.mapbox.maps.SymbolScaleBehavior
 import com.mapbox.maps.ViewAnnotationAnchor
+import com.mapbox.maps.coroutine.cameraChangedEvents
 import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.ComposeMapInitOptions
 import com.mapbox.maps.extension.compose.MapEffect
@@ -121,6 +122,8 @@ fun DeviceMarkerPreview() {
 actual fun Map(
     state: HomeState,
     onDeviceClick: (HomeState.HomeDevice) -> Unit,
+    onCameraChanged: (HomeState.MapCamera) -> Unit,
+    bottomPadding: Dp,
 ) {
     val mapViewportState = rememberMapViewportState {
         flyTo(
@@ -133,7 +136,8 @@ actual fun Map(
         )
     }
 
-    var hasAutoFitted by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
+    val bottomPaddingPx = with(density) { bottomPadding.toPx() }
 
     Box(modifier = Modifier.fillMaxSize()) {
         MapboxMap(
@@ -162,33 +166,52 @@ actual fun Map(
                 mapView.mapboxMap.symbolScaleBehavior = SymbolScaleBehavior.fixed(25f)
             }
 
-            MapEffect(state.devices, state.ownLocation) { mapView ->
-                if (hasAutoFitted) return@MapEffect
-
-                val points = mutableListOf<Point>()
-                state.ownLocation?.let { loc ->
-                    points.add(Point.fromLngLat(loc.longitude, loc.latitude))
+            MapEffect(state.fitBounds) { mapView ->
+                val bounds = state.fitBounds ?: return@MapEffect
+                val points = bounds.coordinates.map {
+                    Point.fromLngLat(it.second, it.first)
                 }
-                state.devices
-                    .filter { it.snapshot != null }
-                    .forEach { device ->
-                        val loc = device.snapshot!!.location
-                        points.add(Point.fromLngLat(loc.longitude, loc.latitude))
-                    }
-
-                if (points.isEmpty()) return@MapEffect
-
                 val cameraOptions = mapView.mapboxMap.cameraForCoordinates(
                     coordinates = points,
-                    coordinatesPadding = EdgeInsets(300.0, 300.0, 300.0, 300.0),
+                    coordinatesPadding = EdgeInsets(100.0, 100.0, (bottomPaddingPx + 100f).toDouble(), 100.0),
                     bearing = null,
-                    pitch = 60.0,
+                    pitch = 20.0,
                 )
                 mapViewportState.flyTo(
                     cameraOptions = cameraOptions,
                     MapAnimationOptions.mapAnimationOptions { duration(1500) }
                 )
-                hasAutoFitted = true
+            }
+
+            MapEffect(state.flyToSignal) { mapView ->
+                val camera = state.mapCamera ?: return@MapEffect
+                mapViewportState.flyTo(
+                    cameraOptions = cameraOptions {
+                        center(Point.fromLngLat(camera.centerLongitude, camera.centerLatitude))
+                        zoom(camera.zoom)
+                        pitch(camera.pitch)
+                        bearing(camera.bearing)
+                    },
+                    MapAnimationOptions.mapAnimationOptions {
+                        if (state.flyToAnimated) duration(1500) else duration(0)
+                    }
+                )
+            }
+
+            MapEffect(Unit) { mapView ->
+                mapView.mapboxMap.cameraChangedEvents
+                    .collect { cameraChanged ->
+                        val cam = cameraChanged.cameraState
+                        onCameraChanged(
+                            HomeState.MapCamera(
+                                centerLatitude = cam.center.latitude(),
+                                centerLongitude = cam.center.longitude(),
+                                zoom = cam.zoom,
+                                pitch = cam.pitch,
+                                bearing = cam.bearing,
+                            )
+                        )
+                    }
             }
 
             state.devices

@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -74,6 +75,8 @@ import es.jvbabi.trails.page.home.components.CardSheetValue
 import es.jvbabi.trails.page.home.components.DraggableCardSheet
 import es.jvbabi.trails.page.home.components.Map
 import es.jvbabi.trails.page.home.components.NavigationBar
+import es.jvbabi.trails.page.home.components.padding
+import es.jvbabi.trails.page.home.components.plus
 import es.jvbabi.trails.page.home.components.rememberDraggableCardSheetState
 import es.jvbabi.trails.page.shares.main.SharesScreen
 import es.jvbabi.trails.utils.blendColor
@@ -120,25 +123,28 @@ fun HomeContent(
         DraggableCardSheet(
             modifier = Modifier.fillMaxSize(),
             state = draggableCardSheetState,
-            content = {
+            content = { paddingForCard ->
                 Scaffold { contentPadding ->
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .hazeSource(hazeState)
                     ) {
-
                         Box(Modifier.fillMaxSize())
                         Map(
                             state = state,
                             onDeviceClick = { device ->
                                 Logger.i { "Map device clicked: ${device.device.displayName}" }
-                            }
+                            },
+                            onCameraChanged = { camera ->
+                                onEvent(HomeEvent.OnCameraChanged(camera))
+                            },
+                            bottomPadding = contentPadding.calculateBottomPadding() + collapsedHeight,
                         )
 
                         Box(
                             modifier = Modifier
-                                .padding(contentPadding)
+                                .padding(contentPadding + paddingForCard)
                                 .fillMaxSize()
                         ) {
                             Column(
@@ -155,6 +161,15 @@ fun HomeContent(
                                     )
                                 }
                             }
+
+                            ExtendedFloatingActionButton(
+                                modifier = Modifier
+                                    .padding(bottom = 8.dp)
+                                    .align(Alignment.BottomCenter),
+                                text = { Text("test") },
+                                icon = {},
+                                onClick = {},
+                            )
                         }
                     }
                 }

@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,6 +37,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
@@ -68,6 +71,15 @@ data class PaddingValues(
     constructor(all: Dp) : this(all, all, all, all)
     constructor(): this(0.dp)
 }
+
+@Composable
+operator fun androidx.compose.foundation.layout.PaddingValues.plus(other: PaddingValues): PaddingValues =
+    PaddingValues(
+        top = this.calculateTopPadding() + other.top,
+        bottom = this.calculateBottomPadding() + other.bottom,
+        start = this.calculateStartPadding(LocalLayoutDirection.current) + other.start,
+        end = this.calculateEndPadding(LocalLayoutDirection.current) + other.end
+    )
 
 fun Modifier.padding(paddingValues: PaddingValues): Modifier = this.then(
     Modifier.padding(
@@ -327,7 +339,7 @@ class DraggableCardSheetState(
 fun DraggableCardSheet(
     modifier: Modifier,
     state: DraggableCardSheetState,
-    content: @Composable () -> Unit,
+    content: @Composable (contentPadding: PaddingValues) -> Unit,
     cardContent: @Composable (PaddingValues) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -399,10 +411,15 @@ fun DraggableCardSheet(
         }
     }
 
-
-
     Box(modifier = modifier.fillMaxSize()) {
-        content()
+        content(
+            PaddingValues(
+                top = 0.dp,
+                start = 0.dp,
+                end = 0.dp,
+                bottom = sheetHeight + bottomContainerPadding
+            )
+        )
 
         val anchors: (IntSize, Constraints) -> Pair<DraggableAnchors<CardSheetValue>, CardSheetValue> = { _, constraints ->
             val fullHeight = constraints.maxHeight.toFloat()
