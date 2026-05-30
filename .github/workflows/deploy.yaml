@@ -3,6 +3,23 @@ on:
     branches:
       - main
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      build_tag: ${{ steps.vars.outputs.build_tag }}
+      build_timestamp: ${{ steps.vars.outputs.build_timestamp }}
+      date_formatted: ${{ steps.vars.outputs.date_formatted }}
+    steps:
+      - name: Generate vars
+        id: vars
+        run: |
+          TIMESTAMP=$(date +%s)
+          TAG=$(date -d @$TIMESTAMP '+%Y%m%d_%H%M')
+          DATE_FORMATTED=$(date -d @$TIMESTAMP '+%d.%m.%Y %H:%M')
+          echo "build_timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+          echo "build_tag=$TAG" >> $GITHUB_OUTPUT
+          echo "date_formatted=$DATE_FORMATTED" >> $GITHUB_OUTPUT
+
   build-server:
     runs-on: ubuntu-latest
     steps:
@@ -106,6 +123,7 @@ jobs:
 
   build-android:
     runs-on: ubuntu-latest
+    needs: [setup]
     steps:
       - uses: actions/checkout@v5
         name: Checkout code
@@ -119,6 +137,9 @@ jobs:
           mapbox_secret_token: ${{ secrets.MAPBOX_SECRET_TOKEN }}
 
       - name: Build Android APK
+        env:
+          BUILD_TIMESTAMP: ${{ needs.setup.outputs.build_timestamp }}
+          BUILD_TAG: ${{ needs.setup.outputs.build_tag }}
         run: ./gradlew :app:android:assembleRelease
 
       - name: Upload APK artifacts
@@ -132,7 +153,7 @@ jobs:
 
   create_release:
     runs-on: ubuntu-latest
-    needs: [build-docker, build-android]
+    needs: [setup, build-docker, build-android]
     permissions:
       packages: write
       contents: write
@@ -140,10 +161,7 @@ jobs:
       - uses: actions/checkout@v5
         name: Checkout code
 
-      - name: Set date
-        run: echo "DATE=$(date '+%d.%m.%Y %H:%M')" >> $GITHUB_ENV
-      - name: Set date for tag name
-        run: echo "TAG_DATE=$(date '+%Y%m%d_%H-%M')" >> $GITHUB_ENV
+
 
       - name: Download Android APK artifacts
         uses: actions/download-artifact@v8
@@ -155,7 +173,7 @@ jobs:
         run: |
           for apk in apks/*.apk; do
             base=$(basename "$apk")
-            mv "$apk" "apks/Trails ${{ env.TAG_DATE }} ${base}"
+            mv "$apk" "apks/Trails ${{ needs.setup.outputs.build_tag }} ${base}"
           done
 
       - name: Create GitHub Release
@@ -166,6 +184,6 @@ jobs:
           draft: false
           prerelease: false
           make_latest: true
-          name: Trails (${{ env.DATE }})
+          name: Trails (${{ needs.setup.outputs.date_formatted }})
           fail_on_unmatched_files: true
-          tag_name: v${{ env.TAG_DATE }}
+          tag_name: v${{ needs.setup.outputs.build_tag }}
