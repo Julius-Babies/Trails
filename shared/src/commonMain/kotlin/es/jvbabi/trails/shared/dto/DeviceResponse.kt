@@ -10,4 +10,5 @@ data class DeviceResponse(
     @SerialName("model") val model: String,
     @SerialName("friendly_name") val friendlyName: String,
     @SerialName("display_name") val displayName: String,
+    @SerialName("owner_id") val ownerId: String,
 )

@@ -4,6 +4,8 @@ import es.jvbabi.trails.api.TRAILS_USER_REALM
 import es.jvbabi.trails.api.TrailsAppUserPrincipal
 import es.jvbabi.trails.data.DeviceSubscriptionMessage
 import es.jvbabi.trails.data.DeviceSubscriptionRepository
+import es.jvbabi.trails.data.UserSubscriptionMessage
+import es.jvbabi.trails.data.UserSubscriptionRepository
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.Device
 import es.jvbabi.trails.database.DeviceDeletion
@@ -24,6 +26,7 @@ val deviceKey = AttributeKey<Device>("device")
 fun Route.devices() {
     val db by inject<DatabaseManager>()
     val deviceSubscriptionRepository by inject<DeviceSubscriptionRepository>()
+    val userFlowSubscriptionRepository by inject<UserSubscriptionRepository>()
 
     authenticate(TRAILS_USER_REALM) {
         get {
@@ -41,6 +44,7 @@ fun Route.devices() {
                             model = device.model,
                             friendlyName = device.friendlyName,
                             displayName = device.displayName,
+                            ownerId = device.owner.id.value.toString(),
                         )
                     }
             }.let {
@@ -79,8 +83,11 @@ fun Route.devices() {
                     deletion
                 }
 
-                val flow = deviceSubscriptionRepository.getFlowForDeviceSubscription(device.id.value)
-                flow.emit(DeviceSubscriptionMessage.Deleted(deletion))
+                val deviceFlow = deviceSubscriptionRepository.getFlowForDeviceSubscription(device.id.value)
+                deviceFlow.emit(DeviceSubscriptionMessage.Deleted(deletion))
+
+                val userFlow = userFlowSubscriptionRepository.getFlowForUser(principal.user.id.value)
+                userFlow.emit(UserSubscriptionMessage.DeviceDeleted(deletion))
 
                 call.respond(buildMap { put("success", true) })
             }

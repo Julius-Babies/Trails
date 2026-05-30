@@ -3,6 +3,8 @@ package es.jvbabi.trails.auth
 import es.jvbabi.authentikt.core.session.Session
 import es.jvbabi.authentikt.core.step.plugins.BasePlugin
 import es.jvbabi.trails.data.DeviceInformationRepository
+import es.jvbabi.trails.data.UserSubscriptionMessage
+import es.jvbabi.trails.data.UserSubscriptionRepository
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.Device
 import es.jvbabi.trails.database.DeviceType
@@ -24,6 +26,9 @@ suspend fun authSessionDeviceSelection(session: Session<User>, user: User): Base
     val db = GlobalContext.get().get<DatabaseManager>()
     val deviceSelectionAuthentiktPlugin = GlobalContext.get().get<DeviceSelectionAuthentiktPlugin>()
     val deviceInformationRepository = GlobalContext.get().get<DeviceInformationRepository>()
+
+    val userSubscriptionRepository = GlobalContext.get().get<UserSubscriptionRepository>()
+    val userFlow = userSubscriptionRepository.getFlowForUser(user.id.value)
 
     val deviceModel = session.publicAttributes[deviceModelAttribute]
     val deviceManufacturer = session.publicAttributes[deviceManufacturerAttribute]
@@ -63,6 +68,7 @@ suspend fun authSessionDeviceSelection(session: Session<User>, user: User): Base
                         this.type = DeviceType.Phone
                     }
                 }
+                userFlow.emit(UserSubscriptionMessage.DeviceUpdated(device))
                 session.attributes[authSessionSelectedDeviceIdAttribute] = device.id.value
                 return null
             }
@@ -86,6 +92,7 @@ suspend fun authSessionDeviceSelection(session: Session<User>, user: User): Base
                 this.type = DeviceType.Phone
             }
         }
+        userFlow.emit(UserSubscriptionMessage.DeviceUpdated(device))
         session.attributes[authSessionSelectedDeviceIdAttribute] = device.id.value
 
         return null

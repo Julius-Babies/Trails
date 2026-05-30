@@ -62,6 +62,7 @@ class TrailsServerRepositoryImpl(
         snapshotRepository = snapshotRepository,
         devicesRepository = devicesRepository,
         keyValueRepository = keyValueRepository,
+        userRepository = userRepository,
         trailsServerRepositoryImpl = this,
         database = database,
         logger = logger,
@@ -73,6 +74,7 @@ class TrailsServerRepositoryImpl(
         snapshotRepository = snapshotRepository,
         devicesRepository = devicesRepository,
         keyValueRepository = keyValueRepository,
+        userRepository = userRepository,
         trailsServerRepositoryImpl = this,
         database = database,
         logger = logger,
@@ -524,6 +526,7 @@ private abstract class WebSocketClientBase(
     protected val snapshotRepository: SnapshotRepository,
     protected val devicesRepository: DevicesRepository,
     protected val trailsServerRepositoryImpl: TrailsServerRepositoryImpl,
+    protected val userRepository: UserRepository,
     protected val keyValueRepository: KeyValueRepository,
     protected val database: TrailsDatabase,
     protected val logger: Logger,
@@ -576,6 +579,20 @@ private abstract class WebSocketClientBase(
                 when (message) {
                     is TrailsWebSocketServerMessage.ShareDeleted -> {
                         runCatching { Uuid.parse(message.shareId) }.getOrNull()?.let { database.activeShareDao.deleteById(it) }
+                    }
+
+                    is TrailsWebSocketServerMessage.DeviceUpdated -> {
+                        val userId = Uuid.parse(message.data.ownerId)
+                        userRepository.getUser(userId).firstOrNull() ?: continue
+                        val deviceId = Uuid.parse(message.data.id)
+                        database.deviceDao.upsertDevices(listOf(DbDevice(
+                            id = deviceId,
+                            manufacturer = message.data.manufacturer,
+                            friendlyName = message.data.friendlyName,
+                            displayName = message.data.displayName,
+                            model = message.data.model,
+                            ownerId = userId
+                        )))
                     }
 
                     is TrailsWebSocketServerMessage.DeviceDeleted -> {
@@ -638,6 +655,7 @@ private class HomeServerWebSocketClient(
     devicesRepository: DevicesRepository,
     trailsServerRepositoryImpl: TrailsServerRepositoryImpl,
     keyValueRepository: KeyValueRepository,
+    userRepository: UserRepository,
     database: TrailsDatabase,
     logger: Logger,
 ) : WebSocketClientBase(
@@ -648,6 +666,7 @@ private class HomeServerWebSocketClient(
     devicesRepository = devicesRepository,
     trailsServerRepositoryImpl = trailsServerRepositoryImpl,
     keyValueRepository = keyValueRepository,
+    userRepository = userRepository,
     database = database,
     logger = logger,
 )
@@ -659,6 +678,7 @@ private class ExternalServerWebSocketClient(
     snapshotRepository: SnapshotRepository,
     devicesRepository: DevicesRepository,
     trailsServerRepositoryImpl: TrailsServerRepositoryImpl,
+    userRepository: UserRepository,
     keyValueRepository: KeyValueRepository,
     database: TrailsDatabase,
     logger: Logger,
@@ -669,6 +689,7 @@ private class ExternalServerWebSocketClient(
     snapshotRepository = snapshotRepository,
     devicesRepository = devicesRepository,
     trailsServerRepositoryImpl = trailsServerRepositoryImpl,
+    userRepository = userRepository,
     keyValueRepository = keyValueRepository,
     database = database,
     logger = logger,

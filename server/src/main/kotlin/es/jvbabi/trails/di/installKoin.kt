@@ -4,6 +4,7 @@ import es.jvbabi.trails.ApplicationLaunchConfig
 import es.jvbabi.trails.config.ApplicationConfig
 import es.jvbabi.trails.data.DeviceInformationRepository
 import es.jvbabi.trails.data.DeviceSubscriptionRepository
+import es.jvbabi.trails.data.UserSubscriptionRepository
 import es.jvbabi.trails.database.DatabaseManager
 import io.ktor.server.application.*
 import org.koin.dsl.module
@@ -14,6 +15,7 @@ private val coreModule = module {
     single { DatabaseManager() }
     single { DeviceInformationRepository() }
     single { DeviceSubscriptionRepository() }
+    single { UserSubscriptionRepository() }
 }
 
 fun Application.installKoin(

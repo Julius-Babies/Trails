@@ -1,5 +1,6 @@
 package es.jvbabi.trails.shared.dto.websocket
 
+import es.jvbabi.trails.shared.dto.DeviceResponse
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -11,6 +12,12 @@ sealed class TrailsWebSocketServerMessage {
         @SerialName("deleted_by_device_name") val deletedByDeviceName: String,
         @SerialName("device_id") val deviceId: String,
     ): TrailsWebSocketServerMessage()
+
+    @Serializable
+    @SerialName("device.updated")
+    data class DeviceUpdated(
+        @SerialName("data") val data: DeviceResponse,
+    ) : TrailsWebSocketServerMessage()
 
     @Serializable
     @SerialName("share.deleted")

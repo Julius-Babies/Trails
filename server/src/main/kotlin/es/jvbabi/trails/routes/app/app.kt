@@ -6,6 +6,7 @@ import es.jvbabi.trails.api.TRAILS_USER_REALM
 import es.jvbabi.trails.api.TrailsAppUserPrincipal
 import es.jvbabi.trails.data.DeviceSubscriptionMessage
 import es.jvbabi.trails.data.DeviceSubscriptionRepository
+import es.jvbabi.trails.data.UserSubscriptionRepository
 import es.jvbabi.trails.database.ActiveShare
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketAppMessage
@@ -18,9 +19,12 @@ import io.ktor.util.logging.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
@@ -39,6 +43,7 @@ fun Route.app() {
 
     val db by inject<DatabaseManager>()
     val deviceSubscriptionRepository by inject<DeviceSubscriptionRepository>()
+    val userSubscriptionRepository by inject<UserSubscriptionRepository>()
 
     authenticate(TRAILS_USER_REALM, optional = true) {
         webSocket("/ws") {
@@ -51,6 +56,15 @@ fun Route.app() {
 
             val selfFlow =
                 if (auth != null) deviceSubscriptionRepository.getFlowForDeviceSubscription(db.transaction { auth.device.id.value }) else null
+
+            launch {
+                if (auth == null) return@launch
+                userSubscriptionRepository.getFlowForUser(auth.user.id.value)
+                    .mapNotNull { it.toAppSocketMessage(auth) }
+                    .onEach { this@webSocket.sendSerialized(it.message) }
+                    .takeWhile { !it.closeConnectionAfterSending && this@webSocket.isActive }
+                    .collect()
+            }
 
             for (frame in incoming) {
                 if (frame is Frame.Text) {

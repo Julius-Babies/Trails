@@ -58,6 +58,7 @@ fun Route.useShare() {
                     model = share.device.model,
                     friendlyName = share.device.friendlyName,
                     displayName = share.device.displayName,
+                    ownerId = share.device.owner.id.value.toString(),
                 ),
             )
         }.let { call.respond(it) }
