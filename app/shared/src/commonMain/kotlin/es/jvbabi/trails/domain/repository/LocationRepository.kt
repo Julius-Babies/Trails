@@ -14,6 +14,9 @@ interface LocationRepository {
     fun getCurrentLocation(): Flow<Location?>
 }
 
+/**
+ * @param bearing The bearing in degrees (0..360)
+ */
 data class Location(
     val latitude: Double,
     val longitude: Double,

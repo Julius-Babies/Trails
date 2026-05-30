@@ -8,37 +8,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.material3.FilledTonalIconButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -46,11 +19,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewWrapper
@@ -71,13 +42,8 @@ import es.jvbabi.trails.domain.model.Snapshot
 import es.jvbabi.trails.domain.model.User
 import es.jvbabi.trails.domain.repository.Location
 import es.jvbabi.trails.page.devices.main.DevicesTab
-import es.jvbabi.trails.page.home.components.CardSheetValue
-import es.jvbabi.trails.page.home.components.DraggableCardSheet
-import es.jvbabi.trails.page.home.components.Map
-import es.jvbabi.trails.page.home.components.NavigationBar
-import es.jvbabi.trails.page.home.components.padding
-import es.jvbabi.trails.page.home.components.plus
-import es.jvbabi.trails.page.home.components.rememberDraggableCardSheetState
+import es.jvbabi.trails.page.home.components.*
+import es.jvbabi.trails.page.home.components.PaddingValues
 import es.jvbabi.trails.page.shares.main.SharesScreen
 import es.jvbabi.trails.utils.blendColor
 import kotlinx.coroutines.launch
@@ -101,6 +67,13 @@ fun HomeScreen(
         onOpenSettings = onOpenSettings,
         onEvent = viewModel::onEvent,
     )
+
+    val localDensity = LocalDensity.current.density
+    LaunchedEffect(localDensity) {
+        viewModel.setup(
+            localDensity = localDensity
+        )
+    }
 }
 
 @Composable
@@ -112,18 +85,27 @@ fun HomeContent(
     val hazeState = rememberHazeState()
     val scope = rememberCoroutineScope()
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val collapsedHeight = 72.dp
+    val cardCollapsedHeight = 72.dp
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .onSizeChanged { size ->
+                onEvent(HomeEvent.OnViewportResize(size))
+            }
+    ) {
         val draggableCardSheetState = rememberDraggableCardSheetState(
             expandedHeight = maxHeight,
             semiExpandedHeight = 350.dp,
-            collapsedHeight = collapsedHeight,
+            collapsedHeight = cardCollapsedHeight,
             initialValue = CardSheetValue.Collapsed,
         )
         DraggableCardSheet(
             modifier = Modifier.fillMaxSize(),
             state = draggableCardSheetState,
             content = { paddingForCard ->
+                var fabHeight by remember { mutableStateOf(48.dp) }
+                val density = LocalDensity.current
+
                 Scaffold { contentPadding ->
                     Box(
                         modifier = Modifier
@@ -137,9 +119,10 @@ fun HomeContent(
                                 Logger.i { "Map device clicked: ${device.device.displayName}" }
                             },
                             onCameraChanged = { camera ->
-                                onEvent(HomeEvent.OnCameraChanged(camera))
+//                                onEvent(HomeEvent.OnCameraChanged(camera))
                             },
-                            bottomPadding = contentPadding.calculateBottomPadding() + collapsedHeight,
+                            onUserDragStart = { onEvent(HomeEvent.UserDragged) },
+                            bottomPadding = contentPadding.calculateBottomPadding() + cardCollapsedHeight + fabHeight + 8.dp,
                         )
 
                         Box(
@@ -162,14 +145,27 @@ fun HomeContent(
                                 }
                             }
 
-                            ExtendedFloatingActionButton(
-                                modifier = Modifier
+                            val trackingLabel = when (state.trackingMode) {
+                                HomeState.TrackingMode.None -> "Übersicht"
+                                HomeState.TrackingMode.Overview -> "Mein Standort"
+                                HomeState.TrackingMode.OwnLocation -> "Übersicht"
+                            }
+
+                            Column(
+                                Modifier
                                     .padding(bottom = 8.dp)
-                                    .align(Alignment.BottomCenter),
-                                text = { Text("test") },
-                                icon = {},
-                                onClick = {},
-                            )
+                                    .align(Alignment.BottomCenter)
+                                    .onSizeChanged { size ->
+                                        fabHeight = with(density) { size.height.toDp() }
+                                    },
+                            ) {
+                                ExtendedFloatingActionButton(
+                                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                                    text = { Text(trackingLabel) },
+                                    icon = {},
+                                    onClick = { onEvent(HomeEvent.ToggleTrackingMode) },
+                                )
+                            }
                         }
                     }
                 }
@@ -197,13 +193,13 @@ fun HomeContent(
                             .background(MaterialTheme.colorScheme.outlineVariant)
                     )
 
-                    val defaultContentBottomPadding = contentPadding.bottom * draggableCardSheetState.collapsedProgress + collapsedHeight
+                    val defaultContentBottomPadding = contentPadding.bottom * draggableCardSheetState.collapsedProgress + cardCollapsedHeight
 
                     Box(
                         modifier = Modifier
                             .padding(bottom = max(defaultContentBottomPadding, WindowInsets.ime.asPaddingValues().calculateBottomPadding()))
                             .fillMaxSize()
-                            .defaultMinSize(minHeight = collapsedHeight)
+                            .defaultMinSize(minHeight = cardCollapsedHeight)
                             .clipToBounds()
                             .bottomFadeOut(active = draggableCardSheetState.isUserDragging && draggableCardSheetState.progress < 0.5f)
                     ) {
@@ -235,7 +231,7 @@ fun HomeContent(
                             .background(blendColor(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceContainer, draggableCardSheetState.progress/2f).copy(alpha = draggableCardSheetState.progress))
                             .padding(bottom = 16.dp * draggableCardSheetState.progress)
                             .fillMaxWidth()
-                            .height(collapsedHeight + 8.dp),
+                            .height(cardCollapsedHeight + 8.dp),
                         verticalArrangement = Arrangement.Bottom
                     ) {
                         HorizontalDivider(Modifier.alpha(draggableCardSheetState.progress))
@@ -249,6 +245,16 @@ fun HomeContent(
                 }
             }
         )
+    }
+
+    val intPaddingValues = PaddingValues(
+        top = WindowInsets.systemBars.asPaddingValues().calculateTopPadding() + 8.dp,
+        start = 16.dp,
+        end = 16.dp,
+        bottom = cardCollapsedHeight + 16.dp
+    ).toIntPaddingValues(LocalDensity.current)
+    LaunchedEffect(intPaddingValues) {
+        onEvent(HomeEvent.OnMapContentAreaPadding(intPaddingValues))
     }
 }
 

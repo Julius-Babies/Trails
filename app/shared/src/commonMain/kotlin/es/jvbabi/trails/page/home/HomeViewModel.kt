@@ -2,31 +2,19 @@
 
 package es.jvbabi.trails.page.home
 
+import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import co.touchlab.kermit.Logger
 import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.model.Snapshot
-import es.jvbabi.trails.domain.repository.BackgroundServiceRepository
-import es.jvbabi.trails.domain.repository.DevicesRepository
-import es.jvbabi.trails.domain.repository.KeyValueRepository
-import es.jvbabi.trails.domain.repository.Location
-import es.jvbabi.trails.domain.repository.LocationRepository
-import es.jvbabi.trails.domain.repository.TrailsServerRepository
+import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.domain.usecase.home.GetHomeDeviceLocationsUseCase
+import es.jvbabi.trails.utils.IntPaddingValues
+import es.jvbabi.trails.utils.toMapCamera
+import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.emitAll
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.onStart
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlin.uuid.Uuid
 
@@ -37,19 +25,32 @@ class HomeViewModel(
     private val trailsServerRepository: TrailsServerRepository,
     private val devicesRepository: DevicesRepository,
     private val getHomeDeviceLocationsUseCase: GetHomeDeviceLocationsUseCase,
-): ViewModel() {
+) : ViewModel() {
 
     val state: StateFlow<HomeState>
         field = MutableStateFlow(HomeState())
 
+    private var viewportDimensions = MutableStateFlow<IntSize?>(null)
+    private var mapContentPadding = MutableStateFlow<IntPaddingValues?>(null)
+    private val localDensity = MutableStateFlow<Float?>(null)
+
     init {
-        viewModelScope.launch {
+        viewModelScope.launch(CoroutineName("Start service if user exists + update user data")) {
+            val doesUserExist = keyValueRepository.get("trails.userId").first() != null
+            if (!doesUserExist) return@launch
+
+            trailsServerRepository.updateUserDevices()
+            trailsServerRepository.getMeData()
+            backgroundServiceRepository.startService()
+        }
+
+        viewModelScope.launch(CoroutineName("OwnLocation")) {
             locationRepository.getCurrentLocation().collect { location ->
                 state.update { it.copy(ownLocation = location) }
             }
         }
 
-        viewModelScope.launch {
+        viewModelScope.launch(CoroutineName("This device")) {
             keyValueRepository.get("trails.thisDeviceId")
                 .filterNotNull()
                 .distinctUntilChanged()
@@ -66,52 +67,93 @@ class HomeViewModel(
                 }
         }
 
-        viewModelScope.launch {
-            keyValueRepository.get("trails.userId")
-                .filterNotNull()
-                .distinctUntilChanged()
-                .flatMapLatest {
-                    flow {
-                        backgroundServiceRepository.startService()
-                        trailsServerRepository.updateUserDevices()
-                        trailsServerRepository.getMeData()
-                        emitAll(
-                            combine(
-                                getHomeDeviceLocationsUseCase(),
-                                locationRepository.getCurrentLocation().onStart { emit(null) },
-                            ) { devices, location -> devices to location }
-                        )
+        viewModelScope.launch(CoroutineName("All devices")) {
+            getHomeDeviceLocationsUseCase()
+                .collectLatest { devices ->
+                    state.update { it.copy(devices = devices) }
+                }
+        }
+
+        viewModelScope.launch(CoroutineName("Update camera position")) {
+            val stateFlow = state
+                .distinctUntilChangedBy { listOf(
+                    it.trackingMode,
+                    it.ownLocation,
+                    it.devices
+                ).map { it.hashCode() }.sum() }
+                .map {
+                    object {
+                        val devices = it.devices
+                        val trackingMode = it.trackingMode
+                        val ownLocation = it.ownLocation
                     }
                 }
-                .collect { (devices, location) ->
-                    state.update {
-                        it.copy(
-                            ownLocation = location ?: it.ownLocation,
-                            devices = devices,
-                        )
+
+            val measurementsFlow =
+                combine(viewportDimensions.filterNotNull(), mapContentPadding.filterNotNull()) { viewportDimensions, mapContentPadding ->
+                    object {
+                        val viewport = viewportDimensions;
+                        val contentPadding = mapContentPadding
                     }
-                    if (!state.value.initialFitDone) {
-                        val bounds = calculateBounds(location ?: state.value.ownLocation, devices)
-                        if (bounds != null) {
-                            state.update { it.copy(fitBounds = bounds, initialFitDone = true) }
+                }
+
+            combine(
+                stateFlow,
+                measurementsFlow,
+                localDensity.filterNotNull(),
+            ) { emission, measurements, localDensity ->
+                when (emission.trackingMode) {
+                    HomeState.TrackingMode.None -> {
+                        state.update { it.copy(targetCameraState = null) }
+                    }
+                    HomeState.TrackingMode.Overview -> {
+                        val bounds = calculateBounds(emission.ownLocation, emission.devices) ?: return@combine
+                        val cameraState = bounds.toMapCamera(
+                            viewportWidthPx = measurements.viewport.width,
+                            viewportHeightPx = measurements.viewport.height,
+                            density = localDensity,
+                            padding = measurements.contentPadding,
+                        )
+
+                        state.update { it.copy(targetCameraState = cameraState) }
+                    }
+
+                    HomeState.TrackingMode.OwnLocation -> {
+                        if (emission.ownLocation == null) return@combine
+                        state.update {
+                            it.copy(targetCameraState = HomeState.MapCamera(
+                                centerLatitude = emission.ownLocation.latitude,
+                                centerLongitude = emission.ownLocation.longitude,
+                                zoom = 20.0,
+                                pitch = 70.0,
+                                bearing = emission.ownLocation.bearing.toDouble()
+                            ))
                         }
                     }
                 }
+            }.collectLatest {}
         }
+    }
+
+    fun setup(localDensity: Float) {
+        this.localDensity.update { localDensity }
     }
 
     fun onEvent(event: HomeEvent) {
         when (event) {
             is HomeEvent.SelectTab -> state.update { it.copy(selectedTab = event.tab) }
-            is HomeEvent.FlyTo -> state.update {
-                it.copy(
-                    mapCamera = event.camera,
-                    flyToSignal = it.flyToSignal + 1,
-                    flyToAnimated = event.animated,
-                    initialFitDone = true,
-                )
+            is HomeEvent.UserDragged -> state.update { it.copy(trackingMode = HomeState.TrackingMode.None) }
+            is HomeEvent.ToggleTrackingMode -> state.update {
+                val next = when (it.trackingMode) {
+                    HomeState.TrackingMode.None -> HomeState.TrackingMode.Overview
+                    HomeState.TrackingMode.Overview -> HomeState.TrackingMode.OwnLocation
+                    HomeState.TrackingMode.OwnLocation -> HomeState.TrackingMode.Overview
+                }
+                it.copy(trackingMode = next)
             }
-            is HomeEvent.OnCameraChanged -> state.update { it.copy(mapCamera = event.camera) }
+
+            is HomeEvent.OnViewportResize -> viewportDimensions.update { event.viewportDimensions }
+            is HomeEvent.OnMapContentAreaPadding -> mapContentPadding.update { event.mapContentPadding }
         }
     }
 
@@ -134,14 +176,16 @@ data class HomeState(
     val selectedTab: Tab = Tab.MyDevices,
     val currentDevice: Device? = null,
     val devices: List<HomeDevice> = emptyList(),
-    val mapCamera: MapCamera? = null,
+    val targetCameraState: MapCamera? = null,
     val fitBounds: FitBounds? = null,
-    val flyToSignal: Int = 0,
-    val flyToAnimated: Boolean = false,
-    val initialFitDone: Boolean = false,
+    val trackingMode: TrackingMode = TrackingMode.Overview,
 ) {
     enum class Tab {
         MyDevices, Things, Shares
+    }
+
+    enum class TrackingMode {
+        Overview, OwnLocation, None
     }
 
     data class MapCamera(
@@ -164,7 +208,10 @@ data class HomeState(
 }
 
 sealed class HomeEvent {
-    data class SelectTab(val tab: HomeState.Tab): HomeEvent()
-    data class FlyTo(val camera: HomeState.MapCamera, val animated: Boolean = true): HomeEvent()
-    data class OnCameraChanged(val camera: HomeState.MapCamera): HomeEvent()
+    data class SelectTab(val tab: HomeState.Tab) : HomeEvent()
+    data object UserDragged : HomeEvent()
+    data object ToggleTrackingMode : HomeEvent()
+
+    data class OnViewportResize(val viewportDimensions: IntSize) : HomeEvent()
+    data class OnMapContentAreaPadding(val mapContentPadding: IntPaddingValues) : HomeEvent()
 }

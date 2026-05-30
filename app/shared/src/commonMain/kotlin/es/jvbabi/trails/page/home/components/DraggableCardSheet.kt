@@ -50,6 +50,7 @@ import es.jvbabi.trails.utils.getBottomBorderRadius
 import es.jvbabi.trails.page.home.components.internal.DraggableAnchors
 import es.jvbabi.trails.page.home.components.internal.animateTo
 import es.jvbabi.trails.page.home.components.internal.draggableAnchors
+import es.jvbabi.trails.utils.IntPaddingValues
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
@@ -70,6 +71,18 @@ data class PaddingValues(
 ) {
     constructor(all: Dp) : this(all, all, all, all)
     constructor(): this(0.dp)
+
+    @Composable
+    fun toIntPaddingValues(localDensity: Density): IntPaddingValues {
+        with(localDensity) {
+            return IntPaddingValues(
+                top = this@PaddingValues.top.roundToPx(),
+                bottom = this@PaddingValues.bottom.roundToPx(),
+                start = this@PaddingValues.start.roundToPx(),
+                end = this@PaddingValues.end.roundToPx(),
+            )
+        }
+    }
 }
 
 @Composable
