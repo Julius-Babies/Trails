@@ -119,17 +119,16 @@ private fun mercatorToLat(mercatorY: Double): Double =
  */
 private fun latitudeZoom(minLat: Double, maxLat: Double, heightPx: Float): Double {
     val mercatorSpan = latToMercator(maxLat) - latToMercator(minLat)
-    return if (mercatorSpan <= 0.0) 0.0
+    return if (mercatorSpan <= 0.0) Double.MAX_VALUE
     else log2(heightPx * 2.0 * PI / (TILE_SIZE * mercatorSpan))
 }
 
 /**
  * Returns the zoom level at which [minLng]..[maxLng] fits in [widthPx].
- * Handles the antimeridian case (span wrapping 360°).
  */
 private fun longitudeZoom(minLng: Double, maxLng: Double, widthPx: Float): Double {
-    val lngSpan = (maxLng - minLng).let { if (it <= 0.0) it + 360.0 else it }
-    return if (lngSpan <= 0.0) 0.0
+    val lngSpan = maxLng - minLng
+    return if (lngSpan <= 0.0) Double.MAX_VALUE
     else log2(widthPx * 360.0 / (TILE_SIZE * lngSpan))
 }
 

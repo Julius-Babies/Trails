@@ -15,6 +15,7 @@ fun Route.me() {
     authenticate(TRAILS_USER_REALM) {
         get {
             val auth = call.principal<TrailsAppUserPrincipal>()!!
+            auth.requireValidSession()
 
             db.transaction {
                 MeResponse(

@@ -6,3 +6,5 @@
 /deploymentTargetSelector.xml
 /deviceManager.xml
 /receipt.json
+/dataSources*
+/db-forest-config.xml

@@ -54,7 +54,7 @@ class DeviceSelectionAuthentiktPlugin: BasePlugin<User, DeviceSelectionAuthentik
 
         val devices = db.transaction {
             Device
-                .find { (Devices.owner eq user.id) and (Devices.model eq deviceModel) and (Devices.manufacturer eq deviceManufacturer) }
+                .find { (Devices.owner eq user.id) and (Devices.model eq deviceModel) and (Devices.manufacturer eq deviceManufacturer) and (Devices.deletion eq null) }
                 .toList()
                 .map { device ->
                     DeviceSelectionOption(
@@ -83,6 +83,7 @@ class DeviceSelectionAuthentiktPlugin: BasePlugin<User, DeviceSelectionAuthentik
                 val user = session.identifiedUser!!.user as User
                 val device = db.transaction { Device.findById(Uuid.parse(request.deviceId))!! }
                 if (db.transaction { device.owner.id } != user.id) throw Exception("Device does not belong to user")
+                if (db.transaction { device.deletion } != null) throw Exception("Device is deleted")
                 val state = session.authenticationSteps.last().second as DeviceSelectionAuthentiktState
                 state.selectedOption = DeviceSelectionAuthentiktState.UserSelection.Selected(
                     device = state.deviceSelectionOptions.find { it.deviceId == request.deviceId }!!

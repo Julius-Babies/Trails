@@ -12,6 +12,7 @@ import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.domain.usecase.home.GetHomeDeviceLocationsUseCase
 import es.jvbabi.trails.utils.IntPaddingValues
 import es.jvbabi.trails.utils.toMapCamera
+import kotlin.math.*
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -33,14 +34,22 @@ class HomeViewModel(
     private var viewportDimensions = MutableStateFlow<IntSize?>(null)
     var mapContentPadding = MutableStateFlow<IntPaddingValues?>(null)
     private val localDensity = MutableStateFlow<Float?>(null)
+    private val followDevice = MutableStateFlow<Device?>(null)
 
     init {
         viewModelScope.launch(CoroutineName("Start service if user exists + update user data")) {
             val doesUserExist = keyValueRepository.get("trails.userId").first() != null
             if (!doesUserExist) return@launch
 
-            trailsServerRepository.updateUserDevices()
+            val sessionHealth = trailsServerRepository.checkSessionHealth()
+            if (sessionHealth is SessionHealthState.InvalidOrExpired || sessionHealth is SessionHealthState.NoSessionExpected) return@launch
+            if (sessionHealth is SessionHealthState.Error) {
+                Logger.e { "Failed to get session health: ${sessionHealth.errorMessage}" }
+                return@launch
+            }
+
             trailsServerRepository.getMeData()
+            trailsServerRepository.updateUserDevices()
             backgroundServiceRepository.startService()
         }
 
@@ -101,8 +110,21 @@ class HomeViewModel(
                 stateFlow,
                 measurementsFlow,
                 localDensity.filterNotNull(),
-            ) { emission, measurements, localDensity ->
-                when (emission.trackingMode) {
+                followDevice,
+            ) { emission, measurements, localDensity, followDevice ->
+
+                if (followDevice != null) {
+                    val bounds = calculateBounds(null, emission.devices.filter { device -> device.device.id == followDevice.id }) ?: return@combine
+                    val cameraState = bounds.toMapCamera(
+                        viewportWidthPx = measurements.viewport.width,
+                        viewportHeightPx = measurements.viewport.height,
+                        density = localDensity,
+                        padding = measurements.contentPadding,
+                        defaultZoom = 18.0,
+                        minZoom = 0.0,
+                    )
+                    state.update { it.copy(targetCameraState = cameraState) }
+                } else when (emission.trackingMode) {
                     HomeState.TrackingMode.None -> {
                         state.update { it.copy(targetCameraState = null) }
                     }
@@ -144,7 +166,10 @@ class HomeViewModel(
     fun onEvent(event: HomeEvent) {
         when (event) {
             is HomeEvent.SelectTab -> state.update { it.copy(selectedTab = event.tab) }
-            is HomeEvent.UserDragged -> state.update { it.copy(trackingMode = HomeState.TrackingMode.None) }
+            is HomeEvent.UserDragged -> {
+                state.update { it.copy(trackingMode = HomeState.TrackingMode.None) }
+                followDevice.update { null }
+            }
             is HomeEvent.ToggleTrackingMode -> state.update {
                 val next = when (it.trackingMode) {
                     HomeState.TrackingMode.None -> HomeState.TrackingMode.Overview
@@ -156,6 +181,7 @@ class HomeViewModel(
 
             is HomeEvent.OnViewportResize -> viewportDimensions.update { event.viewportDimensions }
             is HomeEvent.OnMapContentAreaPadding -> mapContentPadding.update { event.mapContentPadding }
+            is HomeEvent.FocusDevice -> followDevice.update { state.value.devices.firstOrNull { device -> device.device.id == event.deviceId }?.device }
         }
     }
 
@@ -168,7 +194,27 @@ class HomeViewModel(
                 coords.add(snapshot.location.latitude to snapshot.location.longitude)
             }
             if (coords.isEmpty()) return null
-            return HomeState.FitBounds(coordinates = coords)
+            
+            val distinctCoords = mutableListOf<Pair<Double, Double>>()
+            for (coord in coords) {
+                if (distinctCoords.none { distanceInMeters(it.first, it.second, coord.first, coord.second) < 20.0 }) {
+                    distinctCoords.add(coord)
+                }
+            }
+
+            if (distinctCoords.isEmpty()) return null
+            return HomeState.FitBounds(coordinates = distinctCoords)
+        }
+
+        private fun distanceInMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+            val earthRadius = 6371000.0
+            val dLat = (lat2 - lat1) * (PI / 180.0)
+            val dLon = (lon2 - lon1) * (PI / 180.0)
+            val a = (sin(dLat / 2) * sin(dLat / 2) +
+                    cos(lat1 * (PI / 180.0)) * cos(lat2 * (PI / 180.0)) *
+                    sin(dLon / 2) * sin(dLon / 2)).coerceIn(0.0, 1.0)
+            val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+            return earthRadius * c
         }
     }
 }
@@ -216,4 +262,5 @@ sealed class HomeEvent {
 
     data class OnViewportResize(val viewportDimensions: IntSize) : HomeEvent()
     data class OnMapContentAreaPadding(val mapContentPadding: IntPaddingValues) : HomeEvent()
+    data class FocusDevice(val deviceId: Uuid?): HomeEvent()
 }

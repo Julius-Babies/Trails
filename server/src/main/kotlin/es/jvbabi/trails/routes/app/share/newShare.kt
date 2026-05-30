@@ -21,6 +21,7 @@ fun Route.newShare() {
     authenticate(TRAILS_USER_REALM) {
         post {
             val auth = call.principal<TrailsAppUserPrincipal>()!!
+            auth.requireValidSession()
             val request = call.receive<NewShareRequest>()
 
             val share = db.transaction {

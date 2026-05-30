@@ -196,7 +196,7 @@ fun HomeContent(
                                     icon = {
                                         AnimatedContent(
                                             targetState = state.trackingMode,
-                                            modifier = Modifier.size(16.dp),
+                                            modifier = Modifier.size(24.dp),
                                         ) { currentTrackingMode ->
                                             Icon(
                                                 painter = painterResource(when (currentTrackingMode) {
@@ -204,7 +204,7 @@ fun HomeContent(
                                                     HomeState.TrackingMode.Overview -> Res.drawable.locate_fixed
                                                 }),
                                                 contentDescription = null,
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(24.dp)
                                             )
                                         }
                                     },
@@ -256,6 +256,12 @@ fun HomeContent(
                                 HomeState.Tab.MyDevices -> DevicesTab(
                                     contentPadding = contentPadding,
                                     nestedScrollConnection = draggableCardSheetState.nestedScrollConnection,
+                                    onFocusDevice = { deviceId ->
+                                        onEvent(HomeEvent.FocusDevice(deviceId))
+                                        if (deviceId != null && draggableCardSheetState.targetValue == CardSheetValue.Expanded) {
+                                            scope.launch { draggableCardSheetState.semiExpand() }
+                                        }
+                                    }
                                 )
                                 HomeState.Tab.Things -> Text("Hier könnten deine Gegenstände sein!")
                                 HomeState.Tab.Shares -> SharesScreen(

@@ -18,6 +18,8 @@ import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.leftJoin
 import org.jetbrains.exposed.v1.jdbc.andWhere
 import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import org.koin.ktor.ext.inject
 import java.security.MessageDigest
 import kotlin.uuid.Uuid
@@ -70,4 +72,10 @@ data class TrailsAppUserPrincipal(
     val user: User,
     val device: Device,
     val session: Session,
-)
+): KoinComponent {
+    private val db by inject<DatabaseManager>()
+
+    suspend fun requireValidSession() {
+        if (db.transaction { device.deletion } != null) throw RuntimeException("Device is deleted")
+    }
+}

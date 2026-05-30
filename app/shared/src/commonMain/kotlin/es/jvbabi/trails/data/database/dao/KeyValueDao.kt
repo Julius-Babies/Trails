@@ -12,6 +12,9 @@ interface KeyValueDao {
     @Upsert
     suspend fun upsert(keyValue: DbKeyValue)
 
+    @Query("DELETE FROM key_value WHERE `key` = :key")
+    suspend fun delete(key: String)
+
     @Query("SELECT value FROM key_value WHERE `key` = :key")
     fun getValue(key: String): Flow<String?>
 }

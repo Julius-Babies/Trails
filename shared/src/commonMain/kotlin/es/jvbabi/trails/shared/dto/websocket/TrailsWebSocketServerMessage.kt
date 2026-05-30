@@ -6,10 +6,18 @@ import kotlinx.serialization.Serializable
 @Serializable
 sealed class TrailsWebSocketServerMessage {
     @Serializable
+    @SerialName("device.deleted")
+    data class DeviceDeleted(
+        @SerialName("deleted_by_device_name") val deletedByDeviceName: String,
+        @SerialName("device_id") val deviceId: String,
+    ): TrailsWebSocketServerMessage()
+
+    @Serializable
     @SerialName("share.deleted")
     data class ShareDeleted(
+        @SerialName("was_device_removed") val wasDeviceRemoved: Boolean,
         @SerialName("share_id") val shareId: String,
-    ) : TrailsWebSocketServerMessage()
+    ): TrailsWebSocketServerMessage()
 
     @Serializable
     @SerialName("share.snapshot")

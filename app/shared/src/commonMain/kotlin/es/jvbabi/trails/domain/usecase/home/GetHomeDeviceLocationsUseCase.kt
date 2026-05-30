@@ -52,7 +52,7 @@ class GetHomeDeviceLocationsUseCase(
             }
     }
 
-    private fun getHomeDevice(device: Device): Flow<HomeState.HomeDevice> {
+    fun getHomeDevice(device: Device): Flow<HomeState.HomeDevice> {
         val snapshotFlow = snapshotRepository.getCurrentSnapshotForDevice(device)
 
         val imageFlow = devicesRepository.hasDeviceImage(device)

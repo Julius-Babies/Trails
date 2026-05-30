@@ -12,6 +12,7 @@ import es.jvbabi.trails.domain.model.Snapshot
 import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.shared.dto.DeviceResponse
 import es.jvbabi.trails.shared.dto.MeResponse
+import es.jvbabi.trails.shared.dto.SessionHealthResponse
 import es.jvbabi.trails.shared.dto.UseShareLinkRequest
 import es.jvbabi.trails.shared.dto.UseShareLinkResponse
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketAppMessage
@@ -60,6 +61,8 @@ class TrailsServerRepositoryImpl(
         shareRepository = shareRepository,
         snapshotRepository = snapshotRepository,
         devicesRepository = devicesRepository,
+        keyValueRepository = keyValueRepository,
+        trailsServerRepositoryImpl = this,
         database = database,
         logger = logger,
     )
@@ -69,11 +72,31 @@ class TrailsServerRepositoryImpl(
         shareRepository = shareRepository,
         snapshotRepository = snapshotRepository,
         devicesRepository = devicesRepository,
+        keyValueRepository = keyValueRepository,
+        trailsServerRepositoryImpl = this,
         database = database,
         logger = logger,
     )
 
     override val isConnected: MutableStateFlow<Boolean> = MutableStateFlow(false)
+
+    override val isDeviceDeletedState: StateFlow<IsDeviceDeletedState>
+        field = MutableStateFlow<IsDeviceDeletedState>(IsDeviceDeletedState.Unset)
+
+    fun setDeviceDeletedState(state: IsDeviceDeletedState) {
+        isDeviceDeletedState.value = state
+    }
+
+    override suspend fun resetDeviceDeletedState() {
+        val deletedState = isDeviceDeletedState.value
+        if (deletedState is IsDeviceDeletedState.Deleted) {
+            database.deviceDao.deleteDevicesByIds(listOf(deletedState.thisDevice.id))
+            keyValueRepository.delete("trails.thisDeviceId")
+            keyValueRepository.delete("trails.userId")
+            keyValueRepository.delete("trails.host")
+        }
+        isDeviceDeletedState.value = IsDeviceDeletedState.Unset
+    }
 
     override fun isServerConnected(server: String): Flow<Boolean> = combine(
         isConnected,
@@ -85,6 +108,7 @@ class TrailsServerRepositoryImpl(
     override fun connectWithHomeserver(): Deferred<Boolean> = connectWithHomeserver(0)
 
     private fun connectWithHomeserver(retryCount: Int): Deferred<Boolean> {
+
         if (this.isConnected.value) return CompletableDeferred(true)
 
         val connectedDeferred = CompletableDeferred<Boolean>()
@@ -210,7 +234,32 @@ class TrailsServerRepositoryImpl(
             .map { it?.let { id -> runCatching { Uuid.parse(id) }.getOrNull() } }
     }
 
-    override suspend fun getMeData(): MeResponse {
+    override suspend fun checkSessionHealth(): SessionHealthState {
+        val token = getToken().first() ?: return SessionHealthState.NoSessionExpected
+        val url = (getBaseUrl().first() ?: return SessionHealthState.NoSessionExpected).apply {
+            appendPathSegments("api", "v1", "app", "session-healthcheck")
+        }
+
+        val response = httpClient.get(url.buildString()) {
+            bearerAuth(token)
+        }
+
+        if (!response.status.isSuccess()) {
+            return SessionHealthState.Error("Error checking session health: ${response.status} ${response.bodyAsText()}")
+        }
+
+        when (val data = response.body<SessionHealthResponse>()) {
+            is SessionHealthResponse.DeviceDeleted -> {
+                val thisDeviceId = keyValueRepository.get("trails.thisDeviceId").first() ?: return SessionHealthState.NoSessionExpected
+                val thisDevice = devicesRepository.getDeviceById(Uuid.parse(thisDeviceId)).firstOrNull() ?: return SessionHealthState.NoSessionExpected
+                isDeviceDeletedState.update { IsDeviceDeletedState.Deleted(thisDevice = thisDevice, deletedByDeviceName = data.deletedByDeviceName) }
+                return SessionHealthState.InvalidOrExpired
+            }
+            is SessionHealthResponse.Valid -> return SessionHealthState.Ok
+        }
+    }
+
+    override suspend fun getMeData(): Result<MeResponse> {
         val token = getToken().first() ?: throw IllegalStateException("Token not set")
         val url = (getBaseUrl().first() ?: throw IllegalStateException("Base URL not set")).apply {
             appendPathSegments("api", "v1", "me")
@@ -221,7 +270,15 @@ class TrailsServerRepositoryImpl(
         }
 
         if (!response.status.isSuccess()) {
-            throw IllegalStateException("Error fetching me data: ${response.status}")
+            if (response.status == HttpStatusCode.Unauthorized) {
+                keyValueRepository.delete("trails.token")
+                keyValueRepository.delete("trails.userId")
+                keyValueRepository.delete("trails.thisDeviceId")
+                keyValueRepository.delete("trails.host")
+
+                return Result.failure(IllegalStateException("Token expired"))
+            }
+            return Result.failure(IllegalStateException("Error fetching me data: ${response.status} ${response.bodyAsText()}"))
         }
 
         val body = response.body<MeResponse>()
@@ -237,7 +294,7 @@ class TrailsServerRepositoryImpl(
         keyValueRepository.setValue("trails.userId", body.id)
         keyValueRepository.setValue("trails.thisDeviceId", body.thisDeviceId)
 
-        return body
+        return Result.success(body)
     }
 
     override suspend fun updateUserDevices() {
@@ -440,6 +497,24 @@ class TrailsServerRepositoryImpl(
             } else connectionEvents
         }
     }
+
+    override suspend fun deleteDevice(device: Device): Result<Unit> {
+        val url = URLBuilder("https://${device.owner.homeserver}").apply {
+            appendPathSegments("api", "v1", "me", "devices", device.id.toString())
+        }
+        val token = getToken().first() ?: throw IllegalStateException("Token not set")
+
+        val response = httpClient.delete(url.buildString()) {
+            bearerAuth(token)
+        }
+
+        if (response.status.isSuccess()) {
+            database.deviceDao.deleteDevicesByIds(listOf(device.id))
+            return Result.success(Unit)
+        }
+
+        return Result.failure(IllegalStateException("Error deleting device: ${response.status} ${response.bodyAsText()}"))
+    }
 }
 
 private abstract class WebSocketClientBase(
@@ -448,6 +523,8 @@ private abstract class WebSocketClientBase(
     protected val shareRepository: ShareRepository,
     protected val snapshotRepository: SnapshotRepository,
     protected val devicesRepository: DevicesRepository,
+    protected val trailsServerRepositoryImpl: TrailsServerRepositoryImpl,
+    protected val keyValueRepository: KeyValueRepository,
     protected val database: TrailsDatabase,
     protected val logger: Logger,
 ) {
@@ -501,6 +578,20 @@ private abstract class WebSocketClientBase(
                         runCatching { Uuid.parse(message.shareId) }.getOrNull()?.let { database.activeShareDao.deleteById(it) }
                     }
 
+                    is TrailsWebSocketServerMessage.DeviceDeleted -> {
+                        val deletedDeviceId = Uuid.parse(message.deviceId)
+                        val thisDeviceId = keyValueRepository.get("trails.thisDeviceId").firstOrNull()?.let(Uuid::parse)
+                        if (thisDeviceId == deletedDeviceId) {
+                            val thisDevice = devicesRepository.getDeviceById(thisDeviceId).firstOrNull() ?: continue
+                            trailsServerRepositoryImpl.setDeviceDeletedState(IsDeviceDeletedState.Deleted(
+                                thisDevice = thisDevice,
+                                deletedByDeviceName = message.deletedByDeviceName,
+                            ))
+                        } else {
+                            database.deviceDao.deleteDevicesByIds(listOf(deletedDeviceId))
+                        }
+                    }
+
                     is TrailsWebSocketServerMessage.Snapshot -> {
                         val device = when (val target = message.target) {
                             is TrailsWebSocketServerMessage.Snapshot.Target.Device -> runCatching { Uuid.parse(target.deviceId) }.getOrNull()?.let { devicesRepository.getDeviceById(it).firstOrNull() }
@@ -545,6 +636,8 @@ private class HomeServerWebSocketClient(
     shareRepository: ShareRepository,
     snapshotRepository: SnapshotRepository,
     devicesRepository: DevicesRepository,
+    trailsServerRepositoryImpl: TrailsServerRepositoryImpl,
+    keyValueRepository: KeyValueRepository,
     database: TrailsDatabase,
     logger: Logger,
 ) : WebSocketClientBase(
@@ -553,6 +646,8 @@ private class HomeServerWebSocketClient(
     shareRepository = shareRepository,
     snapshotRepository = snapshotRepository,
     devicesRepository = devicesRepository,
+    trailsServerRepositoryImpl = trailsServerRepositoryImpl,
+    keyValueRepository = keyValueRepository,
     database = database,
     logger = logger,
 )
@@ -563,6 +658,8 @@ private class ExternalServerWebSocketClient(
     shareRepository: ShareRepository,
     snapshotRepository: SnapshotRepository,
     devicesRepository: DevicesRepository,
+    trailsServerRepositoryImpl: TrailsServerRepositoryImpl,
+    keyValueRepository: KeyValueRepository,
     database: TrailsDatabase,
     logger: Logger,
 ) : WebSocketClientBase(
@@ -571,6 +668,8 @@ private class ExternalServerWebSocketClient(
     shareRepository = shareRepository,
     snapshotRepository = snapshotRepository,
     devicesRepository = devicesRepository,
+    trailsServerRepositoryImpl = trailsServerRepositoryImpl,
+    keyValueRepository = keyValueRepository,
     database = database,
     logger = logger,
 )

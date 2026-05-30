@@ -33,7 +33,7 @@ suspend fun authSessionDeviceSelection(session: Session<User>, user: User): Base
 
     val existingDevices = if (deviceManufacturer != null && deviceModel != null) db.transaction {
         Device
-            .find { (Devices.owner eq user.id) and (Devices.model eq deviceModel) and (Devices.manufacturer eq deviceManufacturer) }
+            .find { (Devices.owner eq user.id) and (Devices.model eq deviceModel) and (Devices.manufacturer eq deviceManufacturer) and (Devices.deletion eq null) }
             .toList()
     } else emptyList()
 

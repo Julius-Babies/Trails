@@ -19,6 +19,7 @@ class Device(id: EntityID<Uuid>) : UuidEntity(id) {
     var type by Devices.type
     var owner by User referencedOn Devices.owner
     var createdAt by Devices.createdAt
+    var deletion by DeviceDeletion optionalReferencedOn Devices.deletion
 }
 
 object Devices : UuidTable("devices") {
@@ -29,6 +30,7 @@ object Devices : UuidTable("devices") {
     val type = enumerationByName<DeviceType>("type", 16)
     val owner = reference("owner", Users, onDelete = ReferenceOption.CASCADE)
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+    val deletion = reference("deletion", DeviceDeletions, onDelete = ReferenceOption.CASCADE).nullable()
 }
 
 enum class DeviceType {

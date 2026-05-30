@@ -1,5 +1,10 @@
 package es.jvbabi.trails.page.devices.main
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -7,6 +12,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -23,57 +30,123 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import es.jvbabi.trails.ThemeWrapper
+import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.page.connection_events.ConnectionEventsSheet
 import es.jvbabi.trails.page.devices.Screen
+import es.jvbabi.trails.page.devices.device.DeviceScreen
 import es.jvbabi.trails.page.devices.main.components.DeviceCard
 import es.jvbabi.trails.page.home.components.PaddingValues
 import es.jvbabi.trails.page.home.components.padding
+import es.jvbabi.trails.ui.components.ConfigureTopBar
+import es.jvbabi.trails.ui.components.LocalHazeState
+import es.jvbabi.trails.ui.components.LocalTopBar
+import es.jvbabi.trails.ui.components.TopBar
+import es.jvbabi.trails.ui.components.TopBarState
+import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
+import trails.app.shared.generated.resources.Res
+import trails.app.shared.generated.resources.arrow_left
+import kotlin.uuid.Uuid
 
 @Composable
 fun DevicesTab(
     contentPadding: PaddingValues,
     nestedScrollConnection: NestedScrollConnection,
+    onFocusDevice: (deviceId: Uuid?) -> Unit,
 ) {
+    val topBarState = remember { TopBarState() }
     val backstack = remember { mutableStateListOf<Screen>(Screen.Main) }
+    LaunchedEffect(backstack.lastOrNull()) {
+        val lastBackstackEntry = backstack.lastOrNull()
+        if (lastBackstackEntry !is Screen.Device) onFocusDevice(null)
+        else onFocusDevice(lastBackstackEntry.deviceId)
+    }
 
-    key(contentPadding) {
-        NavDisplay(
-            modifier = Modifier.fillMaxSize(),
-            backStack = backstack,
-            onBack = { backstack.removeLastOrNull() },
-            entryProvider = { key ->
-                return@NavDisplay when (key) {
-                    is Screen.Main -> NavEntry(key = key) {
-                        DevicesScreen(
-                            contentPadding = contentPadding,
-                            nestedScrollConnection = nestedScrollConnection,
-                        )
-                    }
+    val hazeState = rememberHazeState()
+
+    CompositionLocalProvider(LocalHazeState provides hazeState) {
+        CompositionLocalProvider(LocalTopBar provides topBarState) {
+            key(contentPadding) {
+                Box(Modifier.fillMaxSize().hazeSource(hazeState)) {
+                    NavDisplay(
+                        modifier = Modifier.fillMaxSize(),
+                        backStack = backstack,
+                        onBack = { backstack.removeLastOrNull() },
+                        transitionSpec = {
+                            val animSpec = tween<IntOffset>(durationMillis = 380, easing = FastOutSlowInEasing)
+                            slideInHorizontally(animSpec) { it } togetherWith
+                                    slideOutHorizontally(animSpec) { -it / 2 }
+                        },
+                        popTransitionSpec = {
+                            val animSpec = tween<IntOffset>(durationMillis = 380, easing = FastOutSlowInEasing)
+                            slideInHorizontally(animSpec) { -it / 2 } togetherWith
+                                    slideOutHorizontally(animSpec) { it }
+                        },
+                        predictivePopTransitionSpec = {
+                            slideInHorizontally { -it / 2 } togetherWith slideOutHorizontally { it }
+                        },
+                        entryProvider = { key ->
+                            return@NavDisplay when (key) {
+                                is Screen.Main -> NavEntry(key = key) {
+                                    DevicesScreen(
+                                        contentPadding = contentPadding,
+                                        backstack = backstack,
+                                        nestedScrollConnection = nestedScrollConnection,
+                                    )
+                                }
+
+                                is Screen.Device -> NavEntry(key = key) {
+                                    DeviceScreen(
+                                        contentPadding = contentPadding,
+                                        deviceId = key.deviceId,
+                                        backstack = backstack,
+                                    )
+                                }
+                            }
+                        }
+                    )
+
+                    TopBar(
+                        state = topBarState,
+                        modifier = Modifier
+                            .padding(top = contentPadding.top)
+                            .padding(horizontal = 8.dp)
+                            .align(Alignment.TopCenter),
+                    )
                 }
             }
-        )
+        }
     }
 }
 
 @Composable
 fun DevicesScreen(
     contentPadding: PaddingValues,
+    backstack: MutableList<Screen>,
     nestedScrollConnection: NestedScrollConnection,
 ) {
 
     val viewModel = koinViewModel<DevicesViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    ConfigureTopBar(
+        title = "Geräte",
+        subtitle = "${state.myDevices.size + state.foreignDevices.size} Geräte"
+    )
+
     DevicesContent(
         contentPadding = contentPadding,
         nestedScrollConnection = nestedScrollConnection,
         state = state,
+        onClickDevice = { backstack.add(Screen.Device(it.id)) },
     )
 }
 
@@ -82,6 +155,7 @@ fun DevicesContent(
     contentPadding: PaddingValues,
     state: DevicesState,
     nestedScrollConnection: NestedScrollConnection?,
+    onClickDevice: (device: Device) -> Unit,
 ) {
 
     var showConnectionEventsForServer by rememberSaveable { mutableStateOf<String?>(null) }
@@ -121,7 +195,7 @@ fun DevicesContent(
                             isThisDevice = state.thisDevice?.device?.id == myDevice.device.id,
                             modifier = Modifier.fillMaxWidth(),
                             device = myDevice,
-                            onClick = {}
+                            onClick = { onClickDevice(myDevice.device) }
                         )
                     }
                 }
@@ -138,7 +212,7 @@ fun DevicesContent(
                             isThisDevice = state.thisDevice?.device?.id == foreignDevice.device.id,
                             modifier = Modifier.fillMaxWidth(),
                             device = foreignDevice,
-                            onClick = {}
+                            onClick = { onClickDevice(foreignDevice.device) }
                         )
                     }
                 }
@@ -193,7 +267,8 @@ private fun DevicesPreview() {
         state = DevicesState(
 
         ),
-        nestedScrollConnection = null
+        nestedScrollConnection = null,
+        onClickDevice = {},
     )
 }
 

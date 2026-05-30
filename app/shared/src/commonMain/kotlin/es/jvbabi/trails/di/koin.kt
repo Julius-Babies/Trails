@@ -25,11 +25,13 @@ import es.jvbabi.trails.domain.usecase.communication.StartExternalConnectionsUse
 import es.jvbabi.trails.domain.usecase.communication.StopExternalConnectionsUseCase
 import es.jvbabi.trails.domain.usecase.home.GetHomeDeviceLocationsUseCase
 import es.jvbabi.trails.page.connection_events.ConnectionEventsViewModel
+import es.jvbabi.trails.page.devices.device.DeviceViewModel
 import es.jvbabi.trails.page.devices.main.DevicesViewModel
 import es.jvbabi.trails.page.home.HomeViewModel
 import es.jvbabi.trails.page.setings.SettingsViewModel
 import es.jvbabi.trails.page.shares.add_share.AddShareViewModel
 import es.jvbabi.trails.page.shares.new_share.NewShareViewModel
+import es.jvbabi.trails.ui.overlay.DeviceDeletedViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.websocket.WebSockets
@@ -101,6 +103,8 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
         viewModelOf(::NewShareViewModel)
         viewModelOf(::AddShareViewModel)
         viewModelOf(::DevicesViewModel)
+        viewModelOf(::DeviceViewModel)
         viewModelOf(::ConnectionEventsViewModel)
+        viewModelOf(::DeviceDeletedViewModel)
     })
 }

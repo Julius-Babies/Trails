@@ -12,6 +12,10 @@ class KeyValueRepositoryImpl(
         database.keyValueDao.upsert(DbKeyValue(key, value))
     }
 
+    override suspend fun delete(key: String) {
+        database.keyValueDao.delete(key)
+    }
+
     override fun get(key: String): Flow<String?> {
         return database.keyValueDao.getValue(key)
     }
