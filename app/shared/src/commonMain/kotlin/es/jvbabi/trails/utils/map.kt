@@ -11,7 +11,16 @@ data class IntPaddingValues(
     val bottom: Int,
     val start: Int,
     val end: Int,
-)
+) {
+    constructor(all: Int) : this(all, all, all, all)
+
+    operator fun plus(other: IntPaddingValues) = IntPaddingValues(
+        top = top + other.top,
+        bottom = bottom + other.bottom,
+        start = start + other.start,
+        end = end + other.end,
+    )
+}
 
 /**
  * Derives a [MapCamera] that fits all coordinates within the visible viewport,
@@ -48,11 +57,12 @@ fun HomeState.FitBounds.toMapCamera(
     val minLng = lngs.min()
     val maxLng = lngs.max()
 
-    // Convert dp padding to pixels
-    val paddingTopPx    = padding.top    * density
-    val paddingBottomPx = padding.bottom * density
-    val paddingStartPx  = padding.start  * density
-    val paddingEndPx    = padding.end    * density
+    // The padding values are already in pixels (derived from roundToPx()), 
+    // so we don't multiply by density here to avoid a double-density bug.
+    val paddingTopPx    = padding.top.toFloat()
+    val paddingBottomPx = padding.bottom.toFloat()
+    val paddingStartPx  = padding.start.toFloat()
+    val paddingEndPx    = padding.end.toFloat()
 
     val effectiveWidthPx  = (viewportWidthPx  - paddingStartPx - paddingEndPx).coerceAtLeast(1f)
     val effectiveHeightPx = (viewportHeightPx - paddingTopPx   - paddingBottomPx).coerceAtLeast(1f)
@@ -61,8 +71,11 @@ fun HomeState.FitBounds.toMapCamera(
     val zoom = if (coordinates.size == 1) {
         defaultZoom
     } else {
-        val latZoom = latitudeZoom(minLat, maxLat, effectiveHeightPx)
-        val lngZoom = longitudeZoom(minLng, maxLng, effectiveWidthPx)
+        // Subtract mathematical padding for the markers themselves (e.g. 48dp) 
+        // to prevent coordinates right on the edge from having clipped markers.
+        val markerPaddingPx = 48f * density
+        val latZoom = latitudeZoom(minLat, maxLat, (effectiveHeightPx - markerPaddingPx * 2).coerceAtLeast(1f))
+        val lngZoom = longitudeZoom(minLng, maxLng, (effectiveWidthPx - markerPaddingPx * 2).coerceAtLeast(1f))
         min(latZoom, lngZoom).coerceIn(minZoom, maxZoom)
     }
 

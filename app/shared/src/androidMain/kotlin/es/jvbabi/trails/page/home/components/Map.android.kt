@@ -124,9 +124,7 @@ fun DeviceMarkerPreview() {
 actual fun Map(
     state: HomeState,
     onDeviceClick: (HomeState.HomeDevice) -> Unit,
-    onCameraChanged: (HomeState.MapCamera) -> Unit,
     onUserDragStart: () -> Unit,
-    bottomPadding: Dp,
 ) {
     val mapViewportState = rememberMapViewportState {
         flyTo(
@@ -138,9 +136,6 @@ actual fun Map(
             MapAnimationOptions.mapAnimationOptions { duration(0) }
         )
     }
-
-    val density = LocalDensity.current
-    val bottomPaddingPx = with(density) { bottomPadding.toPx() }
 
     Box(modifier = Modifier.fillMaxSize()) {
         MapboxMap(

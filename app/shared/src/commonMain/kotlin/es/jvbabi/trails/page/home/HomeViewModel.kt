@@ -31,7 +31,7 @@ class HomeViewModel(
         field = MutableStateFlow(HomeState())
 
     private var viewportDimensions = MutableStateFlow<IntSize?>(null)
-    private var mapContentPadding = MutableStateFlow<IntPaddingValues?>(null)
+    var mapContentPadding = MutableStateFlow<IntPaddingValues?>(null)
     private val localDensity = MutableStateFlow<Float?>(null)
 
     init {
@@ -113,6 +113,8 @@ class HomeViewModel(
                             viewportHeightPx = measurements.viewport.height,
                             density = localDensity,
                             padding = measurements.contentPadding,
+                            defaultZoom = 18.0,
+                            minZoom = 0.0,
                         )
 
                         state.update { it.copy(targetCameraState = cameraState) }

@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -45,6 +46,7 @@ import es.jvbabi.trails.page.devices.main.DevicesTab
 import es.jvbabi.trails.page.home.components.*
 import es.jvbabi.trails.page.home.components.PaddingValues
 import es.jvbabi.trails.page.shares.main.SharesScreen
+import es.jvbabi.trails.utils.IntPaddingValues
 import es.jvbabi.trails.utils.blendColor
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
@@ -52,8 +54,12 @@ import kotlinx.datetime.Month
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import trails.app.shared.generated.resources.Res
+import trails.app.shared.generated.resources.locate_fixed
+import trails.app.shared.generated.resources.maximize
 import trails.app.shared.generated.resources.settings
 import kotlin.uuid.Uuid
+
+const val DEBUG = false
 
 @Composable
 fun HomeScreen(
@@ -68,11 +74,32 @@ fun HomeScreen(
         onEvent = viewModel::onEvent,
     )
 
-    val localDensity = LocalDensity.current.density
-    LaunchedEffect(localDensity) {
+    val localDensity = LocalDensity.current
+    LaunchedEffect(localDensity.density) {
         viewModel.setup(
-            localDensity = localDensity
+            localDensity = localDensity.density
         )
+    }
+
+    if (DEBUG) {
+        val mapContentPadding by viewModel.mapContentPadding.collectAsStateWithLifecycle()
+        if (mapContentPadding != null) {
+            val dpPadding = with(localDensity) {
+                PaddingValues(
+                    top = mapContentPadding!!.top.toDp(),
+                    start = mapContentPadding!!.start.toDp(),
+                    end = mapContentPadding!!.end.toDp(),
+                    bottom = mapContentPadding!!.bottom.toDp(),
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(dpPadding)
+                    .border(1.dp, Color.Red)
+            )
+        }
     }
 }
 
@@ -82,10 +109,12 @@ fun HomeContent(
     onOpenSettings: () -> Unit,
     onEvent: (event: HomeEvent) -> Unit,
 ) {
+    val cardCollapsedHeight = 72.dp
+    var fabHeight by remember { mutableStateOf(48.dp) }
+
     val hazeState = rememberHazeState()
     val scope = rememberCoroutineScope()
 
-    val cardCollapsedHeight = 72.dp
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
@@ -102,11 +131,11 @@ fun HomeContent(
         DraggableCardSheet(
             modifier = Modifier.fillMaxSize(),
             state = draggableCardSheetState,
-            content = { paddingForCard ->
-                var fabHeight by remember { mutableStateOf(48.dp) }
+            content = {
                 val density = LocalDensity.current
 
-                Scaffold { contentPadding ->
+                Scaffold { scaffoldPadding ->
+                    val contentPadding = draggableCardSheetState.backgroundContentPaddingValues + PaddingValues(top = scaffoldPadding.calculateTopPadding())
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -118,16 +147,12 @@ fun HomeContent(
                             onDeviceClick = { device ->
                                 Logger.i { "Map device clicked: ${device.device.displayName}" }
                             },
-                            onCameraChanged = { camera ->
-//                                onEvent(HomeEvent.OnCameraChanged(camera))
-                            },
                             onUserDragStart = { onEvent(HomeEvent.UserDragged) },
-                            bottomPadding = contentPadding.calculateBottomPadding() + cardCollapsedHeight + fabHeight + 8.dp,
                         )
 
                         Box(
                             modifier = Modifier
-                                .padding(contentPadding + paddingForCard)
+                                .padding(contentPadding)
                                 .fillMaxSize()
                         ) {
                             Column(
@@ -153,16 +178,36 @@ fun HomeContent(
 
                             Column(
                                 Modifier
-                                    .padding(bottom = 8.dp)
                                     .align(Alignment.BottomCenter)
                                     .onSizeChanged { size ->
                                         fabHeight = with(density) { size.height.toDp() }
-                                    },
+                                    }
+                                    .padding(bottom = 8.dp),
                             ) {
                                 ExtendedFloatingActionButton(
                                     modifier = Modifier.align(Alignment.CenterHorizontally),
-                                    text = { Text(trackingLabel) },
-                                    icon = {},
+                                    text = {
+                                        AnimatedContent(
+                                            targetState = trackingLabel
+                                        ) { label ->
+                                            Text(label)
+                                        }
+                                    },
+                                    icon = {
+                                        AnimatedContent(
+                                            targetState = state.trackingMode,
+                                            modifier = Modifier.size(16.dp),
+                                        ) { currentTrackingMode ->
+                                            Icon(
+                                                painter = painterResource(when (currentTrackingMode) {
+                                                    HomeState.TrackingMode.None, HomeState.TrackingMode.OwnLocation -> Res.drawable.maximize
+                                                    HomeState.TrackingMode.Overview -> Res.drawable.locate_fixed
+                                                }),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    },
                                     onClick = { onEvent(HomeEvent.ToggleTrackingMode) },
                                 )
                             }
@@ -193,15 +238,14 @@ fun HomeContent(
                             .background(MaterialTheme.colorScheme.outlineVariant)
                     )
 
-                    val defaultContentBottomPadding = contentPadding.bottom * draggableCardSheetState.collapsedProgress + cardCollapsedHeight
+                    val defaultContentBottomPadding = cardCollapsedHeight + 8.dp + 16.dp * draggableCardSheetState.progress
 
                     Box(
                         modifier = Modifier
                             .padding(bottom = max(defaultContentBottomPadding, WindowInsets.ime.asPaddingValues().calculateBottomPadding()))
                             .fillMaxSize()
-                            .defaultMinSize(minHeight = cardCollapsedHeight)
                             .clipToBounds()
-                            .bottomFadeOut(active = draggableCardSheetState.isUserDragging && draggableCardSheetState.progress < 0.5f)
+                            .bottomFadeOut(active = draggableCardSheetState.isUserDragging && draggableCardSheetState.expandedProgress == 0.0f)
                     ) {
                         if (!LocalInspectionMode.current) AnimatedContent(
                             targetState = state.selectedTab,
@@ -245,16 +289,23 @@ fun HomeContent(
                 }
             }
         )
-    }
 
-    val intPaddingValues = PaddingValues(
-        top = WindowInsets.systemBars.asPaddingValues().calculateTopPadding() + 8.dp,
-        start = 16.dp,
-        end = 16.dp,
-        bottom = cardCollapsedHeight + 16.dp
-    ).toIntPaddingValues(LocalDensity.current)
-    LaunchedEffect(intPaddingValues) {
-        onEvent(HomeEvent.OnMapContentAreaPadding(intPaddingValues))
+        val density = LocalDensity.current
+        val windowInsets = WindowInsets.safeContent.asPaddingValues()
+        val intPaddingValues by remember(draggableCardSheetState.targetValue, fabHeight) {
+            mutableStateOf(with(density) {
+                IntPaddingValues(
+                    top = windowInsets.calculateTopPadding().roundToPx(),
+                    bottom = (draggableCardSheetState.targetBackgroundContentPaddingValues.bottom.coerceAtMost(draggableCardSheetState.semiContainerPadding + draggableCardSheetState.semiExpandedHeight) + fabHeight).roundToPx(),
+                    start = 16.dp.roundToPx(),
+                    end = 16.dp.roundToPx(),
+                ) + IntPaddingValues(16.dp.roundToPx())
+            })
+        }
+
+        LaunchedEffect(intPaddingValues) {
+            onEvent(HomeEvent.OnMapContentAreaPadding(intPaddingValues))
+        }
     }
 }
 

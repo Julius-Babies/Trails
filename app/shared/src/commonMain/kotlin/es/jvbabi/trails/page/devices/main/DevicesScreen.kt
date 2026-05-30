@@ -111,7 +111,9 @@ fun DevicesContent(
                     Text(
                         text = "Meine Geräte",
                         style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 4.dp)
                     )
 
                     state.myDevices.forEach { myDevice ->

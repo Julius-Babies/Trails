@@ -29,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -83,6 +84,13 @@ data class PaddingValues(
             )
         }
     }
+
+    operator fun plus(other: PaddingValues): PaddingValues = PaddingValues(
+        start = this.start + other.start,
+        top = this.top + other.top,
+        end = this.end + other.end,
+        bottom = this.bottom + other.bottom,
+    )
 }
 
 @Composable
@@ -182,6 +190,84 @@ class DraggableCardSheetState(
         val px = anchoredDraggableState.offset
         if (semiPos.isNaN() || expandedPos.isNaN() || px.isNaN() || semiPos == expandedPos) 0f
         else ((semiPos - px) / (semiPos - expandedPos)).coerceIn(0f, 1f)
+    }
+
+    val sheetHeight: Dp by derivedStateOf {
+        if (!hasSemiExpanded) {
+            collapsedHeight + (expandedHeight - collapsedHeight) * progress
+        } else if (collapsedProgress < 1f) {
+            collapsedHeight + (semiExpandedHeight - collapsedHeight) * collapsedProgress
+        } else {
+            semiExpandedHeight + (expandedHeight - semiExpandedHeight) * expandedProgress
+        }
+    }
+
+    var systemBarBottomPadding: Dp by mutableStateOf(0.dp)
+
+    val collapsedContainerPadding = systemBarBottomPadding + 8.dp
+    val semiContainerPadding = 8.dp
+
+    val bottomContainerPadding: Dp by derivedStateOf {
+        val semiPos = anchoredDraggableState.anchors.positionOf(CardSheetValue.SemiExpanded)
+        if (!hasSemiExpanded) {
+            collapsedContainerPadding * (1f - progress)
+        } else if (semiPos.isNaN() || offsetPx.isNaN() || offsetPx >= semiPos) {
+            collapsedContainerPadding +
+                    (semiContainerPadding - collapsedContainerPadding) * collapsedProgress
+        } else {
+            semiContainerPadding * (1f - expandedProgress)
+        }
+    }
+
+    val backgroundContentPaddingValues: PaddingValues by derivedStateOf {
+        val expandedPos = anchoredDraggableState.anchors.positionOf(CardSheetValue.Expanded)
+        val fullHeightPx = if (expandedPos.isNaN()) Float.NaN else expandedPos + with(density) { expandedHeight.toPx() }
+        val px = offsetPx
+        
+        val bottomPx = if (fullHeightPx.isNaN() || px.isNaN()) {
+            with(density) { (sheetHeight + bottomContainerPadding).toPx() }
+        } else {
+            fullHeightPx - px
+        }
+
+        PaddingValues(
+            top = 0.dp,
+            start = 0.dp,
+            end = 0.dp,
+            bottom = with(density) { bottomPx.toDp() }
+        )
+    }
+
+    val targetBackgroundContentPaddingValues: PaddingValues by derivedStateOf {
+        val targetPos = anchoredDraggableState.anchors.positionOf(targetValue)
+        val expandedPos = anchoredDraggableState.anchors.positionOf(CardSheetValue.Expanded)
+        val fullHeightPx = if (expandedPos.isNaN()) Float.NaN else expandedPos + with(density) { expandedHeight.toPx() }
+        
+        val bottomPx = if (fullHeightPx.isNaN() || targetPos.isNaN()) {
+            with(density) { (targetHeight + bottomContainerPadding).toPx() }
+        } else {
+            fullHeightPx - targetPos
+        }
+
+        PaddingValues(
+            top = 0.dp,
+            start = 0.dp,
+            end = 0.dp,
+            bottom = with(density) { bottomPx.toDp() }
+        )
+    }
+
+    val targetHeight: Dp by derivedStateOf {
+        when (targetValue) {
+            CardSheetValue.Collapsed -> collapsedHeight
+            CardSheetValue.SemiExpanded -> semiExpandedHeight
+            CardSheetValue.Expanded -> expandedHeight
+        }
+    }
+
+    val horizontalContainerPadding: Dp by derivedStateOf {
+        systemBarBottomPadding * (1f - collapsedProgress) +
+                8.dp * (1f - expandedProgress)
     }
 
     suspend fun expand(velocity: Float = 0f) {
@@ -352,7 +438,7 @@ class DraggableCardSheetState(
 fun DraggableCardSheet(
     modifier: Modifier,
     state: DraggableCardSheetState,
-    content: @Composable (contentPadding: PaddingValues) -> Unit,
+    content: @Composable () -> Unit,
     cardContent: @Composable (PaddingValues) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
@@ -375,23 +461,8 @@ fun DraggableCardSheet(
         },
     )
 
-    val horizontalContainerPadding by derivedStateOf {
-        systemBar.calculateBottomPadding() * (1f - state.collapsedProgress) +
-                8.dp * (1f - state.expandedProgress)
-    }
-
-    val collapsedContainerPadding = systemBar.calculateBottomPadding() + 8.dp
-    val semiContainerPadding = 8.dp
-
-    val bottomContainerPadding by derivedStateOf {
-        if (!state.hasSemiExpanded) {
-            collapsedContainerPadding * (1f - state.progress)
-        } else if (state.anchoredDraggableState.offset >= state.anchoredDraggableState.anchors.positionOf(CardSheetValue.SemiExpanded)) {
-            collapsedContainerPadding +
-                    (semiContainerPadding - collapsedContainerPadding) * state.collapsedProgress
-        } else {
-            semiContainerPadding * (1f - state.expandedProgress)
-        }
+    SideEffect {
+        state.systemBarBottomPadding = systemBar.calculateBottomPadding()
     }
 
     val contentPadding by derivedStateOf {
@@ -403,42 +474,14 @@ fun DraggableCardSheet(
         )
     }
 
-    val sheetHeight by derivedStateOf {
-        val anchors = state.anchoredDraggableState.anchors
-        val collapsedPos = anchors.positionOf(CardSheetValue.Collapsed)
-        val semiPos = anchors.positionOf(CardSheetValue.SemiExpanded)
-        val expandedPos = anchors.positionOf(CardSheetValue.Expanded)
-        val px = state.offsetPx
-
-        if (collapsedPos.isNaN() || expandedPos.isNaN() || px.isNaN()) {
-            state.collapsedHeight
-        } else if (!state.hasSemiExpanded || semiPos.isNaN()) {
-            val progress = ((collapsedPos - px) / (collapsedPos - expandedPos)).coerceIn(0f, 1f)
-            state.collapsedHeight + (state.expandedHeight - state.collapsedHeight) * progress
-        } else if (px >= semiPos) {
-            val progress = ((collapsedPos - px) / (collapsedPos - semiPos)).coerceIn(0f, 1f)
-            state.collapsedHeight + (state.semiExpandedHeight - state.collapsedHeight) * progress
-        } else {
-            val progress = ((semiPos - px) / (semiPos - expandedPos)).coerceIn(0f, 1f)
-            state.semiExpandedHeight + (state.expandedHeight - state.semiExpandedHeight) * progress
-        }
-    }
-
     Box(modifier = modifier.fillMaxSize()) {
-        content(
-            PaddingValues(
-                top = 0.dp,
-                start = 0.dp,
-                end = 0.dp,
-                bottom = sheetHeight + bottomContainerPadding
-            )
-        )
+        content()
 
         val anchors: (IntSize, Constraints) -> Pair<DraggableAnchors<CardSheetValue>, CardSheetValue> = { _, constraints ->
             val fullHeight = constraints.maxHeight.toFloat()
             val collapsedPx = with(state.density) { state.collapsedHeight.toPx() }
-            val collapsedContainerPaddingPx = with(state.density) { collapsedContainerPadding.toPx() }
-            val semiContainerPaddingPx = with(state.density) { semiContainerPadding.toPx() }
+            val collapsedContainerPaddingPx = with(state.density) { (state.systemBarBottomPadding + 8.dp).toPx() }
+            val semiContainerPaddingPx = with(state.density) { 8.dp.toPx() }
             val expandedPx = with(state.density) { state.expandedHeight.toPx() }
             val newAnchors = DraggableAnchors {
                 CardSheetValue.Collapsed at (fullHeight - collapsedPx - collapsedContainerPaddingPx)
@@ -465,16 +508,15 @@ fun DraggableCardSheet(
 
         val bottomRadius = if (LocalInspectionMode.current) 16.dp else getBottomBorderRadius()
         val shape = RoundedCornerShape(
-            topEnd = (bottomRadius - horizontalContainerPadding).coerceAtLeast(16.dp),
-            topStart = (bottomRadius - horizontalContainerPadding).coerceAtLeast(16.dp),
-            bottomEnd = (bottomRadius - horizontalContainerPadding).coerceAtLeast(16.dp),
-            bottomStart = (bottomRadius - horizontalContainerPadding).coerceAtLeast(16.dp),
+            topEnd = (bottomRadius - state.horizontalContainerPadding).coerceAtLeast(16.dp),
+            topStart = (bottomRadius - state.horizontalContainerPadding).coerceAtLeast(16.dp),
+            bottomEnd = (bottomRadius - state.horizontalContainerPadding).coerceAtLeast(16.dp),
+            bottomStart = (bottomRadius - state.horizontalContainerPadding).coerceAtLeast(16.dp),
         )
 
         Box(Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
                     .draggableAnchors(
                         state = state.anchoredDraggableState,
                         orientation = Orientation.Vertical,
@@ -490,25 +532,25 @@ fun DraggableCardSheet(
                             state.setUserDragging(false)
                             scope.launch { state.handleFling(velocity) }
                         },
-                    )
-                    .padding(horizontal = horizontalContainerPadding),
+                    ),
                 contentAlignment = Alignment.TopCenter,
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(sheetHeight + bottomContainerPadding)
+                        .padding(horizontal = state.horizontalContainerPadding)
+                        .height(state.sheetHeight + state.bottomContainerPadding)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(sheetHeight)
+                            .height(state.sheetHeight)
                             .clip(shape)
                             .background(MaterialTheme.colorScheme.surface.copy(alpha = state.alpha))
                     ) {
                         cardContent(contentPadding)
                     }
-                    Spacer(modifier = Modifier.height(bottomContainerPadding))
+                    Spacer(modifier = Modifier.height(state.bottomContainerPadding))
                 }
             }
         }

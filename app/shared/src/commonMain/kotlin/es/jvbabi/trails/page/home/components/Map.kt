@@ -9,7 +9,5 @@ import es.jvbabi.trails.page.home.HomeState
 expect fun Map(
     state: HomeState,
     onDeviceClick: (HomeState.HomeDevice) -> Unit,
-    onCameraChanged: (HomeState.MapCamera) -> Unit,
     onUserDragStart: () -> Unit,
-    bottomPadding: Dp = 0.dp,
 )
