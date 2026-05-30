@@ -45,6 +45,7 @@ import kotlin.uuid.Uuid
 fun DeviceCard(
     modifier: Modifier = Modifier,
     device: HomeState.HomeDevice,
+    isThisDevice: Boolean,
     colors: DeviceCardDefaults.DeviceCardColors = DeviceCardDefaults.colors(),
     onClick: () -> Unit
 ) {
@@ -94,6 +95,11 @@ fun DeviceCard(
             )
             Text(
                 text = buildString {
+                    if (isThisDevice) {
+                        append("Dieses Gerät")
+                        return@buildString
+                    }
+
                     if (device.snapshot == null) {
                         append("Noch nie gesehen")
                         return@buildString
@@ -172,6 +178,7 @@ fun DeviceCardPreview() {
                 )
             )
         ),
-        onClick = {}
+        onClick = {},
+        isThisDevice = true,
     )
 }

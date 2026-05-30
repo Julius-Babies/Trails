@@ -44,6 +44,22 @@ class DevicesViewModel(
         }
 
         viewModelScope.launch {
+            keyValueRepository.get("trails.thisDeviceId")
+                .filterNotNull()
+                .map { Uuid.parse(it) }
+                .distinctUntilChanged()
+                .collectLatest { deviceId ->
+                    getHomeDeviceLocationsUseCase().collectLatest { devices ->
+                        state.update {
+                            it.copy(
+                                thisDevice = devices.find { device -> device.device.id == deviceId }
+                            )
+                        }
+                    }
+                }
+        }
+
+        viewModelScope.launch {
             trailsServerRepository.isConnected.collectLatest { connected ->
                 state.update { it.copy(isConnectedToHomeServer = if (connected) DevicesState.HomeServerConnectionState.Connected else DevicesState.HomeServerConnectionState.Disconnected) }
             }
@@ -53,6 +69,7 @@ class DevicesViewModel(
 
 data class DevicesState(
     val myDevices: List<HomeState.HomeDevice> = emptyList(),
+    val thisDevice: HomeState.HomeDevice? = null,
     val foreignDevices: List<HomeState.HomeDevice> = emptyList(),
     val isConnectedToHomeServer: HomeServerConnectionState? = null
 ) {
