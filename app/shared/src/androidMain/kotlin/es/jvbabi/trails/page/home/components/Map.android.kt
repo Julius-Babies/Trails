@@ -41,6 +41,7 @@ import com.mapbox.maps.plugin.gestures.OnMoveListener
 import com.mapbox.maps.plugin.gestures.gestures
 import com.mapbox.maps.plugin.locationcomponent.createDefault2DPuck
 import com.mapbox.maps.plugin.locationcomponent.location
+import com.mapbox.maps.viewannotation.ViewAnnotationUpdateMode
 import com.mapbox.maps.viewannotation.annotationAnchor
 import com.mapbox.maps.viewannotation.geometry
 import com.mapbox.maps.viewannotation.viewAnnotationOptions
@@ -166,6 +167,7 @@ actual fun Map(
                         .build()
                 )
                 mapView.mapboxMap.symbolScaleBehavior = SymbolScaleBehavior.fixed(25f)
+                mapView.viewAnnotationManager.setViewAnnotationUpdateMode(ViewAnnotationUpdateMode.MAP_SYNCHRONIZED)
             }
 
             MapEffect(state.targetCameraState) { mapView ->
