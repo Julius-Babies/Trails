@@ -2,6 +2,8 @@
 
 package es.jvbabi.trails.android
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -15,6 +17,8 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
+import androidx.annotation.RequiresApi
+import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
 import co.touchlab.kermit.Logger
 import es.jvbabi.trails.domain.repository.DevicesRepository
@@ -25,8 +29,10 @@ import es.jvbabi.trails.domain.repository.TrailsServerRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -37,12 +43,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 import kotlin.uuid.Uuid
 
 class AndroidLocationService: Service(), LocationListener, KoinComponent {
 
     private val serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private var wakeLockReacquireJob: Job? = null
 
     private val locationRepository by inject<LocationRepository>()
     private val snapshotRepository by inject<SnapshotRepository>()
@@ -63,10 +70,26 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
         locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
     }
 
+    @SuppressLint("MissingPermission")
+    @RequiresApi(Build.VERSION_CODES.ECLAIR)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val pm = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Trails:LocationWakeLock")
-        wakeLock?.acquire(1.hours.inWholeMilliseconds)
+        wakeLock?.acquire(60.minutes.inWholeMilliseconds)
+
+        wakeLockReacquireJob = serviceScope.launch {
+            while (true) {
+                delay(30.minutes)
+                wakeLock?.let {
+                    if (it.isHeld) {
+                        it.release()
+                        it.acquire(60.minutes.inWholeMilliseconds)
+                    } else {
+                        it.acquire(60.minutes.inWholeMilliseconds)
+                    }
+                }
+            }
+        }
 
         serviceScope.launch {
             keyValueRepository
@@ -102,6 +125,13 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
         return START_STICKY
     }
 
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        val restartIntent = Intent(applicationContext, AndroidLocationService::class.java)
+        applicationContext.startService(restartIntent)
+    }
+
+    @RequiresPermission(anyOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     private fun startTracking() {
         _isRunning.value = true
         snapshotRepository.startSnapshotCollection(serviceScope)
@@ -163,8 +193,10 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
             .build()
     }
 
+    @RequiresPermission(anyOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     override fun onDestroy() {
         super.onDestroy()
+        wakeLockReacquireJob?.cancel()
         wakeLock?.release()
         wakeLock = null
         serviceScope.cancel()

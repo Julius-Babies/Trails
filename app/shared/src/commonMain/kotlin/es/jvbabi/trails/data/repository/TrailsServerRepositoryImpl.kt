@@ -146,7 +146,7 @@ class TrailsServerRepositoryImpl(
 
             if (!connectedDeferred.isCompleted) {
                 if (retryCount < maxRetries) {
-                    val delayMs = minOf(30_000L, 5_000L * (1L shl minOf(retryCount, 6)))
+                    val delayMs = minOf(30_000L, 5_000L * (1L shl retryCount))
                     delay(delayMs.milliseconds)
                     val reconnectResult = connectWithHomeserver(retryCount + 1).await()
                     connectedDeferred.complete(reconnectResult)
@@ -337,7 +337,7 @@ class TrailsServerRepositoryImpl(
 
         val maxRetries = 30
         if (retryCount < maxRetries) {
-            val delayMs = minOf(30_000L, 5_000L * (1L shl minOf(retryCount, 6)))
+            val delayMs = minOf(30_000L, 5_000L * (1L shl retryCount))
             delay(delayMs.milliseconds)
             connectWithOtherServer(server, retryCount + 1)
         }
