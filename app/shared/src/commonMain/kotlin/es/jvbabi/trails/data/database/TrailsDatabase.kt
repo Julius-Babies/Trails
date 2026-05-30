@@ -1,21 +1,10 @@
 package es.jvbabi.trails.data.database
 
-import androidx.room.ConstructedBy
-import androidx.room.Database
-import androidx.room.RoomDatabase
-import androidx.room.RoomDatabaseConstructor
-import androidx.room.TypeConverters
+import androidx.room.*
+import es.jvbabi.trails.data.database.converter.InstantConverter
 import es.jvbabi.trails.data.database.converter.UuidConverter
-import es.jvbabi.trails.data.database.dao.ActiveShareDao
-import es.jvbabi.trails.data.database.dao.DeviceDao
-import es.jvbabi.trails.data.database.dao.KeyValueDao
-import es.jvbabi.trails.data.database.dao.DataSnapshotDao
-import es.jvbabi.trails.data.database.dao.UserDao
-import es.jvbabi.trails.data.database.entity.DbActiveShare
-import es.jvbabi.trails.data.database.entity.DbDevice
-import es.jvbabi.trails.data.database.entity.DbKeyValue
-import es.jvbabi.trails.data.database.entity.DbDataSnapshot
-import es.jvbabi.trails.data.database.entity.DbUser
+import es.jvbabi.trails.data.database.dao.*
+import es.jvbabi.trails.data.database.entity.*
 
 @Database(
     entities = [
@@ -24,23 +13,29 @@ import es.jvbabi.trails.data.database.entity.DbUser
         DbUser::class,
         DbDevice::class,
         DbActiveShare::class,
+        DbConnectionEvent::class,
     ],
-    version = 1,
+    version = 2,
+    autoMigrations = [
+        AutoMigration(from = 1, to = 2),
+    ],
     exportSchema = true,
 )
 @ConstructedBy(AppDatabaseConstructor::class)
 @TypeConverters(
     UuidConverter::class,
+    InstantConverter::class,
 )
-abstract class TrailsDatabase: RoomDatabase() {
+abstract class TrailsDatabase : RoomDatabase() {
     abstract val keyValueDao: KeyValueDao
     abstract val dataSnapshotDao: DataSnapshotDao
     abstract val userDao: UserDao
     abstract val deviceDao: DeviceDao
     abstract val activeShareDao: ActiveShareDao
+    abstract val connectionEventDao: ConnectionEventDao
 }
 
-@Suppress("KotlinNoActualForExpect")
+@Suppress("KotlinNoActualForExpect", "EXPECT_ACTUAL_CLASSIFIERS_ARE_IN_BETA_WARNING")
 expect object AppDatabaseConstructor : RoomDatabaseConstructor<TrailsDatabase> {
     override fun initialize(): TrailsDatabase
 }

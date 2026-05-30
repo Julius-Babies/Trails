@@ -22,6 +22,7 @@ app-navigation3 = "1.1.1"
 room = "2.8.4"
 sqlite = "2.6.2"
 human-readable = "1.12.3"
+app-jetlime = "4.3.0"
 
 # Server
 server-exposed = "1.2.0"
@@ -91,6 +92,7 @@ app-kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", vers
 app-haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze" }
 app-haze-blur-materials = { module = "dev.chrisbanes.haze:haze-blur-materials", version.ref = "haze" }
 app-human-readable = { module = "nl.jacobras:Human-Readable", version.ref = "human-readable" }
+app-jetlime = { module = "io.github.pushpalroy:jetlime", version.ref = "app-jetlime" }
 
 # Server - Ktor
 server-ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }

@@ -2,7 +2,9 @@ package es.jvbabi.trails.data.repository
 
 import co.touchlab.kermit.Logger
 import es.jvbabi.trails.data.database.TrailsDatabase
+import es.jvbabi.trails.data.database.entity.ConnectionEvent
 import es.jvbabi.trails.data.database.entity.DbActiveShare
+import es.jvbabi.trails.data.database.entity.DbConnectionEvent
 import es.jvbabi.trails.data.database.entity.DbDevice
 import es.jvbabi.trails.data.database.entity.DbUser
 import es.jvbabi.trails.domain.model.Device
@@ -29,7 +31,9 @@ import kotlinx.coroutines.flow.*
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -48,6 +52,8 @@ class TrailsServerRepositoryImpl(
     val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val logger = Logger.withTag("TrailsServerRepositoryImpl")
     private var websocketSession: DefaultClientWebSocketSession? = null
+    private val crashDetectionMarkers = mutableMapOf<String, Uuid>()
+    private val crashDetectionJobs = mutableMapOf<String, Job>()
     private val homeServerSocketClient = HomeServerWebSocketClient(
         scope = scope,
         applicationRepository = applicationRepository,
@@ -69,6 +75,13 @@ class TrailsServerRepositoryImpl(
 
     override val isConnected: MutableStateFlow<Boolean> = MutableStateFlow(false)
 
+    override fun isServerConnected(server: String): Flow<Boolean> = combine(
+        isConnected,
+        getBaseUrl().map { it?.host }.distinctUntilChanged()
+    ) { homeConnected, homeHost ->
+        homeHost == server && homeConnected || activeExternalSessions[server]?.isActive == true
+    }.distinctUntilChanged()
+
     override fun connectWithHomeserver(): Deferred<Boolean> = connectWithHomeserver(0)
 
     private fun connectWithHomeserver(retryCount: Int): Deferred<Boolean> {
@@ -77,12 +90,13 @@ class TrailsServerRepositoryImpl(
         val connectedDeferred = CompletableDeferred<Boolean>()
 
         val maxRetries = 30
+
         scope.launch {
+            val url = this@TrailsServerRepositoryImpl.getBaseUrl().first()?.apply {
+                protocol = URLProtocol.WSS
+                appendPathSegments("api", "v1", "app", "ws")
+            } ?: throw IllegalStateException("Base URL not set")
             try {
-                val url = this@TrailsServerRepositoryImpl.getBaseUrl().first()?.apply {
-                    protocol = URLProtocol.WSS
-                    appendPathSegments("api", "v1", "app", "ws")
-                } ?: throw IllegalStateException("Base URL not set")
                 val token = keyValueRepository.get("trails.token").first()
                     ?: throw IllegalStateException("Token not set")
                 val currentDeviceId = keyValueRepository.get("trails.thisDeviceId").first()
@@ -100,6 +114,15 @@ class TrailsServerRepositoryImpl(
 
                 isConnected.value = true
                 connectedDeferred.complete(true)
+                database.connectionEventDao.upsert(
+                    ConnectionEvent(
+                        id = Uuid.random(),
+                        server = url.host,
+                        timestamp = Clock.System.now(),
+                        data = ConnectionEvent.Event.Connected
+                    ).toEntity()
+                )
+                startCrashDetection(url.host)
 
                 val locationUpdater = scope.launch {
                     snapshotRepository.getCurrentSnapshotForDevice(device)
@@ -134,6 +157,7 @@ class TrailsServerRepositoryImpl(
                 homeServerSocketClient.run(websocketSession!!, serverHost)
 
                 locationUpdater.cancel()
+                stopCrashDetection(url.host)
 
                 isConnected.value = false
                 websocketSession?.close()
@@ -141,7 +165,14 @@ class TrailsServerRepositoryImpl(
 
             } catch (e: Exception) {
                 Logger.e(e) { "Error connecting to WS: ${e.message}" }
+                stopCrashDetection(url.host)
                 isConnected.value = false
+                database.connectionEventDao.upsert(ConnectionEvent(
+                    id = Uuid.random(),
+                    server = url.host,
+                    timestamp = Clock.System.now(),
+                    data = ConnectionEvent.Event.Connected
+                ).toEntity())
             }
 
             if (!connectedDeferred.isCompleted) {
@@ -326,7 +357,23 @@ class TrailsServerRepositoryImpl(
             Logger.i { "Connecting with external server $server" }
             activeExternalSessions[server] = httpClient.webSocketSession(urlString = url.buildString())
 
+            database.connectionEventDao.upsert(ConnectionEvent(
+                id = Uuid.random(),
+                server = url.host,
+                timestamp = Clock.System.now(),
+                data = ConnectionEvent.Event.Connected,
+            ).toEntity())
+            startCrashDetection(server)
+
             externalServerSocketClient.run(activeExternalSessions[server]!!, server)
+            stopCrashDetection(server)
+
+            database.connectionEventDao.upsert(ConnectionEvent(
+                id = Uuid.random(),
+                server = url.host,
+                timestamp = Clock.System.now(),
+                data = ConnectionEvent.Event.Disconnected
+            ).toEntity())
 
             activeExternalSessions[server]?.close()
             activeExternalSessions.remove(server)
@@ -347,6 +394,51 @@ class TrailsServerRepositoryImpl(
         activeExternalSessions.map {
             scope.launch { it.value.close(); activeExternalSessions.remove(it.key) }
         }.joinAll()
+    }
+
+    private suspend fun startCrashDetection(server: String) {
+        val markerId = Uuid.random()
+        crashDetectionMarkers[server] = markerId
+        database.connectionEventDao.upsert(
+            ConnectionEvent(
+                id = markerId,
+                server = server,
+                timestamp = Clock.System.now(),
+                data = ConnectionEvent.Event.Disconnected,
+            ).toEntity()
+        )
+        crashDetectionJobs[server] = scope.launch {
+            while (isActive) {
+                delay(1.seconds)
+                database.connectionEventDao.upsert(
+                    ConnectionEvent(
+                        id = markerId,
+                        server = server,
+                        timestamp = Clock.System.now(),
+                        data = ConnectionEvent.Event.Disconnected,
+                    ).toEntity()
+                )
+            }
+        }
+    }
+
+    private fun stopCrashDetection(server: String) {
+        crashDetectionJobs[server]?.cancel()
+        crashDetectionJobs.remove(server)
+        crashDetectionMarkers.remove(server)?.let { markerId ->
+            scope.launch { database.connectionEventDao.delete(markerId) }
+        }
+    }
+
+    override fun getConnectionEvents(server: String): Flow<List<ConnectionEvent>> {
+        return database.connectionEventDao.getEvents(server).map { events ->
+            val connectionEvents = events.map(DbConnectionEvent::toModel)
+            val now = Clock.System.now()
+            val latestDisconnect = connectionEvents.firstOrNull { it.data is ConnectionEvent.Event.Disconnected }
+            if (latestDisconnect != null && now - latestDisconnect.timestamp < 2.seconds) {
+                connectionEvents.filterNot { it.id == latestDisconnect.id }
+            } else connectionEvents
+        }
     }
 }
 

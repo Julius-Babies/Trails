@@ -1,5 +1,6 @@
 package es.jvbabi.trails.domain.repository
 
+import es.jvbabi.trails.data.database.entity.ConnectionEvent
 import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.shared.dto.MeResponse
 import io.ktor.http.URLBuilder
@@ -14,6 +15,7 @@ interface TrailsServerRepository {
     suspend fun connectWithOtherServer(server: String)
     suspend fun stopAllOtherServerConnections()
 
+    fun isServerConnected(server: String): Flow<Boolean>
     val isConnected: StateFlow<Boolean>
 
     fun getBaseUrl(): Flow<URLBuilder?>
@@ -25,6 +27,8 @@ interface TrailsServerRepository {
     suspend fun fetchDeviceImageForDevice(device: Device)
 
     suspend fun useShareLink(hostname: String, id: String): UseShareLinkResult
+
+    fun getConnectionEvents(server: String): Flow<List<ConnectionEvent>>
 }
 
 sealed class UseShareLinkResult {

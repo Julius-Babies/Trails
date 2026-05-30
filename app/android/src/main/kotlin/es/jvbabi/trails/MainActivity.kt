@@ -57,8 +57,6 @@ class MainActivity : ComponentActivity(), KoinComponent {
 
         loadKoinModules(module {
             single(named(KOIN_ACTIVITY_CONTEXT)) { this@MainActivity as Context }
-            single(named(KOIN_KEY_CORNER_RADIUS)) { cornerRadiusBottom.asStateFlow() }
-            single(named(ApplicationRepositoryImpl.KOIN_KEY_APP_IN_FOREGROUND_FLOW)) { isVisible.asStateFlow() }
         })
 
         onNewIntent(intent)

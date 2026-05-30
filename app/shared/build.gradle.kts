@@ -92,6 +92,7 @@ kotlin {
             implementation(libs.app.haze.blur.materials)
 
             implementation(libs.app.human.readable)
+            implementation(libs.app.jetlime)
 
             api(libs.app.ktor.client.core)
             implementation(libs.app.ktor.client.content.negotiation)

@@ -1,6 +1,7 @@
 package es.jvbabi.trails.page.devices.main
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -9,18 +10,25 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.tooling.preview.PreviewWrapper
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
+import es.jvbabi.trails.ThemeWrapper
+import es.jvbabi.trails.page.connection_events.ConnectionEventsSheet
 import es.jvbabi.trails.page.devices.Screen
 import es.jvbabi.trails.page.devices.main.components.DeviceCard
 import es.jvbabi.trails.page.home.components.PaddingValues
@@ -73,8 +81,11 @@ fun DevicesScreen(
 fun DevicesContent(
     contentPadding: PaddingValues,
     state: DevicesState,
-    nestedScrollConnection: NestedScrollConnection,
+    nestedScrollConnection: NestedScrollConnection?,
 ) {
+
+    var showConnectionEventsForServer by rememberSaveable { mutableStateOf<String?>(null) }
+
     Box(Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -92,7 +103,7 @@ fun DevicesContent(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .nestedScroll(nestedScrollConnection)
+                    .let { if (nestedScrollConnection == null) it else it.nestedScroll(nestedScrollConnection) }
                     .verticalScroll(rememberScrollState())
                     .padding(bottom = contentPadding.bottom)
             ) {
@@ -136,8 +147,16 @@ fun DevicesContent(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 8.dp)
+                .dropShadow(
+                    RoundedCornerShape(8.dp),
+                    shadow = Shadow(
+                        radius = 16.dp,
+                        offset = DpOffset(0.dp, 4.dp),
+                        color = Color.Black.copy(alpha = 0.2f)
+                    )
+                )
                 .clip(RoundedCornerShape(8.dp))
-                .dropShadow(RoundedCornerShape(8.dp), shadow = Shadow(4.dp))
+                .clickable { showConnectionEventsForServer = state.thisDevice?.device?.owner?.homeserver }
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -156,4 +175,23 @@ fun DevicesContent(
             )
         }
     }
+
+    if (showConnectionEventsForServer != null) ConnectionEventsSheet(
+        server = showConnectionEventsForServer!!,
+        onClose = { showConnectionEventsForServer = null }
+    )
 }
+
+@Preview
+@PreviewWrapper(wrapper = ThemeWrapper::class)
+@Composable
+private fun DevicesPreview() {
+    DevicesContent(
+        contentPadding = PaddingValues(),
+        state = DevicesState(
+
+        ),
+        nestedScrollConnection = null
+    )
+}
+
