@@ -190,9 +190,7 @@ fun Route.app() {
                                 message.shareIds
                                     .map { id -> Uuid.parse(id) }
                                     .forEach { id ->
-                                        if (!subscribedShares.contains(id)) {
-                                            subscribedShares.add(id)
-                                        }
+                                        subscribedShares.add(id)
                                         startShareSubscription(id)
                                     }
                             }
