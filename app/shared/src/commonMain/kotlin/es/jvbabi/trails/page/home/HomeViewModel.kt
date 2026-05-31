@@ -11,6 +11,7 @@ import es.jvbabi.trails.domain.model.Snapshot
 import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.domain.usecase.SetupNotificationsUseCase
 import es.jvbabi.trails.domain.usecase.home.GetHomeDeviceLocationsUseCase
+import es.jvbabi.trails.page.devices.Screen
 import es.jvbabi.trails.utils.IntPaddingValues
 import es.jvbabi.trails.utils.toMapCamera
 import kotlinx.coroutines.CoroutineName
@@ -225,15 +226,17 @@ class HomeViewModel(
 
 data class HomeState(
     val ownLocation: Location? = null,
-    val selectedTab: Tab = Tab.MyDevices,
+    val selectedTab: Tab = Tab.MyDevices(Screen.Main),
     val currentDevice: Device? = null,
     val devices: List<HomeDevice> = emptyList(),
     val targetCameraState: MapCamera? = null,
     val fitBounds: FitBounds? = null,
     val trackingMode: TrackingMode = TrackingMode.Overview,
 ) {
-    enum class Tab {
-        MyDevices, Things, Shares
+    sealed class Tab {
+        data class MyDevices(val initialRoute: Screen): Tab()
+        data object Things: Tab()
+        data object Shares: Tab()
     }
 
     enum class TrackingMode {

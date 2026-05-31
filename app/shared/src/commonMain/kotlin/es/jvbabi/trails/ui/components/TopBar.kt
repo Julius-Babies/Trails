@@ -71,13 +71,13 @@ fun TopBar(
                 modifier = Modifier
                     .padding(horizontal = titleHorizontalPadding)
                     .clip(RoundedCornerShape(50))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .4f))
                     .hazeEffect(LocalHazeState.current) {
                         blurEffect {
                             blurRadius = 8.dp
                             style = hazeStyle
                         }
                     }
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .4f))
                     .padding(vertical = 4.dp, horizontal = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {

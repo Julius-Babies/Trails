@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
 import androidx.compose.ui.unit.times
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import co.touchlab.kermit.Logger
 import dev.chrisbanes.haze.blur.blurEffect
 import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import dev.chrisbanes.haze.hazeEffect
@@ -42,6 +41,7 @@ import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.model.Snapshot
 import es.jvbabi.trails.domain.model.User
 import es.jvbabi.trails.domain.repository.Location
+import es.jvbabi.trails.page.Screen
 import es.jvbabi.trails.page.devices.main.DevicesTab
 import es.jvbabi.trails.page.home.components.*
 import es.jvbabi.trails.page.home.components.PaddingValues
@@ -63,14 +63,14 @@ const val DEBUG = false
 
 @Composable
 fun HomeScreen(
-    onOpenSettings: () -> Unit = {}
+    backstack: MutableList<Screen>,
 ) {
     val viewModel = koinViewModel<HomeViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     HomeContent(
         state = state,
-        onOpenSettings = onOpenSettings,
+        backStack = backstack,
         onEvent = viewModel::onEvent,
     )
 
@@ -106,7 +106,7 @@ fun HomeScreen(
 @Composable
 fun HomeContent(
     state: HomeState,
-    onOpenSettings: () -> Unit,
+    backStack: MutableList<Screen>,
     onEvent: (event: HomeEvent) -> Unit,
 ) {
     val cardCollapsedHeight = 72.dp
@@ -145,7 +145,8 @@ fun HomeContent(
                         Map(
                             state = state,
                             onDeviceClick = { device ->
-                                Logger.i { "Map device clicked: ${device.device.displayName}" }
+                                scope.launch { draggableCardSheetState.semiExpand() }
+                                onEvent(HomeEvent.SelectTab(HomeState.Tab.MyDevices(es.jvbabi.trails.page.devices.Screen.Device(device.device.id))))
                             },
                             onUserDragStart = { onEvent(HomeEvent.UserDragged) },
                         )
@@ -161,7 +162,7 @@ fun HomeContent(
                                     .align(Alignment.TopEnd)
                             ) {
                                 FilledTonalIconButton(
-                                    onClick = onOpenSettings,
+                                    onClick = { backStack.add(Screen.Settings) },
                                 ) {
                                     Icon(
                                         painter = painterResource(Res.drawable.settings),
@@ -253,9 +254,10 @@ fun HomeContent(
                             transitionSpec = { fadeIn(tween(100)) togetherWith fadeOut(tween(100)) }
                         ) { selectedTab ->
                             when (selectedTab) {
-                                HomeState.Tab.MyDevices -> DevicesTab(
+                                is HomeState.Tab.MyDevices -> DevicesTab(
                                     contentPadding = contentPadding,
                                     nestedScrollConnection = draggableCardSheetState.nestedScrollConnection,
+                                    initialRoute = selectedTab.initialRoute,
                                     onFocusDevice = { deviceId ->
                                         onEvent(HomeEvent.FocusDevice(deviceId))
                                         if (deviceId != null && draggableCardSheetState.targetValue == CardSheetValue.Expanded) {
@@ -377,7 +379,7 @@ internal fun rememberMockHomeState(): HomeState {
 fun HomeScreenPreview() {
     HomeContent(
         state = rememberMockHomeState(),
-        onOpenSettings = {},
+        backStack = mutableListOf(),
         onEvent = {},
     )
 }

@@ -12,8 +12,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -22,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -35,7 +32,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
-import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import es.jvbabi.trails.ThemeWrapper
 import es.jvbabi.trails.domain.model.Device
@@ -45,25 +41,19 @@ import es.jvbabi.trails.page.devices.device.DeviceScreen
 import es.jvbabi.trails.page.devices.main.components.DeviceCard
 import es.jvbabi.trails.page.home.components.PaddingValues
 import es.jvbabi.trails.page.home.components.padding
-import es.jvbabi.trails.ui.components.ConfigureTopBar
-import es.jvbabi.trails.ui.components.LocalHazeState
-import es.jvbabi.trails.ui.components.LocalTopBar
-import es.jvbabi.trails.ui.components.TopBar
-import es.jvbabi.trails.ui.components.TopBarState
-import org.jetbrains.compose.resources.painterResource
+import es.jvbabi.trails.ui.components.*
 import org.koin.compose.viewmodel.koinViewModel
-import trails.app.shared.generated.resources.Res
-import trails.app.shared.generated.resources.arrow_left
 import kotlin.uuid.Uuid
 
 @Composable
 fun DevicesTab(
     contentPadding: PaddingValues,
     nestedScrollConnection: NestedScrollConnection,
+    initialRoute: Screen,
     onFocusDevice: (deviceId: Uuid?) -> Unit,
 ) {
     val topBarState = remember { TopBarState() }
-    val backstack = remember { mutableStateListOf<Screen>(Screen.Main) }
+    val backstack = remember { mutableStateListOf(initialRoute) }
     LaunchedEffect(backstack.lastOrNull()) {
         val lastBackstackEntry = backstack.lastOrNull()
         if (lastBackstackEntry !is Screen.Device) onFocusDevice(null)

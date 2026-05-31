@@ -26,6 +26,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.dp
 import es.jvbabi.trails.ThemeWrapper
+import es.jvbabi.trails.page.devices.Screen
 import es.jvbabi.trails.page.home.HomeState
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
@@ -55,9 +56,9 @@ fun NavigationBar(
             Item(
                 icon = painterResource(Res.drawable.smartphone),
                 label = "Geräte",
-                isSelected = selectedTab == HomeState.Tab.MyDevices,
+                isSelected = selectedTab is HomeState.Tab.MyDevices,
                 draggableCardSheetState = draggableCardSheetState,
-                onSelect = { onSelect(HomeState.Tab.MyDevices) }
+                onSelect = { onSelect(HomeState.Tab.MyDevices(Screen.Main)) }
             )
 
             Item(
@@ -142,7 +143,7 @@ private fun RowScope.Item(
 @Composable
 fun NavigationBarPreview() {
     NavigationBar(
-        selectedTab = HomeState.Tab.MyDevices,
+        selectedTab = HomeState.Tab.MyDevices(Screen.Main),
         draggableCardSheetState = null,
         onSelect = {}
     )

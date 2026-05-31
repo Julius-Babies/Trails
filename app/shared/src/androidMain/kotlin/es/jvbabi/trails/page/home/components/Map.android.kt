@@ -15,15 +15,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ripple
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import co.touchlab.kermit.Logger
 import com.mapbox.android.gestures.MoveGestureDetector
 import com.mapbox.geojson.Point
 import com.mapbox.maps.*
@@ -47,8 +46,6 @@ import com.mapbox.maps.viewannotation.geometry
 import com.mapbox.maps.viewannotation.viewAnnotationOptions
 import es.jvbabi.trails.page.home.HomeState
 import es.jvbabi.trails.utils.rememberBitmapFromBytes
-import kotlinx.coroutines.delay
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 @Composable
@@ -213,7 +210,6 @@ actual fun Map(
                             DeviceMarker(
                                 imageBytes = device.image,
                                 onClick = {
-                                    Logger.i { "Map device clicked: ${device.device.displayName}" }
                                     onDeviceClick(device)
                                 },
                             )

@@ -1,26 +1,9 @@
 package es.jvbabi.trails
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContent
+import androidx.compose.animation.*
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.ColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -34,7 +17,6 @@ import dev.chrisbanes.haze.rememberHazeState
 import es.jvbabi.trails.domain.repository.UiRepository
 import es.jvbabi.trails.page.Screen
 import es.jvbabi.trails.page.home.HomeScreen
-import es.jvbabi.trails.page.home.components.padding
 import es.jvbabi.trails.page.setings.SettingsScreen
 import es.jvbabi.trails.ui.components.LocalHazeState
 import es.jvbabi.trails.ui.components.Snackbar
@@ -75,7 +57,7 @@ fun App(
                 return@NavDisplay when (key) {
                     is Screen.Home -> NavEntry(key = key) {
                         HomeScreen(
-                            onOpenSettings = remember { { backstack.add(Screen.Settings) } }
+                            backstack = backstack,
                         )
                     }
 

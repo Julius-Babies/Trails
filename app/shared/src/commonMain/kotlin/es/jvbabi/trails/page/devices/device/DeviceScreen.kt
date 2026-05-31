@@ -88,18 +88,18 @@ fun DeviceContent(
     ConfigureTopBar(
         title = state.device.device.displayName,
         subtitle = state.device.device.owner.username,
-        navigationIcon = {
+        navigationIcon = remember { {
             IconButton(
                 onClick = onBack,
                 modifier = Modifier
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .4f))
                     .hazeEffect(LocalHazeState.current) {
                         blurEffect {
                             blurRadius = 8.dp
                             style = hazeStyle
                         }
                     }
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .4f))
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.arrow_left),
@@ -107,19 +107,19 @@ fun DeviceContent(
                     modifier = Modifier.size(24.dp),
                 )
             }
-        },
+        } },
         actions = {
             if (state.currentUser != null && state.currentUser.id == state.device.device.owner.id) IconButton(
                 onClick = { showDeleteDialog = true },
                 modifier = Modifier
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .4f))
                     .hazeEffect(LocalHazeState.current) {
                         blurEffect {
                             blurRadius = 8.dp
                             style = hazeStyle
                         }
                     }
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .4f))
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.trash_2),
