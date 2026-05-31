@@ -6,6 +6,15 @@ interface DeviceRepository {
     fun getDeviceModel(): String
     fun getManufacturer(): String
     fun getBatteryState(): Flow<BatteryState>
+
+    fun hasFullScreenIntentPermissions(): Flow<Boolean>
+    fun requestFullScreenIntentPermissions()
+
+    fun startRinging(
+        causedByDeviceName: String,
+        onStop: () -> Unit
+    )
+    fun stopRinging()
 }
 
 data class BatteryState(

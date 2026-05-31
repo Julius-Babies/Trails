@@ -97,6 +97,7 @@ fun Route.devices() {
             }
 
             ping()
+            ring()
         }
     }
 }

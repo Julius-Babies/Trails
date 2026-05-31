@@ -3,6 +3,7 @@ package es.jvbabi.trails
 import es.jvbabi.trails.api.installAuthentication
 import es.jvbabi.trails.api.installCallLogging
 import es.jvbabi.trails.api.installContentNegotiation
+import es.jvbabi.trails.api.installSse
 import es.jvbabi.trails.api.installWebsocket
 import es.jvbabi.trails.auth.installAuthentikt
 import es.jvbabi.trails.di.installKoin
@@ -18,6 +19,7 @@ fun Application.rootModule(
     logger.info("Storage at ${applicationLaunchConfig.storageDirectory}")
     installKoin(applicationLaunchConfig)
     installWebsocket()
+    installSse()
     installCallLogging()
     installContentNegotiation()
     installAuthentication()

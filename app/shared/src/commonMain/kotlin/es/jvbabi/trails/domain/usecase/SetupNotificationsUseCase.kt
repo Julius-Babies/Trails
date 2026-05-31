@@ -17,5 +17,13 @@ class SetupNotificationsUseCase(
             importance = NotificationRepository.Importance.IMPORTANCE_HIGH,
             bypassDnd = true,
         )
+
+        notificationRepository.createChannel(
+            channelId = NotificationRepository.RING_CHANNEL_ID,
+            channelName = "Anklingeln",
+            description = "Lasse dein Gerät klingeln, um es zu finden",
+            importance = NotificationRepository.Importance.IMPORTANCE_HIGH,
+            bypassDnd = true,
+        )
     }
 }

@@ -99,6 +99,7 @@ app-jetlime = { module = "io.github.pushpalroy:jetlime", version.ref = "app-jetl
 server-ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
 server-ktor-server-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor" }
 server-ktor-server-websockets = { module = "io.ktor:ktor-server-websockets", version.ref = "ktor" }
+server-ktor-server-sse = { module = "io.ktor:ktor-server-sse", version.ref = "ktor" }
 server-ktor-server-content-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
 server-ktor-server-auth-jwt = { module = "io.ktor:ktor-server-auth-jwt", version.ref = "ktor" }
 server-ktor-server-call-logging = { module = "io.ktor:ktor-server-call-logging", version.ref = "ktor" }

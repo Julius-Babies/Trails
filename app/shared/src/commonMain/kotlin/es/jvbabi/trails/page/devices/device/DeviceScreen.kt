@@ -276,19 +276,29 @@ fun DeviceContent(
                             }
                         }
 
-                        if (state.canRing) Button(
-                            onClick = {}
+                        if (state.ringState != null && state.ringState != DeviceState.RingState.Disabled) Button(
+                            onClick = { onEvent(DeviceEvent.Ring) }
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Icon(
-                                    painter = painterResource(Res.drawable.smartphone_nfc),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(16.dp),
-                                )
-                                Text("Anklingeln")
+                            AnimatedContent(
+                                targetState = state.ringState == DeviceState.RingState.Loading,
+                            ) { isLoading ->
+                                if (isLoading) LoadingIndicator(Modifier.size(16.dp))
+                                else Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Icon(
+                                        painter = painterResource(Res.drawable.smartphone_nfc),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    AnimatedContent(
+                                        targetState = state.ringState == DeviceState.RingState.Ringing,
+                                    ) { isRinging ->
+                                        if (isRinging) Text("Es klingelt...")
+                                        else Text("Anklingeln")
+                                    }
+                                }
                             }
                         }
                     }

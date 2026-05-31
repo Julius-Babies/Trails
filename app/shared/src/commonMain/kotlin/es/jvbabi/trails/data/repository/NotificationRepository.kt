@@ -21,6 +21,7 @@ interface NotificationRepository {
 
     companion object {
         const val PING_CHANNEL_ID = "ping_channel"
+        const val RING_CHANNEL_ID = "ring_channel"
     }
 
     enum class Importance {

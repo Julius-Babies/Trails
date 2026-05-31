@@ -31,6 +31,7 @@ interface TrailsServerRepository {
     suspend fun fetchDeviceImageForDevice(device: Device)
 
     suspend fun pingDevice(device: Device): PingResult
+    suspend fun ringDevice(device: Device): RingResult
 
     suspend fun useShareLink(hostname: String, id: String): UseShareLinkResult
 
@@ -63,4 +64,11 @@ sealed class PingResult {
     data object Timeout: PingResult()
     data object NotAllowed: PingResult()
     data class Error(val errorMessage: String): PingResult()
+}
+
+sealed class RingResult {
+    data class Ringed(val flow: Flow<Boolean>): RingResult()
+    data object Timeout: RingResult()
+    data object NotAllowed: RingResult()
+    data class Error(val errorMessage: String): RingResult()
 }

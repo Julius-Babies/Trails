@@ -31,12 +31,14 @@ import es.jvbabi.trails.page.connection_events.ConnectionEventsViewModel
 import es.jvbabi.trails.page.devices.device.DeviceViewModel
 import es.jvbabi.trails.page.devices.main.DevicesViewModel
 import es.jvbabi.trails.page.home.HomeViewModel
+import es.jvbabi.trails.page.ringing.RingingViewModel
 import es.jvbabi.trails.page.setings.SettingsViewModel
 import es.jvbabi.trails.page.shares.add_share.AddShareViewModel
 import es.jvbabi.trails.page.shares.new_share.NewShareViewModel
 import es.jvbabi.trails.ui.overlay.DeviceDeletedViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.sse.SSE
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.pingInterval
 import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
@@ -83,6 +85,8 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
                     contentConverter = KotlinxWebsocketSerializationConverter(jsonInstance)
                     pingInterval = 10.seconds
                 }
+
+                install(SSE)
             }
         }
 
@@ -105,6 +109,7 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
         singleOf(::GetHomeDeviceLocationsUseCase)
 
         viewModelOf(::HomeViewModel)
+        viewModelOf(::RingingViewModel)
         viewModelOf(::SettingsViewModel)
         viewModelOf(::NewShareViewModel)
         viewModelOf(::AddShareViewModel)

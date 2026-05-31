@@ -13,6 +13,7 @@ import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.shared.dto.DeviceResponse
 import es.jvbabi.trails.shared.dto.MeResponse
 import es.jvbabi.trails.shared.dto.PingDeviceResponse
+import es.jvbabi.trails.shared.dto.RingDeviceResponse
 import es.jvbabi.trails.shared.dto.SessionHealthResponse
 import es.jvbabi.trails.shared.dto.UseShareLinkRequest
 import es.jvbabi.trails.shared.dto.UseShareLinkResponse
@@ -21,6 +22,7 @@ import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketServerMessage
 import es.jvbabi.trails.utils.NetworkRequestUnsuccessfulException
 import io.ktor.client.*
 import io.ktor.client.call.*
+import io.ktor.client.plugins.sse.sse
 import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -33,6 +35,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.serializer
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -45,6 +49,7 @@ class TrailsServerRepositoryImpl(
     private val keyValueRepository: KeyValueRepository,
     private val snapshotRepository: SnapshotRepository,
     private val devicesRepository: DevicesRepository,
+    private val deviceRepository: DeviceRepository,
     private val shareRepository: ShareRepository,
     private val applicationRepository: ApplicationRepository,
     private val userRepository: UserRepository,
@@ -65,6 +70,7 @@ class TrailsServerRepositoryImpl(
         devicesRepository = devicesRepository,
         keyValueRepository = keyValueRepository,
         userRepository = userRepository,
+        deviceRepository = deviceRepository,
         notificationRepository = notificationRepository,
         trailsServerRepositoryImpl = this,
         database = database,
@@ -77,6 +83,7 @@ class TrailsServerRepositoryImpl(
         snapshotRepository = snapshotRepository,
         devicesRepository = devicesRepository,
         keyValueRepository = keyValueRepository,
+        deviceRepository = deviceRepository,
         userRepository = userRepository,
         notificationRepository = notificationRepository,
         trailsServerRepositoryImpl = this,
@@ -401,6 +408,37 @@ class TrailsServerRepositoryImpl(
         }
     }
 
+    override suspend fun ringDevice(device: Device): RingResult {
+        val token = getToken().first() ?: throw IllegalStateException("Token not set")
+        val url = URLBuilder("https://${device.owner.homeserver}").apply {
+            appendPathSegments("api", "v1", "devices", device.id.toString(), "ring")
+        }
+
+        val result = CompletableDeferred<RingResult>()
+
+        httpClient.sse(urlString = url.buildString(), request = {
+            bearerAuth(token)
+        }) {
+            val first = incoming.first()
+            val message = Json.decodeFromString<RingDeviceResponse>(first.data!!)
+
+            when (message) {
+                is RingDeviceResponse.Success -> {
+                    val ringFlow = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
+                    ringFlow.tryEmit(true)
+                    result.complete(RingResult.Ringed(ringFlow.asSharedFlow()))
+                    incoming.collect { }
+                    ringFlow.tryEmit(false)
+                }
+                is RingDeviceResponse.Forbidden -> result.complete(RingResult.NotAllowed)
+                is RingDeviceResponse.Timeout -> result.complete(RingResult.Timeout)
+                is RingDeviceResponse.Error -> result.complete(RingResult.Error(message.message))
+            }
+        }
+
+        return result.await()
+    }
+
     override suspend fun useShareLink(hostname: String, id: String): UseShareLinkResult {
         val url = URLBuilder("https://$hostname").apply {
             appendPathSegments("api", "v1", "app", "share", "use")
@@ -604,6 +642,7 @@ private abstract class WebSocketClientBase(
     protected val shareRepository: ShareRepository,
     protected val snapshotRepository: SnapshotRepository,
     protected val devicesRepository: DevicesRepository,
+    protected val deviceRepository: DeviceRepository,
     protected val trailsServerRepositoryImpl: TrailsServerRepositoryImpl,
     protected val userRepository: UserRepository,
     protected val keyValueRepository: KeyValueRepository,
@@ -674,6 +713,14 @@ private abstract class WebSocketClientBase(
                             notificationId = message.pingedByDeviceName.hashCode()
                         )
                         session.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.Pong(notificationSent))
+                    }
+
+                    is TrailsWebSocketServerMessage.Ring -> {
+                        deviceRepository.startRinging(
+                            causedByDeviceName = message.ringedByDeviceName,
+                            onStop = { scope.launch { session.sendSerialized(TrailsWebSocketAppMessage.RingStop) } }
+                        )
+                        session.sendSerialized(TrailsWebSocketAppMessage.RingStart)
                     }
 
                     is TrailsWebSocketServerMessage.DeviceUpdated -> {
@@ -752,6 +799,7 @@ private class HomeServerWebSocketClient(
     keyValueRepository: KeyValueRepository,
     notificationRepository: NotificationRepository,
     userRepository: UserRepository,
+    deviceRepository: DeviceRepository,
     database: TrailsDatabase,
     logger: Logger,
 ) : WebSocketClientBase(
@@ -763,6 +811,7 @@ private class HomeServerWebSocketClient(
     trailsServerRepositoryImpl = trailsServerRepositoryImpl,
     notificationRepository = notificationRepository,
     keyValueRepository = keyValueRepository,
+    deviceRepository = deviceRepository,
     userRepository = userRepository,
     database = database,
     logger = logger,
@@ -774,6 +823,7 @@ private class ExternalServerWebSocketClient(
     shareRepository: ShareRepository,
     snapshotRepository: SnapshotRepository,
     devicesRepository: DevicesRepository,
+    deviceRepository: DeviceRepository,
     trailsServerRepositoryImpl: TrailsServerRepositoryImpl,
     userRepository: UserRepository,
     keyValueRepository: KeyValueRepository,
@@ -788,6 +838,7 @@ private class ExternalServerWebSocketClient(
     devicesRepository = devicesRepository,
     trailsServerRepositoryImpl = trailsServerRepositoryImpl,
     userRepository = userRepository,
+    deviceRepository = deviceRepository,
     keyValueRepository = keyValueRepository,
     notificationRepository = notificationRepository,
     database = database,

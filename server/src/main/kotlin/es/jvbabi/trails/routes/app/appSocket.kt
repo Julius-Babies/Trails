@@ -12,7 +12,9 @@ import es.jvbabi.trails.database.ActiveShare
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.Device
 import es.jvbabi.trails.routes.devices.PingResult
+import es.jvbabi.trails.routes.devices.RingEvent
 import es.jvbabi.trails.routes.devices.pendingPings
+import es.jvbabi.trails.routes.devices.pendingRings
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketAppMessage
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketServerMessage
 import io.ktor.serialization.*
@@ -205,6 +207,18 @@ fun Route.app() {
                                 if (principal == null) continue
                                 val deferred = pendingPings[principal.device.id.value] ?: continue
                                 deferred.complete(PingResult(message.hasDeliveredNotification))
+                            }
+
+                            is TrailsWebSocketAppMessage.RingStart -> {
+                                if (principal == null) continue
+                                val flow = pendingRings[principal.device.id.value] ?: continue
+                                flow.emit(RingEvent.Started)
+                            }
+
+                            is TrailsWebSocketAppMessage.RingStop -> {
+                                if (principal == null) continue
+                                val flow = pendingRings[principal.device.id.value] ?: continue
+                                flow.emit(RingEvent.Stopped)
                             }
                         }
                     } catch (e: Exception) {

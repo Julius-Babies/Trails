@@ -92,6 +92,19 @@ fun SettingsContent(
             }
 
             Button(
+                onClick = { onEvent(SettingsEvent.RequestFullscreenIntentPermissions) },
+                enabled = state.hasFullscreenIntentPermissions == false
+            ) {
+                Text("Vollbildaktivitäten erlauben")
+            }
+
+            Button(
+                onClick = { onEvent(SettingsEvent.RingDevice) }
+            ) {
+                Text("Device klingeln")
+            }
+
+            Button(
                 onClick = {
                     if (state.isBackgroundTrackingServiceRunning) onEvent(SettingsEvent.StopTracking)
                     else onEvent(SettingsEvent.StartTracking)

@@ -43,4 +43,12 @@ sealed class TrailsWebSocketAppMessage {
     data class Pong(
         @SerialName("has_delivered_notification") val hasDeliveredNotification: Boolean,
     ): TrailsWebSocketAppMessage()
+
+    @Serializable
+    @SerialName("device.ring.start")
+    data object RingStart: TrailsWebSocketAppMessage()
+
+    @Serializable
+    @SerialName("device.ring.stop")
+    data object RingStop: TrailsWebSocketAppMessage()
 }

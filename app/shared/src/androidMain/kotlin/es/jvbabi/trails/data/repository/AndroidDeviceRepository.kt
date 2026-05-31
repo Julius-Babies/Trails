@@ -1,37 +1,45 @@
 package es.jvbabi.trails.data.repository
 
+import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
+import android.os.Build
+import android.provider.Settings
+import androidx.core.net.toUri
+import es.jvbabi.trails.android.RingService
 import es.jvbabi.trails.domain.repository.BatteryState
 import es.jvbabi.trails.domain.repository.DeviceRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.*
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import kotlin.time.Duration.Companion.seconds
 
 class AndroidDeviceRepository : DeviceRepository, KoinComponent {
 
     private val context by inject<Context>()
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private var onStopCallback: (() -> Unit)? = null
 
     override fun getDeviceModel(): String {
-        val model = android.os.Build.MODEL
+        val model = Build.MODEL
         if (model == "sdk_gphone64_arm64") return "tokay" // TODO: remove for prod, just a test to make it behave like a real device
         return model
     }
 
     override fun getManufacturer(): String {
-        return android.os.Build.MANUFACTURER
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.DONUT) {
+            Build.MANUFACTURER
+        } else {
+            "Unknown Manufacturer"
+        }
     }
 
     override fun getBatteryState(): SharedFlow<BatteryState> {
@@ -75,5 +83,64 @@ class AndroidDeviceRepository : DeviceRepository, KoinComponent {
                 started = SharingStarted.WhileSubscribed(5000),
                 replay = 1,
             )
+    }
+
+    override fun hasFullScreenIntentPermissions(): Flow<Boolean> {
+        return flow {
+            while (true) {
+                val service = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    context.getSystemService(NotificationManager::class.java)
+                } else {
+                    emit(true)
+                    return@flow
+                }
+
+                val hasPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    service.canUseFullScreenIntent()
+                } else {
+                    emit(true)
+                    return@flow
+                }
+
+                emit(hasPermissions)
+                delay(1.seconds)
+            }
+        }.distinctUntilChanged()
+    }
+
+    override fun requestFullScreenIntentPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val nm = context.getSystemService(NotificationManager::class.java)
+            if (!nm.canUseFullScreenIntent()) {
+                context.startActivity(
+                    Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                        data = "package:${context.packageName}".toUri()
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK  // ← add this
+                    }
+                )
+            }
+        }
+    }
+
+    override fun startRinging(causedByDeviceName: String, onStop: () -> Unit) {
+        onStopCallback = onStop
+        val intent = Intent(context, RingService::class.java).apply {
+            action = RingService.ACTION_START
+            putExtra(RingService.EXTRA_DEVICE_NAME, causedByDeviceName)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
+        }
+    }
+
+    override fun stopRinging() {
+        onStopCallback?.invoke()
+        onStopCallback = null
+        val intent = Intent(context, RingService::class.java).apply {
+            action = RingService.ACTION_STOP
+        }
+        context.startService(intent)
     }
 }

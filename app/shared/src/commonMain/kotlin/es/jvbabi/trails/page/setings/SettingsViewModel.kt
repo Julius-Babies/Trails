@@ -50,6 +50,12 @@ class SettingsViewModel(
         }
 
         viewModelScope.launch {
+            deviceRepository.hasFullScreenIntentPermissions().collect { hasPermissions ->
+                state.update { it.copy(hasFullscreenIntentPermissions = hasPermissions) }
+            }
+        }
+
+        viewModelScope.launch {
             backgroundServiceRepository.isRunning().collect { isRunning ->
                 state.update { it.copy(isBackgroundTrackingServiceRunning = isRunning) }
             }
@@ -100,8 +106,10 @@ class SettingsViewModel(
                     }
                 }
             }
+            is SettingsEvent.RequestFullscreenIntentPermissions -> deviceRepository.requestFullScreenIntentPermissions()
             is SettingsEvent.StartTracking -> viewModelScope.launch { backgroundServiceRepository.startService() }
             is SettingsEvent.StopTracking -> backgroundServiceRepository.stopService()
+            is SettingsEvent.RingDevice -> deviceRepository.startRinging("Settings") {}
         }
     }
 }
@@ -111,6 +119,7 @@ data class SettingsState(
     val showLoginDialog: Boolean = false,
     val hasLocationPermissions: Boolean? = null,
     val hasNotificationPermissions: Boolean? = null,
+    val hasFullscreenIntentPermissions: Boolean? = null,
     val isBackgroundTrackingServiceRunning: Boolean = false,
 )
 
@@ -121,6 +130,8 @@ sealed class SettingsEvent {
     data class UpdateHomeServerUrl(val url: String): SettingsEvent()
     data object RequestLocationPermissions: SettingsEvent()
     data object RequestNotificationPermissions: SettingsEvent()
+    data object RequestFullscreenIntentPermissions: SettingsEvent()
     data object StartTracking: SettingsEvent()
     data object StopTracking: SettingsEvent()
+    data object RingDevice: SettingsEvent()
 }

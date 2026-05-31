@@ -5,10 +5,12 @@ package es.jvbabi.trails.page.devices.device
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import es.jvbabi.trails.domain.model.User
+import es.jvbabi.trails.domain.repository.DeviceRepository
 import es.jvbabi.trails.domain.repository.DevicesRepository
 import es.jvbabi.trails.domain.repository.FileRepository
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.PingResult
+import es.jvbabi.trails.domain.repository.RingResult
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
 import es.jvbabi.trails.domain.repository.UiRepository
 import es.jvbabi.trails.domain.repository.UserRepository
@@ -21,6 +23,7 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
 class DeviceViewModel(
+    private val deviceRepository: DeviceRepository,
     private val devicesRepository: DevicesRepository,
     private val getHomeDeviceLocationsUseCase: GetHomeDeviceLocationsUseCase,
     private val keyValueRepository: KeyValueRepository,
@@ -83,7 +86,11 @@ class DeviceViewModel(
                             !isOwnDevice -> DeviceState.PingState.Disabled
                             else -> it.pingState
                         },
-                        canRing = isOwnDevice
+                        ringState = when {
+                            it.ringState == null && isOwnDevice -> DeviceState.RingState.Ready
+                            !isOwnDevice -> DeviceState.RingState.Disabled
+                            else -> it.ringState
+                        }
                     ) }
                 }
         }
@@ -135,6 +142,37 @@ class DeviceViewModel(
                     }
                 }
             }
+
+            is DeviceEvent.Ring -> {
+                viewModelScope.launch {
+                    state.update { it.copy(ringState = DeviceState.RingState.Loading) }
+                    try {
+                        when (val result = trailsServerRepository.ringDevice(state.value.device!!.device)) {
+                            is RingResult.Ringed -> {
+                                result.flow.first { it }
+                                state.update { it.copy(ringState = DeviceState.RingState.Ringing) }
+                                result.flow.first { !it }
+                                state.update { it.copy(ringState = DeviceState.RingState.Ready) }
+                            }
+                            RingResult.NotAllowed -> {
+                                uiRepository.sendSnackbar("Du darfst dieses Gerät nicht anklingeln.", autoDismiss = 5.seconds)
+                                state.update { it.copy(ringState = DeviceState.RingState.Disabled) }
+                            }
+                            RingResult.Timeout -> {
+                                uiRepository.sendSnackbar("Das Gerät antwortet nicht.", autoDismiss = 5.seconds)
+                                state.update { it.copy(ringState = DeviceState.RingState.Ready) }
+                            }
+                            is RingResult.Error -> {
+                                uiRepository.sendSnackbar("Ein Fehler ist aufgetreten: ${result.errorMessage}", autoDismiss = 5.seconds)
+                                state.update { it.copy(ringState = DeviceState.RingState.Ready) }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        uiRepository.sendSnackbar("Ein Fehler ist aufgetreten: ${e.message}", autoDismiss = 5.seconds)
+                        state.update { it.copy(pingState = DeviceState.PingState.Ready) }
+                    }
+                }
+            }
         }
     }
 }
@@ -143,7 +181,7 @@ data class DeviceState(
     val device: HomeState.HomeDevice? = null,
     val currentUser: User? = null,
     val pingState: PingState? = null,
-    val canRing: Boolean = false,
+    val ringState: RingState? = null,
 
     val deletionState: DeletionState? = null,
     val image: ByteArray? = null,
@@ -159,9 +197,17 @@ data class DeviceState(
         data object Loading: PingState()
         data object Ready: PingState()
     }
+
+    sealed class RingState {
+        data object Disabled: RingState()
+        data object Loading: RingState()
+        data object Ready: RingState()
+        data object Ringing: RingState()
+    }
 }
 
 sealed class DeviceEvent {
     data object Delete: DeviceEvent()
     data object Ping: DeviceEvent()
+    data object Ring: DeviceEvent()
 }
