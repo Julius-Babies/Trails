@@ -6,9 +6,11 @@ import es.jvbabi.trails.api.TRAILS_USER_REALM
 import es.jvbabi.trails.api.TrailsAppUserPrincipal
 import es.jvbabi.trails.data.DeviceSubscriptionMessage
 import es.jvbabi.trails.data.DeviceSubscriptionRepository
+import es.jvbabi.trails.data.UserSubscriptionMessage
 import es.jvbabi.trails.data.UserSubscriptionRepository
 import es.jvbabi.trails.database.ActiveShare
 import es.jvbabi.trails.database.DatabaseManager
+import es.jvbabi.trails.database.Device
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketAppMessage
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketServerMessage
 import io.ktor.serialization.*
@@ -17,15 +19,8 @@ import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.util.logging.*
 import io.ktor.websocket.*
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.mapNotNull
-import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.flow.takeWhile
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.koin.ktor.ext.inject
@@ -47,36 +42,120 @@ fun Route.app() {
 
     authenticate(TRAILS_USER_REALM, optional = true) {
         webSocket("/ws") {
-            val logger = KtorSimpleLogger("AppWebSocket")
-            val auth = call.principal<TrailsAppUserPrincipal>()
-            auth?.requireValidSession()
+            val principal = call.principal<TrailsAppUserPrincipal>()
+            principal?.requireValidSession()
 
-            val subscriptions = mutableMapOf<ActiveShareId, Job>()
-            val ownDeviceSubscriptions = mutableMapOf<DeviceId, Job>()
+            val appSocketLogger = KtorSimpleLogger("AppWebSocket")
+
+            val subscribedShares = mutableSetOf<ActiveShareId>()
+            val shareSubscriptionRtUpdaters = mutableMapOf<ActiveShareId, Job>()
+            val ownDeviceSubscriptionRtUpdaters = mutableMapOf<DeviceId, Job>()
 
             val selfFlow =
-                if (auth != null) deviceSubscriptionRepository.getFlowForDeviceSubscription(db.transaction { auth.device.id.value }) else null
+                if (principal != null) deviceSubscriptionRepository.getFlowForDeviceSubscription(db.transaction { principal.device.id.value }) else null
 
-            launch {
-                if (auth == null) return@launch
-                userSubscriptionRepository.getFlowForUser(auth.user.id.value)
-                    .mapNotNull { it.toAppSocketMessage(auth) }
+            val emitRtUpdates = MutableStateFlow(true)
+
+            suspend fun startShareSubscription(shareId: ActiveShareId) {
+                if (shareSubscriptionRtUpdaters[shareId]?.isActive == true) return
+                val share = db.transaction { ActiveShare.findById(shareId) } ?: return
+                val device = db.transaction { share.share.device }
+
+                shareSubscriptionRtUpdaters[shareId] = launch {
+                    deviceSubscriptionRepository.getFlowForDeviceSubscription(device.id.value)
+                        .mapNotNull { 
+                            if (it is DeviceSubscriptionMessage.Snapshot && !emitRtUpdates.value) null 
+                            else it.toAppSocketMessage(null, share) 
+                        }
+                        .onEach { message ->
+                            sendSerialized<TrailsWebSocketServerMessage>(message.message)
+                        }
+                        .takeWhile { !it.closeConnectionAfterSending }
+                        .collect()
+                    this@webSocket.close(CloseReason(CloseReason.Codes.NORMAL, ""))
+                }.also {
+                    it.invokeOnCompletion { shareSubscriptionRtUpdaters.remove(shareId) }
+                }
+            }
+
+            suspend fun startOwnDeviceSubscription(deviceId: DeviceId) {
+                requireNotNull(principal) { "Cannot subscribe to own device without a principal" }
+
+                val device = db.transaction { Device.findById(deviceId) } ?: return
+
+                if (ownDeviceSubscriptionRtUpdaters[device.id.value]?.isActive == true) return
+
+                ownDeviceSubscriptionRtUpdaters[device.id.value] = launch {
+                    deviceSubscriptionRepository.getFlowForDeviceSubscription(device.id.value)
+                        .mapNotNull { 
+                            if (it is DeviceSubscriptionMessage.Snapshot && !emitRtUpdates.value) null 
+                            else it.toAppSocketMessage(principal, null) 
+                        }
+                        .onEach { message ->
+                            sendSerialized<TrailsWebSocketServerMessage>(message.message)
+                        }
+                        .takeWhile { !it.closeConnectionAfterSending }
+                        .collect()
+                    this@webSocket.close(CloseReason(CloseReason.Codes.NORMAL, ""))
+                }
+            }
+
+            if (principal != null) {
+                val ownDevices = db.transaction { principal.user.devices.toList().filter { it.deletion == null } }
+                ownDevices.forEach { startOwnDeviceSubscription(it.id.value) }
+            }
+
+            launch(CoroutineName("ThisUserEvents")) {
+                if (principal == null) return@launch
+                userSubscriptionRepository.getFlowForUser(principal.user.id.value)
+                    .onEach { message ->
+                        when (message) {
+                            is UserSubscriptionMessage.DeviceUpdated -> {
+                                startOwnDeviceSubscription(message.device.id.value)
+                            }
+                            is UserSubscriptionMessage.DeviceDeleted -> {
+                                val deviceId = db.transaction<ActiveShareId> { message.deletion.device.id.value }
+                                ownDeviceSubscriptionRtUpdaters[deviceId]?.cancel()
+                                ownDeviceSubscriptionRtUpdaters.remove(deviceId)
+                            }
+                        }
+                    }
+                    .mapNotNull { it.toAppSocketMessage(principal) }
                     .onEach { this@webSocket.sendSerialized(it.message) }
                     .takeWhile { !it.closeConnectionAfterSending && this@webSocket.isActive }
                     .collect()
+            }
+
+            launch(CoroutineName("RtUpdates")) {
+                emitRtUpdates
+                    .collectLatest { emitRtUpdates ->
+                        if (!emitRtUpdates) return@collectLatest
+
+                        coroutineScope {
+                            launch(CoroutineName("SharesRtUpdates")) {
+                                subscribedShares.forEach { startShareSubscription(it) }
+                            }
+
+                            if (principal != null) launch(CoroutineName("OwnDeviceRtUpdates")) {
+                                val ownDevices = db.transaction { principal.user.devices.toList().filter { it.deletion == null} }
+                                ownDevices.forEach { startOwnDeviceSubscription(it.id.value) }
+                            }
+                        }
+                    }
             }
 
             for (frame in incoming) {
                 if (frame is Frame.Text) {
                     val message = converter!!.deserialize<TrailsWebSocketAppMessage>(frame)
                     try {
+                        println(message)
                         when (message) {
                             is TrailsWebSocketAppMessage.DataSnapshot -> {
-                                if (auth == null) continue
+                                if (principal == null) continue
                                 launch {
                                     val snapshot = db.transaction {
                                         val existingSnapshot = DataSnapshot.find {
-                                            DataSnapshots.device eq auth.device.id
+                                            DataSnapshots.device eq principal.device.id
                                         }.orderBy(DataSnapshots.createdAt to SortOrder.DESC)
                                             .limit(1)
                                             .firstOrNull()
@@ -97,7 +176,7 @@ fun Route.app() {
 
                                         if (batteryChanged || movedEnough) {
                                             DataSnapshot.new {
-                                                this.device = auth.device
+                                                this.device = principal.device
                                                 this.latitude = message.latitude
                                                 this.longitude = message.longitude
                                                 this.bearing = message.bearing.toDouble()
@@ -123,58 +202,23 @@ fun Route.app() {
                                 message.shareIds
                                     .map { id -> Uuid.parse(id) }
                                     .forEach { id ->
-                                        if (subscriptions[id]?.isActive == true) return@forEach
-                                        val share = db.transaction { ActiveShare.findById(id) } ?: return@forEach
-                                        val device = db.transaction { share.share.device }
-
-                                        subscriptions[id] = launch {
-                                            deviceSubscriptionRepository.getFlowForDeviceSubscription(device.id.value)
-                                                .map { it.toAppSocketMessage(null, share) }
-                                                .onEach { message ->
-                                                    sendSerialized<TrailsWebSocketServerMessage>(message.message)
-                                                }
-                                                .takeWhile { !it.closeConnectionAfterSending }
-                                                .collect()
-                                            this@webSocket.close(CloseReason(CloseReason.Codes.NORMAL, ""))
-                                        }.also {
-                                            it.invokeOnCompletion { subscriptions.remove(id) }
+                                        if (!subscribedShares.contains(id)) {
+                                            subscribedShares.add(id)
                                         }
+                                        startShareSubscription(id)
                                     }
-                            }
-
-                            is TrailsWebSocketAppMessage.SubscribeToOwn -> {
-                                if (auth == null) continue
-                                val ownDevices = db.transaction { auth.user.devices.toList().filter { it.deletion == null} }
-                                ownDevices.forEach { device ->
-                                    if (ownDeviceSubscriptions[device.id.value]?.isActive == true) return@forEach
-
-                                    ownDeviceSubscriptions[device.id.value] = launch {
-                                        deviceSubscriptionRepository.getFlowForDeviceSubscription(device.id.value)
-                                            .map { it.toAppSocketMessage(auth, null) }
-                                            .onEach { message ->
-                                                sendSerialized<TrailsWebSocketServerMessage>(message.message)
-                                            }
-                                            .takeWhile { !it.closeConnectionAfterSending }
-                                            .collect()
-                                        this@webSocket.close(CloseReason(CloseReason.Codes.NORMAL, ""))
-                                    }
-
-                                }
-                            }
-
-                            is TrailsWebSocketAppMessage.ShareUnsubscribeAll -> {
-                                subscriptions.forEach { it.value.cancel() }
-                                ownDeviceSubscriptions.forEach { it.value.cancel() }
                             }
 
                             is TrailsWebSocketAppMessage.ShareUnsubscribe -> {
                                 val unsubscribeIds = message.shareIds.map { Uuid.parse(it) }
-                                subscriptions.filterKeys { it in unsubscribeIds }.forEach { it.value.cancel() }
-                                ownDeviceSubscriptions.filterKeys { it in unsubscribeIds }.forEach { it.value.cancel() }
+                                shareSubscriptionRtUpdaters.filterKeys { it in unsubscribeIds }.forEach { it.value.cancel() }
                             }
+
+                            is TrailsWebSocketAppMessage.StartRtUpdates -> emitRtUpdates.value = true
+                            is TrailsWebSocketAppMessage.StopRtUpdates -> emitRtUpdates.value = false
                         }
                     } catch (e: Exception) {
-                        logger.error("""WebSocket message could not be handled:
+                        appSocketLogger.error("""WebSocket message could not be handled:
                             |Message: $message
                             |Error: ${e.stackTraceToString()}
                         """.trimMargin())

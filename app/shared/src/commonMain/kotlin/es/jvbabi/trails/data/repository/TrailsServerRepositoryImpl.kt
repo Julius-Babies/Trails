@@ -541,31 +541,31 @@ private abstract class WebSocketClientBase(
         serverHost: String,
         sessionProvider: () -> DefaultClientWebSocketSession?
     ) = scope.launch {
+        val subscribedShares = mutableSetOf<Uuid>()
+        launch {
+            shareRepository.getShares()
+                .map { it.filter { share -> share.device.owner.homeserver == serverHost } }
+                .map { it.toSet() }
+                .distinctUntilChanged()
+                .collectLatest { shares ->
+                    val newShareIds = shares.map { it.id }.toSet() - subscribedShares
+                    sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(
+                        TrailsWebSocketAppMessage.ShareSubscribe(newShareIds.map { it.toString() })
+                    )
+                    subscribedShares.addAll(newShareIds)
+
+                    val removedShareIds = subscribedShares - shares.map { it.id }.toSet()
+                    sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(
+                        TrailsWebSocketAppMessage.ShareUnsubscribe(removedShareIds.map { it.toString() })
+                    )
+                    subscribedShares.removeAll(removedShareIds)
+                }
+        }
         applicationRepository.getApplicationForegroundState().collectLatest { inForeground ->
             if (inForeground) {
-                sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(
-                    TrailsWebSocketAppMessage.SubscribeToOwn
-                )
-                val subscribedShares = mutableSetOf<Uuid>()
-                shareRepository.getShares()
-                    .map { it.filter { share -> share.device.owner.homeserver == serverHost } }
-                    .map { it.toSet() }
-                    .distinctUntilChanged()
-                    .collectLatest { shares ->
-                        val newShareIds = shares.map { it.id }.toSet() - subscribedShares
-                        sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(
-                            TrailsWebSocketAppMessage.ShareSubscribe(newShareIds.map { it.toString() })
-                        )
-                        subscribedShares.addAll(newShareIds)
-
-                        val removedShareIds = subscribedShares - shares.map { it.id }.toSet()
-                        sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(
-                            TrailsWebSocketAppMessage.ShareUnsubscribe(removedShareIds.map { it.toString() })
-                        )
-                        subscribedShares.removeAll(removedShareIds)
-                    }
+                sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.StartRtUpdates)
             } else {
-                sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.ShareUnsubscribeAll)
+                sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.StopRtUpdates)
             }
         }
     }

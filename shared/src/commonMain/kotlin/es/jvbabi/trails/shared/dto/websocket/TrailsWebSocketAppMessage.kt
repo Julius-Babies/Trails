@@ -19,22 +19,22 @@ sealed class TrailsWebSocketAppMessage {
     ) : TrailsWebSocketAppMessage()
 
     @Serializable
-    @SerialName("share.subscribe")
+    @SerialName("appsocket.subscribe-shares")
     data class ShareSubscribe(
         @SerialName("share_ids") val shareIds: List<String>,
     ) : TrailsWebSocketAppMessage()
 
     @Serializable
-    @SerialName("own.subscribe")
-    data object SubscribeToOwn : TrailsWebSocketAppMessage()
-
-    @Serializable
-    @SerialName("share.unsubscribe_all")
-    data object ShareUnsubscribeAll : TrailsWebSocketAppMessage()
-
-    @Serializable
-    @SerialName("share.unsubscribe")
+    @SerialName("appsocket.unsubscribe-share")
     data class ShareUnsubscribe(
         @SerialName("share_ids") val shareIds: List<String>,
     ) : TrailsWebSocketAppMessage()
+
+    @Serializable
+    @SerialName("lifecycle.start-rt-updates")
+    data object StartRtUpdates : TrailsWebSocketAppMessage()
+
+    @Serializable
+    @SerialName("lifecycle.stop-rt-updates")
+    data object StopRtUpdates : TrailsWebSocketAppMessage()
 }
