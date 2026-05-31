@@ -4,10 +4,12 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -19,7 +21,7 @@ data class ExtendedColorScheme(
     val customColor2: ColorFamily,
 )
 
-private val lightScheme = lightColorScheme(
+val lightScheme = lightColorScheme(
     primary = primaryLight,
     onPrimary = onPrimaryLight,
     primaryContainer = primaryContainerLight,
@@ -57,7 +59,7 @@ private val lightScheme = lightColorScheme(
     surfaceContainerHighest = surfaceContainerHighestLight,
 )
 
-private val darkScheme = darkColorScheme(
+val darkScheme = darkColorScheme(
     primary = primaryDark,
     onPrimary = onPrimaryDark,
     primaryContainer = primaryContainerDark,
@@ -133,10 +135,6 @@ data class ColorFamily(
     val onColorContainer: Color
 )
 
-val unspecified_scheme = ColorFamily(
-    Color.Unspecified, Color.Unspecified, Color.Unspecified, Color.Unspecified
-)
-
 @Composable
 fun AppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -153,8 +151,10 @@ fun AppTheme(
         colorScheme = colorScheme,
         typography = AppTypography,
         content = {
-            Box(Modifier.fillMaxSize()) {
-                content()
+            CompositionLocalProvider(LocalContentColor provides colorScheme.onSurface) {
+                Box(Modifier.fillMaxSize()) {
+                    content()
+                }
             }
         }
     )

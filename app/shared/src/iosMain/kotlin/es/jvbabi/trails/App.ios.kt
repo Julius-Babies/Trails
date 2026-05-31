@@ -3,8 +3,9 @@
 package es.jvbabi.trails
 
 import androidx.compose.material3.ColorScheme
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import es.jvbabi.trails.ui.theme.darkScheme
+import es.jvbabi.trails.ui.theme.lightScheme
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
 import platform.CoreGraphics.CGRectMake
@@ -67,5 +68,5 @@ actual fun getClipboardText(): String? {
 
 @Composable
 actual fun dynamicTheme(dark: Boolean): ColorScheme {
-    return MaterialTheme.colorScheme
+    return if (dark) darkScheme else lightScheme
 }

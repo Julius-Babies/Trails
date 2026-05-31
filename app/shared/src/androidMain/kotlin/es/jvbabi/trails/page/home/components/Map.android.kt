@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -33,7 +34,10 @@ import com.mapbox.maps.extension.compose.MapEffect
 import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
 import com.mapbox.maps.extension.compose.annotation.ViewAnnotation
+import com.mapbox.maps.extension.compose.style.MapStyle
+import com.mapbox.maps.extension.compose.style.standard.LightPresetValue
 import com.mapbox.maps.extension.compose.style.standard.MapboxStandardStyle
+import com.mapbox.maps.extension.compose.style.standard.StandardStyleState
 import com.mapbox.maps.plugin.PuckBearing
 import com.mapbox.maps.plugin.animation.MapAnimationOptions
 import com.mapbox.maps.plugin.gestures.OnMoveListener
@@ -139,7 +143,9 @@ actual fun Map(
             modifier = Modifier.fillMaxSize(),
             mapViewportState = mapViewportState,
             style = {
-                MapboxStandardStyle()
+                MapStyle(
+                    style = if (isSystemInDarkTheme()) Style.TRAFFIC_NIGHT else Style.STANDARD,
+                )
             },
             composeMapInitOptions = ComposeMapInitOptions(
                 mapOptions = MapOptions.Builder().build(),
