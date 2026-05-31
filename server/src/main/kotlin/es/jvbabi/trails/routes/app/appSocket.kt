@@ -12,9 +12,7 @@ import es.jvbabi.trails.database.ActiveShare
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.Device
 import es.jvbabi.trails.routes.devices.PingResult
-import es.jvbabi.trails.routes.devices.RingEvent
 import es.jvbabi.trails.routes.devices.pendingPings
-import es.jvbabi.trails.routes.devices.pendingRings
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketAppMessage
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketServerMessage
 import io.ktor.serialization.*
@@ -25,6 +23,7 @@ import io.ktor.util.logging.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlin.time.Duration.Companion.seconds
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.koin.ktor.ext.inject
@@ -37,6 +36,8 @@ import kotlin.uuid.Uuid
 
 private typealias ActiveShareId = Uuid
 private typealias DeviceId = Uuid
+
+val deviceRingInfo = mutableMapOf<Uuid, String>()
 
 fun Route.app() {
 
@@ -122,6 +123,7 @@ fun Route.app() {
                                 ownDeviceSubscriptionRtUpdaters[deviceId]?.cancel()
                                 ownDeviceSubscriptionRtUpdaters.remove(deviceId)
                             }
+                            is UserSubscriptionMessage.RingState -> { }
                         }
                     }
                     .mapNotNull { it.toAppSocketMessage(principal) }
@@ -211,14 +213,72 @@ fun Route.app() {
 
                             is TrailsWebSocketAppMessage.RingStart -> {
                                 if (principal == null) continue
-                                val flow = pendingRings[principal.device.id.value] ?: continue
-                                flow.emit(RingEvent.Started)
+                                val deviceId = principal.device.id.value
+                                val ringedBy = deviceRingInfo[deviceId] ?: principal.device.displayName
+                                val userFlow = userSubscriptionRepository.getFlowForUser(principal.user.id.value)
+                                userFlow.emit(UserSubscriptionMessage.RingState(
+                                    deviceId = deviceId,
+                                    isRinging = true,
+                                    ringedByDeviceName = ringedBy,
+                                ))
                             }
 
                             is TrailsWebSocketAppMessage.RingStop -> {
                                 if (principal == null) continue
-                                val flow = pendingRings[principal.device.id.value] ?: continue
-                                flow.emit(RingEvent.Stopped)
+                                val deviceId = principal.device.id.value
+                                val ringedBy = deviceRingInfo.remove(deviceId) ?: ""
+                                val userFlow = userSubscriptionRepository.getFlowForUser(principal.user.id.value)
+                                userFlow.emit(UserSubscriptionMessage.RingState(
+                                    deviceId = deviceId,
+                                    isRinging = false,
+                                    ringedByDeviceName = ringedBy,
+                                ))
+                            }
+
+                            is TrailsWebSocketAppMessage.DevicePing -> {
+                                if (principal == null) continue
+                                val targetDeviceId = Uuid.parse(message.deviceId)
+                                val targetDevice = db.transaction { Device.findById(targetDeviceId) }
+                                if (targetDevice == null || db.transaction { targetDevice.owner.id.value != principal.user.id.value }) {
+                                    sendSerialized(TrailsWebSocketServerMessage.PingResult(deviceId = message.deviceId, success = false, errorMessage = "Not allowed"))
+                                    continue
+                                }
+                                val deferred = CompletableDeferred<PingResult>()
+                                pendingPings[targetDeviceId] = deferred
+                                val deviceFlow = deviceSubscriptionRepository.getFlowForDeviceSubscription(targetDeviceId)
+                                deviceFlow.emit(DeviceSubscriptionMessage.Ping(targetDevice, pingedByDeviceName = principal.device.displayName))
+                                launch {
+                                    val result = withTimeoutOrNull(5.seconds) { deferred.await() }
+                                    pendingPings.remove(targetDeviceId)
+                                    if (result != null) {
+                                        sendSerialized(TrailsWebSocketServerMessage.PingResult(
+                                            deviceId = message.deviceId,
+                                            success = true,
+                                            hasDeliveredNotification = result.hasDeliveredNotification
+                                        ))
+                                    } else {
+                                        sendSerialized(TrailsWebSocketServerMessage.PingResult(deviceId = message.deviceId, success = false, errorMessage = "Timeout"))
+                                    }
+                                }
+                            }
+
+                            is TrailsWebSocketAppMessage.DeviceRing -> {
+                                if (principal == null) continue
+                                val targetDeviceId = Uuid.parse(message.deviceId)
+                                val targetDevice = db.transaction { Device.findById(targetDeviceId) }
+                                if (targetDevice == null || db.transaction { targetDevice.owner.id.value != principal.user.id.value }) continue
+                                deviceRingInfo[targetDeviceId] = principal.device.displayName
+                                val deviceFlow = deviceSubscriptionRepository.getFlowForDeviceSubscription(targetDeviceId)
+                                deviceFlow.emit(DeviceSubscriptionMessage.Ring(targetDevice, pingedByDeviceName = principal.device.displayName))
+                            }
+
+                            is TrailsWebSocketAppMessage.DeviceRingStop -> {
+                                if (principal == null) continue
+                                val targetDeviceId = Uuid.parse(message.deviceId)
+                                val targetDevice = db.transaction { Device.findById(targetDeviceId) }
+                                if (targetDevice == null) continue
+                                val deviceFlow = deviceSubscriptionRepository.getFlowForDeviceSubscription(targetDeviceId)
+                                deviceFlow.emit(DeviceSubscriptionMessage.RingStop(targetDevice))
                             }
                         }
                     } catch (e: Exception) {

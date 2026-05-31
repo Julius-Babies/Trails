@@ -51,4 +51,22 @@ sealed class TrailsWebSocketAppMessage {
     @Serializable
     @SerialName("device.ring.stop")
     data object RingStop: TrailsWebSocketAppMessage()
+
+    @Serializable
+    @SerialName("device.ping.request")
+    data class DevicePing(
+        @SerialName("device_id") val deviceId: String,
+    ) : TrailsWebSocketAppMessage()
+
+    @Serializable
+    @SerialName("device.ring.request")
+    data class DeviceRing(
+        @SerialName("device_id") val deviceId: String,
+    ) : TrailsWebSocketAppMessage()
+
+    @Serializable
+    @SerialName("device.ring.stop-request")
+    data class DeviceRingStop(
+        @SerialName("device_id") val deviceId: String,
+    ) : TrailsWebSocketAppMessage()
 }

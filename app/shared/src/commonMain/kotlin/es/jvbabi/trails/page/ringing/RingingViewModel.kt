@@ -21,9 +21,22 @@ class RingingViewModel(
 
     private var timerJob: Job? = null
     private var onStop: (() -> Unit)? = null
+    private var stopped = false
+
+    init {
+        viewModelScope.launch {
+            deviceRepository.ringStopReceived.collect {
+                if (!stopped) {
+                    stopped = true
+                    _state.update { it.copy(isRinging = false) }
+                    onStop?.invoke()
+                }
+            }
+        }
+    }
 
     fun init(deviceName: String, onStop: () -> Unit) {
-        _state.update { it.copy(deviceName = deviceName) }
+        _state.update { it.copy(searchedByDeviceName = deviceName) }
         this.onStop = onStop
         startTimer()
     }
@@ -44,8 +57,11 @@ class RingingViewModel(
         when (event) {
             is RingingEvent.Stop -> {
                 deviceRepository.stopRinging()
-                _state.update { it.copy(isRinging = false) }
-                onStop?.invoke()
+                if (!stopped) {
+                    stopped = true
+                    _state.update { it.copy(isRinging = false) }
+                    onStop?.invoke()
+                }
             }
         }
     }
@@ -59,7 +75,7 @@ class RingingViewModel(
 data class RingingState(
     val isRinging: Boolean = true,
     val elapsedSeconds: Long = 0,
-    val deviceName: String = "",
+    val searchedByDeviceName: String = "",
 )
 
 sealed class RingingEvent {

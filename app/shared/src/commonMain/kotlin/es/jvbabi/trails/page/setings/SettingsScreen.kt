@@ -73,10 +73,6 @@ fun SettingsContent(
                 .verticalScroll(rememberScrollState())
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
         ) {
-            Button(onClick = { onEvent(SettingsEvent.OpenLoginDialog) }) {
-                Text("Anmelden")
-            }
-
             Button(
                 onClick = { onEvent(SettingsEvent.RequestLocationPermissions) },
                 enabled = state.hasLocationPermissions == false
@@ -97,6 +93,14 @@ fun SettingsContent(
             ) {
                 Text("Vollbildaktivitäten erlauben")
             }
+
+            Button(onClick = { onEvent(SettingsEvent.OpenLoginDialog) }) {
+                Text("Anmelden")
+            }
+
+            Text("Trails Server: ${state.currentHomeserverUrl}")
+            Text("Trails Device: ${state.thisDeviceId} ${state.thisDevice?.displayName}")
+            Text("Trails User ID: ${state.userId}")
 
             Button(
                 onClick = { onEvent(SettingsEvent.RingDevice) }

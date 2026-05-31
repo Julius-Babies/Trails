@@ -27,14 +27,14 @@ class RingService: Service() {
 
     private fun startRinging(deviceName: String) {
         causedByDeviceName = deviceName
-        setVolume(20)
+        setVolume(80)
         playRingtone()
         startForeground(30, buildCallNotification())
         startActivity(
             Intent(ACTION_SHOW_RINGING).apply {
                 `package` = packageName
                 putExtra(EXTRA_DEVICE_NAME, deviceName)
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
             }
         )
     }
@@ -70,28 +70,11 @@ class RingService: Service() {
     }
 
     private fun buildCallNotification(): Notification {
-        val stopIntent = PendingIntent.getService(
-            this, 0,
-            Intent(this, RingService::class.java).apply { action = ACTION_STOP },
-            PendingIntent.FLAG_IMMUTABLE
-        )
-        val fullScreenIntent = PendingIntent.getActivity(
-            this, 0,
-            Intent(ACTION_SHOW_RINGING).apply {
-                `package` = packageName
-                putExtra(EXTRA_DEVICE_NAME, causedByDeviceName)
-            },
-            PendingIntent.FLAG_IMMUTABLE
-        )
-
         return NotificationCompat.Builder(this, NotificationRepository.RING_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_monochrome)
-            .setContentTitle("Finding your device")
-            .setContentText("Tap to stop ringing")
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_CALL)
-            .setFullScreenIntent(fullScreenIntent, true)
-            .addAction(R.drawable.ic_launcher_foreground, "Stop", stopIntent)
+            .setContentTitle("Klingeln")
+            .setContentText(causedByDeviceName)
+            .setPriority(NotificationCompat.PRIORITY_MIN)
             .setOngoing(true)
             .build()
     }

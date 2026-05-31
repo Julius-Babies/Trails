@@ -73,4 +73,25 @@ sealed class TrailsWebSocketServerMessage {
     data class Ring(
         @SerialName("ringed_by_device_name") val ringedByDeviceName: String,
     ): TrailsWebSocketServerMessage()
+
+    @Serializable
+    @SerialName("device.ping.result")
+    data class PingResult(
+        @SerialName("device_id") val deviceId: String,
+        @SerialName("success") val success: Boolean,
+        @SerialName("has_delivered_notification") val hasDeliveredNotification: Boolean = false,
+        @SerialName("error_message") val errorMessage: String? = null,
+    ): TrailsWebSocketServerMessage()
+
+    @Serializable
+    @SerialName("device.ring.state")
+    data class RingState(
+        @SerialName("device_id") val deviceId: String,
+        @SerialName("is_ringing") val isRinging: Boolean,
+        @SerialName("ringed_by_device_name") val ringedByDeviceName: String,
+    ): TrailsWebSocketServerMessage()
+
+    @Serializable
+    @SerialName("device.ring.stop")
+    data object RingStop: TrailsWebSocketServerMessage()
 }

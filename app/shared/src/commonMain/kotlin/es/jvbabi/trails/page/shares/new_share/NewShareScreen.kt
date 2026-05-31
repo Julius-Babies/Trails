@@ -9,7 +9,6 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -64,6 +63,7 @@ import es.jvbabi.trails.page.home.bottomFadeOut
 import es.jvbabi.trails.page.home.components.PaddingValues
 import es.jvbabi.trails.page.home.components.padding
 import es.jvbabi.trails.shareUrl
+import es.jvbabi.trails.ui.components.DeviceImage
 import es.jvbabi.trails.utils.rememberBitmapFromBytes
 import es.jvbabi.trails.utils.toDp
 import org.jetbrains.compose.resources.painterResource
@@ -177,29 +177,11 @@ fun NewShareContent(
                         .padding(16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                    ) {
-                        AnimatedContent(
-                            targetState = state.image != null,
-                        ) { hasImage ->
-                            val bitmap = rememberBitmapFromBytes(state.image)
-                            if (!hasImage) Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                            ) else {
-                                Image(
-                                    bitmap = bitmap!!,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                )
-                            }
-                        }
-                    }
+                    val bitmap = rememberBitmapFromBytes(state.image)
+                    DeviceImage(
+                        bitmap = bitmap,
+                        modifier = Modifier.size(64.dp),
+                    )
 
                     Column(Modifier.weight(1f)) {
                         Text(

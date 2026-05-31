@@ -1,14 +1,10 @@
 package es.jvbabi.trails.page.devices.main.components
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -18,11 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +28,7 @@ import es.jvbabi.trails.domain.repository.Location
 import es.jvbabi.trails.page.home.HomeState
 import es.jvbabi.trails.ui.components.BatteryIcon
 import es.jvbabi.trails.ui.components.BatteryOrientation
+import es.jvbabi.trails.ui.components.DeviceImage
 import es.jvbabi.trails.utils.rememberBitmapFromBytes
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -63,40 +55,11 @@ fun DeviceCard(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-        ) {
-            var rememberedImage by remember { mutableStateOf(device.image) }
-
-            LaunchedEffect(device.image) {
-                if (device.image != null) {
-                    rememberedImage = device.image
-                }
-            }
-
-            AnimatedContent(
-                targetState = device.image != null,
-            ) { hasImage ->
-                val bitmap = rememberBitmapFromBytes(rememberedImage)
-                if (!hasImage) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                    )
-                } else {
-                    Image(
-                        bitmap = bitmap!!,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(4.dp)
-                    )
-                }
-            }
-        }
+        val bitmap = rememberBitmapFromBytes(device.image)
+        DeviceImage(
+            bitmap = bitmap,
+            modifier = Modifier.size(64.dp),
+        )
 
         Column(Modifier.weight(1f)) {
             Text(

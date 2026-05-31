@@ -27,6 +27,8 @@ class AndroidDeviceRepository : DeviceRepository, KoinComponent {
     private val context by inject<Context>()
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var onStopCallback: (() -> Unit)? = null
+    private val _ringStopReceived = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    override val ringStopReceived: SharedFlow<Unit> = _ringStopReceived.asSharedFlow()
 
     override fun getDeviceModel(): String {
         val model = Build.MODEL
@@ -138,6 +140,7 @@ class AndroidDeviceRepository : DeviceRepository, KoinComponent {
     override fun stopRinging() {
         onStopCallback?.invoke()
         onStopCallback = null
+        _ringStopReceived.tryEmit(Unit)
         val intent = Intent(context, RingService::class.java).apply {
             action = RingService.ACTION_STOP
         }

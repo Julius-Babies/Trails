@@ -95,9 +95,6 @@ fun Route.devices() {
 
                 call.respond(buildMap { put("success", true) })
             }
-
-            ping()
-            ring()
         }
     }
 }

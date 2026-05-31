@@ -46,6 +46,7 @@ sealed class DeviceSubscriptionMessage : KoinComponent {
     data class Snapshot(val snapshot: DataSnapshot) : DeviceSubscriptionMessage()
     data class Ping(val device: Device, val pingedByDeviceName: String) : DeviceSubscriptionMessage()
     data class Ring(val device: Device, val pingedByDeviceName: String) : DeviceSubscriptionMessage()
+    data class RingStop(val device: Device) : DeviceSubscriptionMessage()
 
     private val db by inject<DatabaseManager>()
     suspend fun toAppSocketMessage(
@@ -113,6 +114,11 @@ sealed class DeviceSubscriptionMessage : KoinComponent {
                 return AppSocketMessage(TrailsWebSocketServerMessage.Ring(
                     ringedByDeviceName = this.pingedByDeviceName
                 ))
+            }
+
+            is RingStop -> {
+                if (principal?.device?.id?.value != this.device.id.value) return null
+                return AppSocketMessage(TrailsWebSocketServerMessage.RingStop)
             }
         }
     }

@@ -12,8 +12,6 @@ import es.jvbabi.trails.domain.model.Snapshot
 import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.shared.dto.DeviceResponse
 import es.jvbabi.trails.shared.dto.MeResponse
-import es.jvbabi.trails.shared.dto.PingDeviceResponse
-import es.jvbabi.trails.shared.dto.RingDeviceResponse
 import es.jvbabi.trails.shared.dto.SessionHealthResponse
 import es.jvbabi.trails.shared.dto.UseShareLinkRequest
 import es.jvbabi.trails.shared.dto.UseShareLinkResponse
@@ -22,7 +20,6 @@ import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketServerMessage
 import es.jvbabi.trails.utils.NetworkRequestUnsuccessfulException
 import io.ktor.client.*
 import io.ktor.client.call.*
-import io.ktor.client.plugins.sse.sse
 import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -35,8 +32,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.serializer
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -95,6 +90,19 @@ class TrailsServerRepositoryImpl(
 
     override val isDeviceDeletedState: StateFlow<IsDeviceDeletedState>
         field = MutableStateFlow<IsDeviceDeletedState>(IsDeviceDeletedState.Unset)
+
+    override val ringStates: StateFlow<Map<Uuid, RingDeviceState>>
+        field = MutableStateFlow<Map<Uuid, RingDeviceState>>(emptyMap())
+
+    val pendingPingResults = mutableMapOf<Uuid, CompletableDeferred<PingResult>>()
+
+    fun updateRingState(deviceId: Uuid, state: RingDeviceState) {
+        ringStates.value = ringStates.value + (deviceId to state)
+    }
+
+    fun removeRingState(deviceId: Uuid) {
+        ringStates.value = ringStates.value - deviceId
+    }
 
     fun setDeviceDeletedState(state: IsDeviceDeletedState) {
         isDeviceDeletedState.value = state
@@ -390,53 +398,29 @@ class TrailsServerRepositoryImpl(
         response.bodyAsChannel().copyAndClose(sink.asByteWriteChannel())
     }
 
-    override suspend fun pingDevice(device: Device): PingResult {
-        val token = getToken().first() ?: throw IllegalStateException("Token not set")
-        val url = URLBuilder("https://${device.owner.homeserver}").apply {
-            appendPathSegments("api", "v1", "devices", device.id.toString(), "ping")
-        }
+    override suspend fun requestPing(device: Device): PingResult {
+        val deferred = CompletableDeferred<PingResult>()
+        pendingPingResults[device.id] = deferred
+        val session = websocketSession
+        if (session == null || !session.isActive) return PingResult.Error("WebSocket not connected")
+        session.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.DevicePing(device.id.toString()))
+        val result = withTimeoutOrNull(10.seconds) { deferred.await() }
+        pendingPingResults.remove(device.id)
+        return result ?: PingResult.Timeout
+    }
 
-        val response = httpClient.post(url.buildString()) {
-            bearerAuth(token)
-        }
-
-        return when (val body = response.body<PingDeviceResponse>()) {
-            is PingDeviceResponse.Success -> PingResult.Pinged(body.hasDeliveredNotification)
-            is PingDeviceResponse.Forbidden -> PingResult.NotAllowed
-            is PingDeviceResponse.Timeout -> PingResult.Timeout
-            is PingDeviceResponse.Error -> PingResult.Error(body.message)
+    override fun requestRing(device: Device) {
+        scope.launch {
+            val session = websocketSession ?: return@launch
+            session.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.DeviceRing(device.id.toString()))
         }
     }
 
-    override suspend fun ringDevice(device: Device): RingResult {
-        val token = getToken().first() ?: throw IllegalStateException("Token not set")
-        val url = URLBuilder("https://${device.owner.homeserver}").apply {
-            appendPathSegments("api", "v1", "devices", device.id.toString(), "ring")
+    override fun requestStopRing(device: Device) {
+        scope.launch {
+            val session = websocketSession ?: return@launch
+            session.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.DeviceRingStop(device.id.toString()))
         }
-
-        val result = CompletableDeferred<RingResult>()
-
-        httpClient.sse(urlString = url.buildString(), request = {
-            bearerAuth(token)
-        }) {
-            val first = incoming.first()
-            val message = Json.decodeFromString<RingDeviceResponse>(first.data!!)
-
-            when (message) {
-                is RingDeviceResponse.Success -> {
-                    val ringFlow = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
-                    ringFlow.tryEmit(true)
-                    result.complete(RingResult.Ringed(ringFlow.asSharedFlow()))
-                    incoming.collect { }
-                    ringFlow.tryEmit(false)
-                }
-                is RingDeviceResponse.Forbidden -> result.complete(RingResult.NotAllowed)
-                is RingDeviceResponse.Timeout -> result.complete(RingResult.Timeout)
-                is RingDeviceResponse.Error -> result.complete(RingResult.Error(message.message))
-            }
-        }
-
-        return result.await()
     }
 
     override suspend fun useShareLink(hostname: String, id: String): UseShareLinkResult {
@@ -718,9 +702,32 @@ private abstract class WebSocketClientBase(
                     is TrailsWebSocketServerMessage.Ring -> {
                         deviceRepository.startRinging(
                             causedByDeviceName = message.ringedByDeviceName,
-                            onStop = { scope.launch { session.sendSerialized(TrailsWebSocketAppMessage.RingStop) } }
+                            onStop = { scope.launch { session.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.RingStop) } }
                         )
-                        session.sendSerialized(TrailsWebSocketAppMessage.RingStart)
+                        session.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.RingStart)
+                    }
+
+                    is TrailsWebSocketServerMessage.RingStop -> {
+                        deviceRepository.stopRinging()
+                    }
+
+                    is TrailsWebSocketServerMessage.RingState -> {
+                        val deviceId = runCatching { Uuid.parse(message.deviceId) }.getOrNull() ?: continue
+                        if (message.isRinging) {
+                            trailsServerRepositoryImpl.updateRingState(deviceId, RingDeviceState(isRinging = true, ringedByDeviceName = message.ringedByDeviceName))
+                        } else {
+                            trailsServerRepositoryImpl.removeRingState(deviceId)
+                        }
+                    }
+
+                    is TrailsWebSocketServerMessage.PingResult -> {
+                        val targetDeviceId = runCatching { Uuid.parse(message.deviceId) }.getOrNull() ?: continue
+                        val deferred = trailsServerRepositoryImpl.pendingPingResults[targetDeviceId] ?: continue
+                        if (message.success) {
+                            deferred.complete(PingResult.Pinged(message.hasDeliveredNotification))
+                        } else {
+                            deferred.complete(PingResult.Error(message.errorMessage ?: "Unknown error"))
+                        }
                     }
 
                     is TrailsWebSocketServerMessage.DeviceUpdated -> {

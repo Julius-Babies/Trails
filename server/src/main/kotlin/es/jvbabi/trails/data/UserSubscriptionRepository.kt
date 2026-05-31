@@ -32,6 +32,11 @@ class UserSubscriptionRepository: KoinComponent {
 sealed class UserSubscriptionMessage: KoinComponent {
     data class DeviceUpdated(val device: Device): UserSubscriptionMessage()
     data class DeviceDeleted(val deletion: DeviceDeletion): UserSubscriptionMessage()
+    data class RingState(
+        val deviceId: Uuid,
+        val isRinging: Boolean,
+        val ringedByDeviceName: String,
+    ): UserSubscriptionMessage()
 
     private val db by inject<DatabaseManager>()
     suspend fun toAppSocketMessage(
@@ -56,6 +61,13 @@ sealed class UserSubscriptionMessage: KoinComponent {
                 return AppSocketMessage(TrailsWebSocketServerMessage.DeviceDeleted(
                     deletedByDeviceName = db.transaction { deletion.deletedBy.device.displayName },
                     deviceId = db.transaction { deletion.device.id.value.toString() },
+                ))
+            }
+            is RingState -> {
+                return AppSocketMessage(TrailsWebSocketServerMessage.RingState(
+                    deviceId = this.deviceId.toString(),
+                    isRinging = this.isRinging,
+                    ringedByDeviceName = this.ringedByDeviceName,
                 ))
             }
         }

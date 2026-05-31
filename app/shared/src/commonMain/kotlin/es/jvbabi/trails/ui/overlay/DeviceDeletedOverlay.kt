@@ -2,8 +2,6 @@
 
 package es.jvbabi.trails.ui.overlay
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -18,6 +16,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import es.jvbabi.trails.ui.components.DeviceImage
 import es.jvbabi.trails.ThemeWrapper
 import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.model.User
@@ -26,7 +25,6 @@ import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import trails.app.shared.generated.resources.Res
 import trails.app.shared.generated.resources.move_right
-import trails.app.shared.generated.resources.smartphone
 import trails.app.shared.generated.resources.trash_2
 import kotlin.uuid.Uuid
 
@@ -79,35 +77,13 @@ fun DeviceDeletedContent(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(108.dp)
-                    .clip(MaterialShapes.Cookie12Sided.toShape())
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center,
-            ) {
-                AnimatedContent(
-                    targetState = state.image != null,
-                ) { hasImage ->
-                    val bitmap = rememberBitmapFromBytes(state.image)
-                    if (!hasImage) {
-                        Icon(
-                            painter = painterResource(Res.drawable.smartphone),
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    } else {
-                        Image(
-                            bitmap = bitmap!!,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(24.dp)
-                        )
-                    }
-                }
-            }
+            val bitmap = rememberBitmapFromBytes(state.image)
+            DeviceImage(
+                bitmap = bitmap,
+                modifier = Modifier.size(108.dp),
+                shape = MaterialShapes.Cookie12Sided.toShape(),
+                backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+            )
 
             Icon(
                 painter = painterResource(Res.drawable.move_right),

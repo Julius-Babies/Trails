@@ -6,7 +6,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -30,16 +29,12 @@ import es.jvbabi.trails.page.devices.Screen
 import es.jvbabi.trails.page.home.components.PaddingValues
 import es.jvbabi.trails.page.home.components.padding
 import es.jvbabi.trails.ui.components.ConfigureTopBar
+import es.jvbabi.trails.ui.components.DeviceImage
 import es.jvbabi.trails.ui.components.LocalHazeState
 import es.jvbabi.trails.utils.rememberBitmapFromBytes
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
-import trails.app.shared.generated.resources.Res
-import trails.app.shared.generated.resources.arrow_left
-import trails.app.shared.generated.resources.bell_ring
-import trails.app.shared.generated.resources.smartphone
-import trails.app.shared.generated.resources.smartphone_nfc
-import trails.app.shared.generated.resources.trash_2
+import trails.app.shared.generated.resources.*
 import kotlin.uuid.Uuid
 
 @Composable
@@ -219,37 +214,17 @@ fun DeviceContent(
                 Box(
                     modifier = Modifier.weight(1f)
                 ) {
-                    Box(
+                    val bitmap = rememberBitmapFromBytes(state.image)
+                    DeviceImage(
+                        bitmap = bitmap,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp)
-                            .aspectRatio(1f)
-                            .clip(MaterialShapes.Cookie12Sided.toShape())
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        AnimatedContent(
-                            targetState = state.image != null,
-                        ) { hasImage ->
-                            val bitmap = rememberBitmapFromBytes(state.image)
-                            if (!hasImage || bitmap == null) {
-                                Icon(
-                                    painter = painterResource(Res.drawable.smartphone),
-                                    contentDescription = null,
-                                    modifier = Modifier.size(48.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            } else {
-                                Image(
-                                    bitmap = bitmap,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(32.dp)
-                                )
-                            }
-                        }
-                    }
+                            .aspectRatio(1f),
+                        shape = MaterialShapes.Cookie12Sided.toShape(),
+                        imageFillFraction = .55f,
+                        backgroundColor = MaterialTheme.colorScheme.surfaceVariant,
+                    )
                 }
 
                 Box(Modifier.weight(1f)) {
@@ -276,27 +251,43 @@ fun DeviceContent(
                             }
                         }
 
-                        if (state.ringState != null && state.ringState != DeviceState.RingState.Disabled) Button(
-                            onClick = { onEvent(DeviceEvent.Ring) }
-                        ) {
-                            AnimatedContent(
-                                targetState = state.ringState == DeviceState.RingState.Loading,
-                            ) { isLoading ->
-                                if (isLoading) LoadingIndicator(Modifier.size(16.dp))
-                                else Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        if (state.ringState != null && state.ringState != DeviceState.RingState.Disabled) {
+                            if (state.ringState == DeviceState.RingState.Ringing) {
+                                Button(
+                                    onClick = { onEvent(DeviceEvent.StopRing) },
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
                                 ) {
-                                    Icon(
-                                        painter = painterResource(Res.drawable.smartphone_nfc),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(Res.drawable.smartphone_nfc),
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                        Text("Klingeln beenden")
+                                    }
+                                }
+                            } else {
+                                Button(
+                                    onClick = { onEvent(DeviceEvent.Ring) }
+                                ) {
                                     AnimatedContent(
-                                        targetState = state.ringState == DeviceState.RingState.Ringing,
-                                    ) { isRinging ->
-                                        if (isRinging) Text("Es klingelt...")
-                                        else Text("Anklingeln")
+                                        targetState = state.ringState == DeviceState.RingState.Loading,
+                                    ) { isLoading ->
+                                        if (isLoading) LoadingIndicator(Modifier.size(16.dp))
+                                        else Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(Res.drawable.smartphone_nfc),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(16.dp),
+                                            )
+                                            Text("Anklingeln")
+                                        }
                                     }
                                 }
                             }

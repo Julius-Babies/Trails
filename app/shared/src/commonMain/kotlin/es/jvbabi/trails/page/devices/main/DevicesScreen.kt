@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
+import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import es.jvbabi.trails.ThemeWrapper
 import es.jvbabi.trails.domain.model.Device
@@ -68,20 +69,20 @@ fun DevicesTab(
                 Box(Modifier.fillMaxSize()) {
                     NavDisplay(
                         modifier = Modifier.fillMaxSize(),
-                        backStack = backstack,
+                        backStack = backstack.ifEmpty { listOf(Screen.Main) },
                         onBack = { backstack.removeLastOrNull() },
                         transitionSpec = {
                             val animSpec = tween<IntOffset>(durationMillis = 380, easing = FastOutSlowInEasing)
                             slideInHorizontally(animSpec) { it } togetherWith
-                                    slideOutHorizontally(animSpec) { -it / 2 }
+                                    slideOutHorizontally(animSpec) { -it / 5 }
                         },
                         popTransitionSpec = {
                             val animSpec = tween<IntOffset>(durationMillis = 380, easing = FastOutSlowInEasing)
-                            slideInHorizontally(animSpec) { -it / 2 } togetherWith
+                            slideInHorizontally(animSpec) { -it / 5 } togetherWith
                                     slideOutHorizontally(animSpec) { it }
                         },
                         predictivePopTransitionSpec = {
-                            slideInHorizontally { -it / 2 } togetherWith slideOutHorizontally { it }
+                            slideInHorizontally { -it / 4 } togetherWith slideOutHorizontally { it }
                         },
                         entryProvider = { key ->
                             return@NavDisplay when (key) {
@@ -151,20 +152,17 @@ fun DevicesContent(
 
     var showConnectionEventsForServer by rememberSaveable { mutableStateOf<String?>(null) }
 
-    Box(Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.surface)
+            .hazeSource(LocalHazeState.current)
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(contentPadding.copy(bottom = 0.dp))
         ) {
-            Text(
-                text = "Geräte",
-                style = MaterialTheme.typography.headlineLarge,
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 16.dp)
-            )
-
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -178,7 +176,7 @@ fun DevicesContent(
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
-                            .padding(bottom = 4.dp)
+                            .padding(bottom = 4.dp, top = 24.dp)
                     )
 
                     state.myDevices.forEach { myDevice ->

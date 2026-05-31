@@ -10,7 +10,6 @@ import es.jvbabi.trails.domain.repository.DevicesRepository
 import es.jvbabi.trails.domain.repository.FileRepository
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.PingResult
-import es.jvbabi.trails.domain.repository.RingResult
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
 import es.jvbabi.trails.domain.repository.UiRepository
 import es.jvbabi.trails.domain.repository.UserRepository
@@ -94,6 +93,22 @@ class DeviceViewModel(
                     ) }
                 }
         }
+
+        viewModelScope.launch {
+            trailsServerRepository.ringStates
+                .combine(deviceId.filterNotNull()) { states, id ->
+                    states[id]
+                }
+                .collectLatest { deviceRingState ->
+                    state.update { it.copy(
+                        ringState = when {
+                            deviceRingState?.isRinging == true -> DeviceState.RingState.Ringing
+                            it.ringState == DeviceState.RingState.Ringing -> DeviceState.RingState.Ready
+                            else -> it.ringState
+                        }
+                    ) }
+                }
+        }
     }
 
     fun onEvent(event: DeviceEvent) {
@@ -115,7 +130,7 @@ class DeviceViewModel(
                 viewModelScope.launch {
                     state.update { it.copy(pingState = DeviceState.PingState.Loading) }
                     try {
-                        when (val result = trailsServerRepository.pingDevice(state.value.device!!.device)) {
+                        when (val result = trailsServerRepository.requestPing(state.value.device!!.device)) {
                             is PingResult.Pinged -> {
                                 uiRepository.sendSnackbar(when (result.hasDeliveredNotification) {
                                     true -> "Das Gerät wurde gefunden."
@@ -144,34 +159,11 @@ class DeviceViewModel(
             }
 
             is DeviceEvent.Ring -> {
-                viewModelScope.launch {
-                    state.update { it.copy(ringState = DeviceState.RingState.Loading) }
-                    try {
-                        when (val result = trailsServerRepository.ringDevice(state.value.device!!.device)) {
-                            is RingResult.Ringed -> {
-                                result.flow.first { it }
-                                state.update { it.copy(ringState = DeviceState.RingState.Ringing) }
-                                result.flow.first { !it }
-                                state.update { it.copy(ringState = DeviceState.RingState.Ready) }
-                            }
-                            RingResult.NotAllowed -> {
-                                uiRepository.sendSnackbar("Du darfst dieses Gerät nicht anklingeln.", autoDismiss = 5.seconds)
-                                state.update { it.copy(ringState = DeviceState.RingState.Disabled) }
-                            }
-                            RingResult.Timeout -> {
-                                uiRepository.sendSnackbar("Das Gerät antwortet nicht.", autoDismiss = 5.seconds)
-                                state.update { it.copy(ringState = DeviceState.RingState.Ready) }
-                            }
-                            is RingResult.Error -> {
-                                uiRepository.sendSnackbar("Ein Fehler ist aufgetreten: ${result.errorMessage}", autoDismiss = 5.seconds)
-                                state.update { it.copy(ringState = DeviceState.RingState.Ready) }
-                            }
-                        }
-                    } catch (e: Exception) {
-                        uiRepository.sendSnackbar("Ein Fehler ist aufgetreten: ${e.message}", autoDismiss = 5.seconds)
-                        state.update { it.copy(pingState = DeviceState.PingState.Ready) }
-                    }
-                }
+                trailsServerRepository.requestRing(state.value.device!!.device)
+            }
+
+            is DeviceEvent.StopRing -> {
+                trailsServerRepository.requestStopRing(state.value.device!!.device)
             }
         }
     }
@@ -210,4 +202,5 @@ sealed class DeviceEvent {
     data object Delete: DeviceEvent()
     data object Ping: DeviceEvent()
     data object Ring: DeviceEvent()
+    data object StopRing: DeviceEvent()
 }

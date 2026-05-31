@@ -10,8 +10,11 @@ import dev.icerock.moko.permissions.PermissionsController
 import dev.icerock.moko.permissions.location.BACKGROUND_LOCATION
 import dev.icerock.moko.permissions.location.LOCATION
 import dev.icerock.moko.permissions.notifications.REMOTE_NOTIFICATION
+import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.repository.BackgroundServiceRepository
 import es.jvbabi.trails.domain.repository.DeviceRepository
+import es.jvbabi.trails.domain.repository.DevicesRepository
+import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.usecase.SetupNotificationsUseCase
 import es.jvbabi.trails.openUrl
 import io.ktor.http.URLBuilder
@@ -20,17 +23,22 @@ import io.ktor.http.appendPathSegments
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
+import kotlin.uuid.Uuid
 
 class SettingsViewModel(
     private val deviceRepository: DeviceRepository,
-    private val permissionsController: PermissionsController,
+    private val keyValueRepository: KeyValueRepository,
+    private val devicesRepository: DevicesRepository,
     private val backgroundServiceRepository: BackgroundServiceRepository,
     private val setupNotificationsUseCase: SetupNotificationsUseCase,
-): ViewModel() {
+    private val permissionsController: PermissionsController,
+) : ViewModel() {
 
     val state: StateFlow<SettingsState>
         field = MutableStateFlow(SettingsState())
@@ -56,6 +64,31 @@ class SettingsViewModel(
         }
 
         viewModelScope.launch {
+            keyValueRepository.get("trails.userId").collect { userId ->
+                state.update { it.copy(userId = userId?.let { Uuid.parse(it) }) }
+            }
+        }
+
+        viewModelScope.launch {
+            keyValueRepository.get("trails.host").collect { homeserver ->
+                state.update { it.copy(currentHomeserverUrl = homeserver) }
+            }
+        }
+
+        viewModelScope.launch {
+            keyValueRepository.get("trails.thisDeviceId")
+                .map { it?.let(Uuid::parse) }
+                .collectLatest { deviceId ->
+                    state.update { it.copy(thisDeviceId = deviceId) }
+                    if (deviceId != null) devicesRepository.getDeviceById(deviceId).collectLatest { device ->
+                        state.update { it.copy(thisDevice = device) }
+                    } else {
+                        state.update { it.copy(thisDevice = null) }
+                    }
+                }
+        }
+
+        viewModelScope.launch {
             backgroundServiceRepository.isRunning().collect { isRunning ->
                 state.update { it.copy(isBackgroundTrackingServiceRunning = isRunning) }
             }
@@ -70,7 +103,8 @@ class SettingsViewModel(
             is SettingsEvent.Login -> {
                 state.update { it.copy(showLoginDialog = false) }
                 val url = URLBuilder(state.value.homeServerUrl).apply {
-                    if (!state.value.homeServerUrl.startsWith("http://") && !state.value.homeServerUrl.startsWith("https://")) protocol = URLProtocol.HTTPS
+                    if (!state.value.homeServerUrl.startsWith("http://") && !state.value.homeServerUrl.startsWith("https://")) protocol =
+                        URLProtocol.HTTPS
                     appendPathSegments("api", "v1", "auth", "app-authorization")
                     parameters.append("device_manufacturer", deviceRepository.getManufacturer())
                     parameters.append("device_model", deviceRepository.getDeviceModel())
@@ -78,6 +112,7 @@ class SettingsViewModel(
 
                 openUrl(url)
             }
+
             is SettingsEvent.RequestLocationPermissions -> {
                 viewModelScope.launch {
                     try {
@@ -95,6 +130,7 @@ class SettingsViewModel(
                     }
                 }
             }
+
             is SettingsEvent.RequestNotificationPermissions -> {
                 viewModelScope.launch {
                     try {
@@ -106,6 +142,7 @@ class SettingsViewModel(
                     }
                 }
             }
+
             is SettingsEvent.RequestFullscreenIntentPermissions -> deviceRepository.requestFullScreenIntentPermissions()
             is SettingsEvent.StartTracking -> viewModelScope.launch { backgroundServiceRepository.startService() }
             is SettingsEvent.StopTracking -> backgroundServiceRepository.stopService()
@@ -121,17 +158,21 @@ data class SettingsState(
     val hasNotificationPermissions: Boolean? = null,
     val hasFullscreenIntentPermissions: Boolean? = null,
     val isBackgroundTrackingServiceRunning: Boolean = false,
+    val currentHomeserverUrl: String? = null,
+    val userId: Uuid? = null,
+    val thisDeviceId: Uuid? = null,
+    val thisDevice: Device? = null,
 )
 
 sealed class SettingsEvent {
-    data object OpenLoginDialog: SettingsEvent()
-    data object CloseLoginDialog: SettingsEvent()
-    data object Login: SettingsEvent()
-    data class UpdateHomeServerUrl(val url: String): SettingsEvent()
-    data object RequestLocationPermissions: SettingsEvent()
-    data object RequestNotificationPermissions: SettingsEvent()
-    data object RequestFullscreenIntentPermissions: SettingsEvent()
-    data object StartTracking: SettingsEvent()
-    data object StopTracking: SettingsEvent()
-    data object RingDevice: SettingsEvent()
+    data object OpenLoginDialog : SettingsEvent()
+    data object CloseLoginDialog : SettingsEvent()
+    data object Login : SettingsEvent()
+    data class UpdateHomeServerUrl(val url: String) : SettingsEvent()
+    data object RequestLocationPermissions : SettingsEvent()
+    data object RequestNotificationPermissions : SettingsEvent()
+    data object RequestFullscreenIntentPermissions : SettingsEvent()
+    data object StartTracking : SettingsEvent()
+    data object StopTracking : SettingsEvent()
+    data object RingDevice : SettingsEvent()
 }
