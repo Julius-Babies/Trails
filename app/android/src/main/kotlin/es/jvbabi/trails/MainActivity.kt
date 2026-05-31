@@ -59,7 +59,7 @@ class MainActivity : ComponentActivity(), KoinComponent {
             single(named(KOIN_ACTIVITY_CONTEXT)) { this@MainActivity as Context }
         })
 
-        onNewIntent(intent)
+        this.onNewIntent(intent)
 
         MapboxOptions.accessToken = BuildConfig.MAPBOX_API_KEY
 
@@ -100,8 +100,8 @@ class MainActivity : ComponentActivity(), KoinComponent {
         isVisible.value = false
     }
 
-    override fun onNewIntent(intent: Intent, caller: ComponentCaller) {
-        super.onNewIntent(intent, caller)
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
         permissionsController.bind(this)
 
         val action = intent.action
