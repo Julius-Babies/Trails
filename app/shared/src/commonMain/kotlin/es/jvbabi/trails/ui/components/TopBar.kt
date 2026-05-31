@@ -22,6 +22,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.max
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.blurEffect
 import dev.chrisbanes.haze.blur.materials.HazeMaterials
@@ -50,15 +51,12 @@ fun TopBar(
             content?.invoke()
         }
 
-        val titleStartPadding by animateDpAsState(
-            targetValue = if (state.config.navigationIcon != null) 48.dp else 8.dp,
-            label = "Title start padding",
-            animationSpec = spring()
-        )
+        val titleStartPaddingTarget = if (state.config.navigationIcon != null) 48.dp else 8.dp
+        val titleEndPaddingTarget = actionsWidth.coerceAtLeast(8.dp)
 
-        val titleEndPadding by animateDpAsState(
-            targetValue = actionsWidth.coerceAtLeast(8.dp),
-            label = "Title end padding",
+        val titleHorizontalPadding by animateDpAsState(
+            targetValue = max(titleStartPaddingTarget, titleEndPaddingTarget),
+            label = "Title horizontal padding",
             animationSpec = spring()
         )
 
@@ -71,7 +69,7 @@ fun TopBar(
             val hazeStyle = HazeMaterials.thin()
             Column(
                 modifier = Modifier
-                    .padding(start = titleStartPadding, end = titleEndPadding)
+                    .padding(horizontal = titleHorizontalPadding)
                     .clip(RoundedCornerShape(50))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .4f))
                     .hazeEffect(LocalHazeState.current) {

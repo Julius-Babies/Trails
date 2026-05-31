@@ -85,6 +85,7 @@ kotlin {
             api(libs.app.moko.permissions.core)
             api(libs.app.moko.permissions.compose)
             implementation(libs.app.moko.permissions.location)
+            implementation(libs.app.moko.permissions.notifications)
 
             api(libs.app.kermit)
 

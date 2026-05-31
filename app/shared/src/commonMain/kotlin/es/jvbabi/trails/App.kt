@@ -1,25 +1,46 @@
 package es.jvbabi.trails
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeContent
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewWrapperProvider
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import es.jvbabi.trails.domain.repository.UiRepository
 import es.jvbabi.trails.page.Screen
 import es.jvbabi.trails.page.home.HomeScreen
+import es.jvbabi.trails.page.home.components.padding
 import es.jvbabi.trails.page.setings.SettingsScreen
 import es.jvbabi.trails.ui.components.LocalHazeState
+import es.jvbabi.trails.ui.components.Snackbar
 import es.jvbabi.trails.ui.overlay.DeviceDeletedOverlay
 import es.jvbabi.trails.ui.theme.AppTheme
+import org.koin.compose.koinInject
 
 expect fun openUrl(url: String)
 expect fun shareUrl(url: String, title: String?)
@@ -43,6 +64,10 @@ fun App(
 
         DeviceDeletedOverlay()
 
+        val uiRepository = koinInject<UiRepository>()
+
+        val currentSnackbar = uiRepository.currentSnackbar.collectAsStateWithLifecycle().value
+
         NavDisplay(
             backStack = backstack,
             onBack = { backstack.removeLastOrNull() },
@@ -62,6 +87,25 @@ fun App(
                 }
             }
         )
+
+        AnimatedContent(
+            targetState = currentSnackbar,
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 8.dp + WindowInsets.safeContent.asPaddingValues().calculateBottomPadding())
+                .fillMaxWidth()
+                .align(Alignment.BottomCenter),
+            transitionSpec = {
+                scaleIn() + slideInVertically { -it/2 } + fadeIn() togetherWith scaleOut() + slideOutVertically { -it/2 } + fadeOut()
+            }
+        ) { currentSnackbar ->
+            if (currentSnackbar != null) {
+                Snackbar(
+                    modifier = Modifier.fillMaxWidth(),
+                    snackbar = currentSnackbar
+                )
+            }
+        }
     }
 }
 

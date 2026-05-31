@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/android/Trails.app.android.main.iml" filepath="$PROJECT_DIR$/.idea/modules/app/android/Trails.app.android.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/app/shared/Trails.app.shared.androidMain.iml" filepath="$PROJECT_DIR$/.idea/modules/app/shared/Trails.app.shared.androidMain.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/Trails2.iml" filepath="$PROJECT_DIR$/.idea/Trails2.iml" />
     </modules>
   </component>

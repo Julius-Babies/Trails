@@ -75,7 +75,7 @@ fun DevicesTab(
     CompositionLocalProvider(LocalHazeState provides hazeState) {
         CompositionLocalProvider(LocalTopBar provides topBarState) {
             key(contentPadding) {
-                Box(Modifier.fillMaxSize().hazeSource(hazeState)) {
+                Box(Modifier.fillMaxSize()) {
                     NavDisplay(
                         modifier = Modifier.fillMaxSize(),
                         backStack = backstack,
@@ -108,6 +108,7 @@ fun DevicesTab(
                                         contentPadding = contentPadding,
                                         deviceId = key.deviceId,
                                         backstack = backstack,
+                                        nestedScrollConnection = nestedScrollConnection,
                                     )
                                 }
                             }

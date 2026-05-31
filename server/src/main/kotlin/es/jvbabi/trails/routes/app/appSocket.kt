@@ -11,6 +11,8 @@ import es.jvbabi.trails.data.UserSubscriptionRepository
 import es.jvbabi.trails.database.ActiveShare
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.Device
+import es.jvbabi.trails.routes.devices.PingResult
+import es.jvbabi.trails.routes.devices.pendingPings
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketAppMessage
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketServerMessage
 import io.ktor.serialization.*
@@ -63,10 +65,8 @@ fun Route.app() {
 
                 shareSubscriptionRtUpdaters[shareId] = launch {
                     deviceSubscriptionRepository.getFlowForDeviceSubscription(device.id.value)
-                        .mapNotNull { 
-                            if (it is DeviceSubscriptionMessage.Snapshot && !emitRtUpdates.value) null 
-                            else it.toAppSocketMessage(null, share) 
-                        }
+                        .mapNotNull { it.toAppSocketMessage(null, share) }
+                        .filterNot { it.message is TrailsWebSocketServerMessage.Snapshot && !emitRtUpdates.value }
                         .onEach { message ->
                             sendSerialized<TrailsWebSocketServerMessage>(message.message)
                         }
@@ -87,10 +87,8 @@ fun Route.app() {
 
                 ownDeviceSubscriptionRtUpdaters[device.id.value] = launch {
                     deviceSubscriptionRepository.getFlowForDeviceSubscription(device.id.value)
-                        .mapNotNull { 
-                            if (it is DeviceSubscriptionMessage.Snapshot && !emitRtUpdates.value) null 
-                            else it.toAppSocketMessage(principal, null) 
-                        }
+                        .mapNotNull { it.toAppSocketMessage(principal, null) }
+                        .filterNot { it.message is TrailsWebSocketServerMessage.Snapshot && !emitRtUpdates.value }
                         .onEach { message ->
                             sendSerialized<TrailsWebSocketServerMessage>(message.message)
                         }
@@ -105,6 +103,10 @@ fun Route.app() {
                 ownDevices.forEach { startOwnDeviceSubscription(it.id.value) }
             }
 
+            launch(CoroutineName("SharesRtUpdates")) {
+                subscribedShares.forEach { startShareSubscription(it) }
+            }
+
             launch(CoroutineName("ThisUserEvents")) {
                 if (principal == null) return@launch
                 userSubscriptionRepository.getFlowForUser(principal.user.id.value)
@@ -114,7 +116,7 @@ fun Route.app() {
                                 startOwnDeviceSubscription(message.device.id.value)
                             }
                             is UserSubscriptionMessage.DeviceDeleted -> {
-                                val deviceId = db.transaction<ActiveShareId> { message.deletion.device.id.value }
+                                val deviceId = db.transaction { message.deletion.device.id.value }
                                 ownDeviceSubscriptionRtUpdaters[deviceId]?.cancel()
                                 ownDeviceSubscriptionRtUpdaters.remove(deviceId)
                             }
@@ -124,24 +126,6 @@ fun Route.app() {
                     .onEach { this@webSocket.sendSerialized(it.message) }
                     .takeWhile { !it.closeConnectionAfterSending && this@webSocket.isActive }
                     .collect()
-            }
-
-            launch(CoroutineName("RtUpdates")) {
-                emitRtUpdates
-                    .collectLatest { emitRtUpdates ->
-                        if (!emitRtUpdates) return@collectLatest
-
-                        coroutineScope {
-                            launch(CoroutineName("SharesRtUpdates")) {
-                                subscribedShares.forEach { startShareSubscription(it) }
-                            }
-
-                            if (principal != null) launch(CoroutineName("OwnDeviceRtUpdates")) {
-                                val ownDevices = db.transaction { principal.user.devices.toList().filter { it.deletion == null} }
-                                ownDevices.forEach { startOwnDeviceSubscription(it.id.value) }
-                            }
-                        }
-                    }
             }
 
             for (frame in incoming) {
@@ -216,6 +200,12 @@ fun Route.app() {
 
                             is TrailsWebSocketAppMessage.StartRtUpdates -> emitRtUpdates.value = true
                             is TrailsWebSocketAppMessage.StopRtUpdates -> emitRtUpdates.value = false
+
+                            is TrailsWebSocketAppMessage.Pong -> {
+                                if (principal == null) continue
+                                val deferred = pendingPings[principal.device.id.value] ?: continue
+                                deferred.complete(PingResult(message.hasDeliveredNotification))
+                            }
                         }
                     } catch (e: Exception) {
                         appSocketLogger.error("""WebSocket message could not be handled:

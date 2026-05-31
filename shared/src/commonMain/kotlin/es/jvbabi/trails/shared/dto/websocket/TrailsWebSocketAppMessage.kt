@@ -37,4 +37,10 @@ sealed class TrailsWebSocketAppMessage {
     @Serializable
     @SerialName("lifecycle.stop-rt-updates")
     data object StopRtUpdates : TrailsWebSocketAppMessage()
+
+    @Serializable
+    @SerialName("device.pong")
+    data class Pong(
+        @SerialName("has_delivered_notification") val hasDeliveredNotification: Boolean,
+    ): TrailsWebSocketAppMessage()
 }

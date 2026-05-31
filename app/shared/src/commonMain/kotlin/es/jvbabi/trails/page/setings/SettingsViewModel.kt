@@ -9,21 +9,27 @@ import dev.icerock.moko.permissions.PermissionState
 import dev.icerock.moko.permissions.PermissionsController
 import dev.icerock.moko.permissions.location.BACKGROUND_LOCATION
 import dev.icerock.moko.permissions.location.LOCATION
+import dev.icerock.moko.permissions.notifications.REMOTE_NOTIFICATION
 import es.jvbabi.trails.domain.repository.BackgroundServiceRepository
 import es.jvbabi.trails.domain.repository.DeviceRepository
+import es.jvbabi.trails.domain.usecase.SetupNotificationsUseCase
 import es.jvbabi.trails.openUrl
 import io.ktor.http.URLBuilder
 import io.ktor.http.URLProtocol
 import io.ktor.http.appendPathSegments
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.seconds
 
 class SettingsViewModel(
     private val deviceRepository: DeviceRepository,
     private val permissionsController: PermissionsController,
     private val backgroundServiceRepository: BackgroundServiceRepository,
+    private val setupNotificationsUseCase: SetupNotificationsUseCase,
 ): ViewModel() {
 
     val state: StateFlow<SettingsState>
@@ -31,11 +37,15 @@ class SettingsViewModel(
 
     init {
         viewModelScope.launch {
-            state.update {
-                it.copy(
-                    hasLocationPermissions = permissionsController.getPermissionState(Permission.LOCATION) == PermissionState.Granted &&
-                            permissionsController.getPermissionState(Permission.BACKGROUND_LOCATION) == PermissionState.Granted
-                )
+            while (isActive) {
+                state.update {
+                    it.copy(
+                        hasLocationPermissions = permissionsController.getPermissionState(Permission.LOCATION) == PermissionState.Granted &&
+                                permissionsController.getPermissionState(Permission.BACKGROUND_LOCATION) == PermissionState.Granted,
+                        hasNotificationPermissions = permissionsController.getPermissionState(Permission.REMOTE_NOTIFICATION) == PermissionState.Granted,
+                    )
+                }
+                delay(1.seconds)
             }
         }
 
@@ -79,6 +89,17 @@ class SettingsViewModel(
                     }
                 }
             }
+            is SettingsEvent.RequestNotificationPermissions -> {
+                viewModelScope.launch {
+                    try {
+                        permissionsController.providePermission(Permission.REMOTE_NOTIFICATION)
+                        setupNotificationsUseCase()
+                    } catch (_: DeniedException) {
+                        permissionsController.openAppSettings()
+                        return@launch
+                    }
+                }
+            }
             is SettingsEvent.StartTracking -> viewModelScope.launch { backgroundServiceRepository.startService() }
             is SettingsEvent.StopTracking -> backgroundServiceRepository.stopService()
         }
@@ -89,6 +110,7 @@ data class SettingsState(
     val homeServerUrl: String = "https://trailsdevelopment.jvbabi.es", // TODO remove default value for prod, just for testing
     val showLoginDialog: Boolean = false,
     val hasLocationPermissions: Boolean? = null,
+    val hasNotificationPermissions: Boolean? = null,
     val isBackgroundTrackingServiceRunning: Boolean = false,
 )
 
@@ -98,6 +120,7 @@ sealed class SettingsEvent {
     data object Login: SettingsEvent()
     data class UpdateHomeServerUrl(val url: String): SettingsEvent()
     data object RequestLocationPermissions: SettingsEvent()
+    data object RequestNotificationPermissions: SettingsEvent()
     data object StartTracking: SettingsEvent()
     data object StopTracking: SettingsEvent()
 }

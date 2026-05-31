@@ -85,6 +85,13 @@ fun SettingsContent(
             }
 
             Button(
+                onClick = { onEvent(SettingsEvent.RequestNotificationPermissions) },
+                enabled = state.hasNotificationPermissions == false
+            ) {
+                Text("Benachrichtigungen erlauben")
+            }
+
+            Button(
                 onClick = {
                     if (state.isBackgroundTrackingServiceRunning) onEvent(SettingsEvent.StopTracking)
                     else onEvent(SettingsEvent.StartTracking)

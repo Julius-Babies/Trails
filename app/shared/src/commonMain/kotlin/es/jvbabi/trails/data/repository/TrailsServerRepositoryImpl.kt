@@ -12,6 +12,7 @@ import es.jvbabi.trails.domain.model.Snapshot
 import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.shared.dto.DeviceResponse
 import es.jvbabi.trails.shared.dto.MeResponse
+import es.jvbabi.trails.shared.dto.PingDeviceResponse
 import es.jvbabi.trails.shared.dto.SessionHealthResponse
 import es.jvbabi.trails.shared.dto.UseShareLinkRequest
 import es.jvbabi.trails.shared.dto.UseShareLinkResponse
@@ -48,6 +49,7 @@ class TrailsServerRepositoryImpl(
     private val applicationRepository: ApplicationRepository,
     private val userRepository: UserRepository,
     private val fileRepository: FileRepository,
+    private val notificationRepository: NotificationRepository,
 ) : TrailsServerRepository {
 
     val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -63,6 +65,7 @@ class TrailsServerRepositoryImpl(
         devicesRepository = devicesRepository,
         keyValueRepository = keyValueRepository,
         userRepository = userRepository,
+        notificationRepository = notificationRepository,
         trailsServerRepositoryImpl = this,
         database = database,
         logger = logger,
@@ -75,6 +78,7 @@ class TrailsServerRepositoryImpl(
         devicesRepository = devicesRepository,
         keyValueRepository = keyValueRepository,
         userRepository = userRepository,
+        notificationRepository = notificationRepository,
         trailsServerRepositoryImpl = this,
         database = database,
         logger = logger,
@@ -107,113 +111,142 @@ class TrailsServerRepositoryImpl(
         homeHost == server && homeConnected || activeExternalSessions[server]?.isActive == true
     }.distinctUntilChanged()
 
-    override fun connectWithHomeserver(): Deferred<Boolean> = connectWithHomeserver(0)
+    private var homeServerConnectJob: Job? = null
 
-    private fun connectWithHomeserver(retryCount: Int): Deferred<Boolean> {
+    override fun connectWithHomeserver(): Deferred<Boolean> {
+        val deferred = CompletableDeferred<Boolean>()
+        if (this.isConnected.value || homeServerConnectJob?.isActive == true) {
+            deferred.complete(this.isConnected.value)
+            return deferred
+        }
 
-        if (this.isConnected.value) return CompletableDeferred(true)
+        homeServerConnectJob = scope.launch {
+            var currentRetry = 0
+            while (isActive) {
+                var wasConnected = false
+                var locationUpdater: Job? = null
+                var currentServerHost: String? = null
+                try {
+                    val url = this@TrailsServerRepositoryImpl.getBaseUrl().first()?.apply {
+                        protocol = URLProtocol.WSS
+                        appendPathSegments("api", "v1", "app", "ws")
+                    } ?: throw IllegalStateException("Base URL not set")
+                    currentServerHost = url.host
 
-        val connectedDeferred = CompletableDeferred<Boolean>()
+                    val token = keyValueRepository.get("trails.token").first()
+                        ?: throw IllegalStateException("Token not set")
+                    val currentDeviceId = keyValueRepository.get("trails.thisDeviceId").first()
+                        ?: throw IllegalStateException("Current device ID not set")
+                    val device = runCatching { devicesRepository.getDeviceById(Uuid.parse(currentDeviceId)).first() }
+                        .getOrNull() ?: throw IllegalStateException("Current device not found in database")
 
-        val maxRetries = 30
+                    logger.i { "Connecting to WS at ${url.buildString()}" }
 
-        scope.launch {
-            val url = this@TrailsServerRepositoryImpl.getBaseUrl().first()?.apply {
-                protocol = URLProtocol.WSS
-                appendPathSegments("api", "v1", "app", "ws")
-            } ?: throw IllegalStateException("Base URL not set")
-            try {
-                val token = keyValueRepository.get("trails.token").first()
-                    ?: throw IllegalStateException("Token not set")
-                val currentDeviceId = keyValueRepository.get("trails.thisDeviceId").first()
-                    ?: throw IllegalStateException("Current device ID not set")
-                val device = runCatching { devicesRepository.getDeviceById(Uuid.parse(currentDeviceId)).first() }
-                    .getOrNull() ?: throw IllegalStateException("Current device not found in database")
+                    websocketSession = httpClient.webSocketSession(
+                        urlString = url.buildString()
+                    ) {
+                        bearerAuth(token)
+                    }
 
-                logger.i { "Connecting to WS at ${url.buildString()}" }
+                    isConnected.value = true
+                    wasConnected = true
+                    if (!deferred.isCompleted) deferred.complete(true)
 
-                websocketSession = httpClient.webSocketSession(
-                    urlString = url.buildString()
-                ) {
-                    bearerAuth(token)
-                }
+                    database.connectionEventDao.upsert(
+                        ConnectionEvent(
+                            id = Uuid.random(),
+                            server = url.host,
+                            timestamp = Clock.System.now(),
+                            data = ConnectionEvent.Event.Connected
+                        ).toEntity()
+                    )
+                    startCrashDetection(url.host)
 
-                isConnected.value = true
-                connectedDeferred.complete(true)
-                database.connectionEventDao.upsert(
-                    ConnectionEvent(
+                    locationUpdater = scope.launch {
+                        snapshotRepository.getCurrentSnapshotForDevice(device)
+                            .filterNotNull()
+                            .distinctUntilChangedBy { location ->
+                                location.copy(
+                                    time = Instant.DISTANT_PAST.toLocalDateTime(
+                                        TimeZone.currentSystemDefault()
+                                    )
+                                )
+                            }
+                            .takeWhile { isConnected.value }
+                            .collectLatest {
+                                val ws = websocketSession ?: return@collectLatest
+                                logger.i { "Sending location update: $it" }
+                                ws.sendSerialized<TrailsWebSocketAppMessage>(
+                                    TrailsWebSocketAppMessage.DataSnapshot(
+                                        latitude = it.location.latitude,
+                                        longitude = it.location.longitude,
+                                        bearing = it.location.bearing,
+                                        bearingAccuracy = it.location.bearingAccuracy,
+                                        locationAccuracy = it.location.locationAccuracy,
+                                        batteryLevel = it.batteryState?.percentage?.div(100f),
+                                        batteryCharging = it.batteryState?.isCharging,
+                                        time = it.time.toInstant(TimeZone.currentSystemDefault()).epochSeconds,
+                                    )
+                                )
+                            }
+                    }
+
+                    homeServerSocketClient.run(websocketSession!!, url.host)
+
+                    locationUpdater.cancel()
+                    stopCrashDetection(url.host)
+
+                    isConnected.value = false
+                    websocketSession?.close()
+                    websocketSession = null
+
+                    database.connectionEventDao.upsert(ConnectionEvent(
                         id = Uuid.random(),
                         server = url.host,
                         timestamp = Clock.System.now(),
-                        data = ConnectionEvent.Event.Connected
-                    ).toEntity()
-                )
-                startCrashDetection(url.host)
+                        data = ConnectionEvent.Event.Disconnected
+                    ).toEntity())
 
-                val locationUpdater = scope.launch {
-                    snapshotRepository.getCurrentSnapshotForDevice(device)
-                        .filterNotNull()
-                        .distinctUntilChangedBy { location ->
-                            location.copy(
-                                time = Instant.DISTANT_PAST.toLocalDateTime(
-                                    TimeZone.currentSystemDefault()
-                                )
-                            )
-                        }
-                        .takeWhile { isConnected.value }
-                        .collectLatest {
-                            val websocketSession = websocketSession ?: return@collectLatest
-                            logger.i { "Sending location update: $it" }
-                            websocketSession.sendSerialized<TrailsWebSocketAppMessage>(
-                                TrailsWebSocketAppMessage.DataSnapshot(
-                                    latitude = it.location.latitude,
-                                    longitude = it.location.longitude,
-                                    bearing = it.location.bearing,
-                                    bearingAccuracy = it.location.bearingAccuracy,
-                                    locationAccuracy = it.location.locationAccuracy,
-                                    batteryLevel = it.batteryState?.percentage?.div(100f),
-                                    batteryCharging = it.batteryState?.isCharging,
-                                    time = it.time.toInstant(TimeZone.currentSystemDefault()).epochSeconds,
-                                )
-                            )
-                        }
+                } catch (e: Exception) {
+                    Logger.e(e) { "Error connecting to WS: ${e.message}" }
+                    locationUpdater?.cancel()
+                    if (currentServerHost != null) stopCrashDetection(currentServerHost)
+                    isConnected.value = false
+                    database.connectionEventDao.upsert(ConnectionEvent(
+                        id = Uuid.random(),
+                        server = currentServerHost ?: "unknown",
+                        timestamp = Clock.System.now(),
+                        data = ConnectionEvent.Event.Disconnected
+                    ).toEntity())
                 }
 
-                val serverHost = getBaseUrl().first()?.host ?: throw IllegalStateException("Server host not set")
-                homeServerSocketClient.run(websocketSession!!, serverHost)
-
-                locationUpdater.cancel()
-                stopCrashDetection(url.host)
-
-                isConnected.value = false
-                websocketSession?.close()
-                websocketSession = null
-
-            } catch (e: Exception) {
-                Logger.e(e) { "Error connecting to WS: ${e.message}" }
-                stopCrashDetection(url.host)
-                isConnected.value = false
-                database.connectionEventDao.upsert(ConnectionEvent(
-                    id = Uuid.random(),
-                    server = url.host,
-                    timestamp = Clock.System.now(),
-                    data = ConnectionEvent.Event.Connected
-                ).toEntity())
-            }
-
-            if (!connectedDeferred.isCompleted) {
-                if (retryCount < maxRetries) {
-                    val delayMs = minOf(30_000L, 5_000L * (1L shl retryCount))
-                    delay(delayMs.milliseconds)
-                    val reconnectResult = connectWithHomeserver(retryCount + 1).await()
-                    connectedDeferred.complete(reconnectResult)
+                val maxRetries = 30
+                if (!wasConnected) {
+                    if (currentRetry < maxRetries) {
+                        val delayMs = if (applicationRepository.getApplicationForegroundState().first()) {
+                            1_000L
+                        } else {
+                            minOf(30_000L, 5_000L * (1L shl currentRetry))
+                        }
+                        delay(delayMs.milliseconds)
+                        currentRetry++
+                    } else {
+                        if (!deferred.isCompleted) deferred.complete(false)
+                        break
+                    }
                 } else {
-                    connectedDeferred.complete(false)
+                    if (!deferred.isCompleted) deferred.complete(true)
+                    val delayMs = if (applicationRepository.getApplicationForegroundState().first()) {
+                        1_000L
+                    } else {
+                        5_000L
+                    }
+                    delay(delayMs.milliseconds)
+                    currentRetry = 0
                 }
             }
         }
-
-        return connectedDeferred
+        return deferred
     }
 
     override fun getBaseUrl(): Flow<URLBuilder?> {
@@ -304,7 +337,7 @@ class TrailsServerRepositoryImpl(
         val userId = getUserId().first() ?: throw IllegalStateException("User ID not set")
         val user = userRepository.getUser(userId).firstOrNull() ?: throw IllegalStateException("User not found in database")
         val url = (getBaseUrl().first() ?: throw IllegalStateException("Base URL not set")).apply {
-            appendPathSegments("api", "v1", "me", "devices")
+            appendPathSegments("api", "v1", "devices")
         }
 
         val response = httpClient.get(url.buildString()) {
@@ -348,6 +381,24 @@ class TrailsServerRepositoryImpl(
         }
         val sink = fileRepository.getFileSink(devicesRepository.getFileNameForDeviceImage(device))
         response.bodyAsChannel().copyAndClose(sink.asByteWriteChannel())
+    }
+
+    override suspend fun pingDevice(device: Device): PingResult {
+        val token = getToken().first() ?: throw IllegalStateException("Token not set")
+        val url = URLBuilder("https://${device.owner.homeserver}").apply {
+            appendPathSegments("api", "v1", "devices", device.id.toString(), "ping")
+        }
+
+        val response = httpClient.post(url.buildString()) {
+            bearerAuth(token)
+        }
+
+        return when (val body = response.body<PingDeviceResponse>()) {
+            is PingDeviceResponse.Success -> PingResult.Pinged(body.hasDeliveredNotification)
+            is PingDeviceResponse.Forbidden -> PingResult.NotAllowed
+            is PingDeviceResponse.Timeout -> PingResult.Timeout
+            is PingDeviceResponse.Error -> PingResult.Error(body.message)
+        }
     }
 
     override suspend fun useShareLink(hostname: String, id: String): UseShareLinkResult {
@@ -407,45 +458,73 @@ class TrailsServerRepositoryImpl(
     override suspend fun connectWithOtherServer(server: String) = connectWithOtherServer(server, 0)
 
     private suspend fun connectWithOtherServer(server: String, retryCount: Int) {
-        if (activeExternalSessions[server]?.isActive == true) return
-        val url = URLBuilder("wss://$server").apply {
-            appendPathSegments("api", "v1", "app", "ws")
-        }
+        var currentRetry = retryCount
+        while (currentCoroutineContext().isActive) {
+            if (activeExternalSessions[server]?.isActive == true) return
+            val url = URLBuilder("wss://$server").apply {
+                appendPathSegments("api", "v1", "app", "ws")
+            }
 
-        try {
-            Logger.i { "Connecting with external server $server" }
-            activeExternalSessions[server] = httpClient.webSocketSession(urlString = url.buildString())
+            var wasConnected = false
+            try {
+                Logger.i { "Connecting with external server $server" }
+                activeExternalSessions[server] = httpClient.webSocketSession(urlString = url.buildString())
 
-            database.connectionEventDao.upsert(ConnectionEvent(
-                id = Uuid.random(),
-                server = url.host,
-                timestamp = Clock.System.now(),
-                data = ConnectionEvent.Event.Connected,
-            ).toEntity())
-            startCrashDetection(server)
+                database.connectionEventDao.upsert(ConnectionEvent(
+                    id = Uuid.random(),
+                    server = url.host,
+                    timestamp = Clock.System.now(),
+                    data = ConnectionEvent.Event.Connected,
+                ).toEntity())
+                startCrashDetection(server)
+                wasConnected = true
 
-            externalServerSocketClient.run(activeExternalSessions[server]!!, server)
-            stopCrashDetection(server)
+                externalServerSocketClient.run(activeExternalSessions[server]!!, server)
+                stopCrashDetection(server)
 
-            database.connectionEventDao.upsert(ConnectionEvent(
-                id = Uuid.random(),
-                server = url.host,
-                timestamp = Clock.System.now(),
-                data = ConnectionEvent.Event.Disconnected
-            ).toEntity())
+                database.connectionEventDao.upsert(ConnectionEvent(
+                    id = Uuid.random(),
+                    server = url.host,
+                    timestamp = Clock.System.now(),
+                    data = ConnectionEvent.Event.Disconnected
+                ).toEntity())
 
-            activeExternalSessions[server]?.close()
-            activeExternalSessions.remove(server)
+                activeExternalSessions[server]?.close()
+                activeExternalSessions.remove(server)
 
-        } catch (e: Exception) {
-            Logger.e(e) { "Error connecting to WS: ${e.message}" }
-        }
+            } catch (e: Exception) {
+                Logger.e(e) { "Error connecting to WS: ${e.message}" }
+                stopCrashDetection(server)
+                database.connectionEventDao.upsert(ConnectionEvent(
+                    id = Uuid.random(),
+                    server = url.host,
+                    timestamp = Clock.System.now(),
+                    data = ConnectionEvent.Event.Disconnected
+                ).toEntity())
+            }
 
-        val maxRetries = 30
-        if (retryCount < maxRetries) {
-            val delayMs = minOf(30_000L, 5_000L * (1L shl retryCount))
-            delay(delayMs.milliseconds)
-            connectWithOtherServer(server, retryCount + 1)
+            val maxRetries = 30
+            if (!wasConnected) {
+                if (currentRetry < maxRetries) {
+                    val delayMs = if (applicationRepository.getApplicationForegroundState().first()) {
+                        1_000L
+                    } else {
+                        minOf(30_000L, 5_000L * (1L shl currentRetry))
+                    }
+                    delay(delayMs.milliseconds)
+                    currentRetry++
+                } else {
+                    break
+                }
+            } else {
+                val delayMs = if (applicationRepository.getApplicationForegroundState().first()) {
+                    1_000L
+                } else {
+                    5_000L
+                }
+                delay(delayMs.milliseconds)
+                currentRetry = 0
+            }
         }
     }
 
@@ -462,7 +541,7 @@ class TrailsServerRepositoryImpl(
             ConnectionEvent(
                 id = markerId,
                 server = server,
-                timestamp = Clock.System.now(),
+                timestamp = Clock.System.now() + 2.seconds,
                 data = ConnectionEvent.Event.Disconnected,
             ).toEntity()
         )
@@ -473,7 +552,7 @@ class TrailsServerRepositoryImpl(
                     ConnectionEvent(
                         id = markerId,
                         server = server,
-                        timestamp = Clock.System.now(),
+                        timestamp = Clock.System.now() + 2.seconds,
                         data = ConnectionEvent.Event.Disconnected,
                     ).toEntity()
                 )
@@ -494,7 +573,7 @@ class TrailsServerRepositoryImpl(
             val connectionEvents = events.map(DbConnectionEvent::toModel)
             val now = Clock.System.now()
             val latestDisconnect = connectionEvents.firstOrNull { it.data is ConnectionEvent.Event.Disconnected }
-            if (latestDisconnect != null && now - latestDisconnect.timestamp < 2.seconds) {
+            if (latestDisconnect != null && latestDisconnect.timestamp - now > 0.seconds) {
                 connectionEvents.filterNot { it.id == latestDisconnect.id }
             } else connectionEvents
         }
@@ -502,7 +581,7 @@ class TrailsServerRepositoryImpl(
 
     override suspend fun deleteDevice(device: Device): Result<Unit> {
         val url = URLBuilder("https://${device.owner.homeserver}").apply {
-            appendPathSegments("api", "v1", "me", "devices", device.id.toString())
+            appendPathSegments("api", "v1", "devices", device.id.toString())
         }
         val token = getToken().first() ?: throw IllegalStateException("Token not set")
 
@@ -528,6 +607,7 @@ private abstract class WebSocketClientBase(
     protected val trailsServerRepositoryImpl: TrailsServerRepositoryImpl,
     protected val userRepository: UserRepository,
     protected val keyValueRepository: KeyValueRepository,
+    protected val notificationRepository: NotificationRepository,
     protected val database: TrailsDatabase,
     protected val logger: Logger,
 ) {
@@ -561,11 +641,16 @@ private abstract class WebSocketClientBase(
                     subscribedShares.removeAll(removedShareIds)
                 }
         }
-        applicationRepository.getApplicationForegroundState().collectLatest { inForeground ->
-            if (inForeground) {
+        launch {
+            if (applicationRepository.getApplicationForegroundState().first()) {
                 sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.StartRtUpdates)
-            } else {
-                sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.StopRtUpdates)
+            }
+            applicationRepository.getApplicationForegroundState().collectLatest { inForeground ->
+                if (inForeground) {
+                    sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.StartRtUpdates)
+                } else {
+                    sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.StopRtUpdates)
+                }
             }
         }
     }
@@ -579,6 +664,16 @@ private abstract class WebSocketClientBase(
                 when (message) {
                     is TrailsWebSocketServerMessage.ShareDeleted -> {
                         runCatching { Uuid.parse(message.shareId) }.getOrNull()?.let { database.activeShareDao.deleteById(it) }
+                    }
+
+                    is TrailsWebSocketServerMessage.Ping -> {
+                        val notificationSent = notificationRepository.sendNotification(
+                            channelId = NotificationRepository.PING_CHANNEL_ID,
+                            title = "Gerät gefunden",
+                            body = "Dein ${message.pingedByDeviceName} hat dieses Gerät gefunden!",
+                            notificationId = message.pingedByDeviceName.hashCode()
+                        )
+                        session.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.Pong(notificationSent))
                     }
 
                     is TrailsWebSocketServerMessage.DeviceUpdated -> {
@@ -655,6 +750,7 @@ private class HomeServerWebSocketClient(
     devicesRepository: DevicesRepository,
     trailsServerRepositoryImpl: TrailsServerRepositoryImpl,
     keyValueRepository: KeyValueRepository,
+    notificationRepository: NotificationRepository,
     userRepository: UserRepository,
     database: TrailsDatabase,
     logger: Logger,
@@ -665,6 +761,7 @@ private class HomeServerWebSocketClient(
     snapshotRepository = snapshotRepository,
     devicesRepository = devicesRepository,
     trailsServerRepositoryImpl = trailsServerRepositoryImpl,
+    notificationRepository = notificationRepository,
     keyValueRepository = keyValueRepository,
     userRepository = userRepository,
     database = database,
@@ -680,6 +777,7 @@ private class ExternalServerWebSocketClient(
     trailsServerRepositoryImpl: TrailsServerRepositoryImpl,
     userRepository: UserRepository,
     keyValueRepository: KeyValueRepository,
+    notificationRepository: NotificationRepository,
     database: TrailsDatabase,
     logger: Logger,
 ) : WebSocketClientBase(
@@ -691,6 +789,7 @@ private class ExternalServerWebSocketClient(
     trailsServerRepositoryImpl = trailsServerRepositoryImpl,
     userRepository = userRepository,
     keyValueRepository = keyValueRepository,
+    notificationRepository = notificationRepository,
     database = database,
     logger = logger,
 )

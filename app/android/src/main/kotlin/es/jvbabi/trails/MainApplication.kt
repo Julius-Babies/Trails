@@ -15,11 +15,14 @@ import es.jvbabi.trails.domain.repository.BackgroundServiceRepository
 import es.jvbabi.trails.domain.repository.DeviceRepository
 import es.jvbabi.trails.domain.repository.FileRepository
 import es.jvbabi.trails.data.repository.ApplicationRepositoryImpl
+import es.jvbabi.trails.data.repository.NotificationRepository
+import es.jvbabi.trails.data.repository.NotificationRepositoryImpl
 import es.jvbabi.trails.utils.KOIN_KEY_CORNER_RADIUS
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
+import org.koin.core.module.dsl.singleOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
@@ -39,6 +42,7 @@ class MainApplication: Application() {
 
             modules(module {
                 single { AndroidDeviceRepository() } bind DeviceRepository::class
+                singleOf(::NotificationRepositoryImpl) bind NotificationRepository::class
                 single<PermissionsController> { PermissionsControllerImpl(get()) }
                 single<BackgroundServiceRepository> { BackgroundServiceRepositoryImpl() }
                 single<FileRepository> { AndroidFileRepositoryImpl(get()) }

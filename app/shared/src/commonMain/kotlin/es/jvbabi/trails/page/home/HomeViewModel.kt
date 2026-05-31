@@ -9,14 +9,15 @@ import co.touchlab.kermit.Logger
 import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.model.Snapshot
 import es.jvbabi.trails.domain.repository.*
+import es.jvbabi.trails.domain.usecase.SetupNotificationsUseCase
 import es.jvbabi.trails.domain.usecase.home.GetHomeDeviceLocationsUseCase
 import es.jvbabi.trails.utils.IntPaddingValues
 import es.jvbabi.trails.utils.toMapCamera
-import kotlin.math.*
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlin.math.*
 import kotlin.uuid.Uuid
 
 class HomeViewModel(
@@ -26,6 +27,7 @@ class HomeViewModel(
     private val trailsServerRepository: TrailsServerRepository,
     private val devicesRepository: DevicesRepository,
     private val getHomeDeviceLocationsUseCase: GetHomeDeviceLocationsUseCase,
+    private val setupNotificationsUseCase: SetupNotificationsUseCase,
 ) : ViewModel() {
 
     val state: StateFlow<HomeState>
@@ -40,6 +42,8 @@ class HomeViewModel(
         viewModelScope.launch(CoroutineName("Start service if user exists + update user data")) {
             val doesUserExist = keyValueRepository.get("trails.userId").first() != null
             if (!doesUserExist) return@launch
+
+            setupNotificationsUseCase()
 
             val sessionHealth = trailsServerRepository.checkSessionHealth()
             if (sessionHealth is SessionHealthState.InvalidOrExpired || sessionHealth is SessionHealthState.NoSessionExpected) return@launch

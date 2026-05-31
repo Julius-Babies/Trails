@@ -30,6 +30,8 @@ interface TrailsServerRepository {
     suspend fun updateUserDevices()
     suspend fun fetchDeviceImageForDevice(device: Device)
 
+    suspend fun pingDevice(device: Device): PingResult
+
     suspend fun useShareLink(hostname: String, id: String): UseShareLinkResult
 
     fun getConnectionEvents(server: String): Flow<List<ConnectionEvent>>
@@ -54,4 +56,11 @@ sealed class SessionHealthState {
     data object InvalidOrExpired: SessionHealthState()
     data object Ok: SessionHealthState()
     data object NoSessionExpected: SessionHealthState()
+}
+
+sealed class PingResult {
+    data class Pinged(val hasDeliveredNotification: Boolean): PingResult()
+    data object Timeout: PingResult()
+    data object NotAllowed: PingResult()
+    data class Error(val errorMessage: String): PingResult()
 }

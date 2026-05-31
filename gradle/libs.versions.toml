@@ -80,6 +80,7 @@ app-ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kot
 app-moko-permissions-core = { module = "dev.icerock.moko:permissions", version.ref = "moko-permissions" }
 app-moko-permissions-location = { module = "dev.icerock.moko:permissions-location", version.ref = "moko-permissions" }
 app-moko-permissions-compose = { module = "dev.icerock.moko:permissions-compose", version.ref = "moko-permissions" }
+app-moko-permissions-notifications = { module = "dev.icerock.moko:permissions-notifications", version.ref = "moko-permissions" }
 
 # App - Room
 app-androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }

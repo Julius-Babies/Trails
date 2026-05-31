@@ -44,12 +44,13 @@ class DeviceSubscriptionRepository : KoinComponent {
 sealed class DeviceSubscriptionMessage : KoinComponent {
     data class Deleted(val deletion: DeviceDeletion) : DeviceSubscriptionMessage()
     data class Snapshot(val snapshot: DataSnapshot) : DeviceSubscriptionMessage()
+    data class Ping(val device: Device, val pingedByDeviceName: String) : DeviceSubscriptionMessage()
 
     private val db by inject<DatabaseManager>()
     suspend fun toAppSocketMessage(
         principal: TrailsAppUserPrincipal?,
         share: ActiveShare?,
-    ): AppSocketMessage {
+    ): AppSocketMessage? {
         if (principal == null && share == null) throw RuntimeException("Must provide either a principal or a share")
         when (this) {
             is Deleted -> {
@@ -96,6 +97,13 @@ sealed class DeviceSubscriptionMessage : KoinComponent {
                         percentage = (batteryLevel * 100).roundToInt(),
                         isCharging = batteryCharging
                     ) else null
+                ))
+            }
+
+            is Ping -> {
+                if (principal?.device?.id?.value != this.device.id.value) return null
+                return AppSocketMessage(TrailsWebSocketServerMessage.Ping(
+                    pingedByDeviceName = this.pingedByDeviceName
                 ))
             }
         }

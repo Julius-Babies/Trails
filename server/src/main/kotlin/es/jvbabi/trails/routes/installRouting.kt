@@ -5,7 +5,7 @@ import es.jvbabi.trails.routes.app.share.newShare
 import es.jvbabi.trails.routes.app.share.useShare
 import es.jvbabi.trails.routes.auth.app_authorization.appAuthorization
 import es.jvbabi.trails.routes.devices.image.deviceImage
-import es.jvbabi.trails.routes.me.devices.devices
+import es.jvbabi.trails.routes.devices.devices
 import es.jvbabi.trails.routes.me.me
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
@@ -23,10 +23,10 @@ fun Application.installRouting() {
 
             route("/me") {
                 me()
+            }
 
-                route("/devices") {
-                    devices()
-                }
+            route("/devices") {
+                devices()
             }
 
             route("/app") {

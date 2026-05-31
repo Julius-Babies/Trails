@@ -1,4 +1,4 @@
-package es.jvbabi.trails.routes.me.devices
+package es.jvbabi.trails.routes.devices
 
 import es.jvbabi.trails.api.TRAILS_USER_REALM
 import es.jvbabi.trails.api.TrailsAppUserPrincipal
@@ -11,14 +11,18 @@ import es.jvbabi.trails.database.Device
 import es.jvbabi.trails.database.DeviceDeletion
 import es.jvbabi.trails.database.Devices
 import es.jvbabi.trails.shared.dto.DeviceResponse
+import es.jvbabi.trails.shared.dto.PingDeviceResponse
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.*
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.withTimeoutOrNull
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.koin.ktor.ext.inject
+import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
 val deviceKey = AttributeKey<Device>("device")
@@ -91,6 +95,8 @@ fun Route.devices() {
 
                 call.respond(buildMap { put("success", true) })
             }
+
+            ping()
         }
     }
 }

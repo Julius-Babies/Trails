@@ -61,4 +61,10 @@ sealed class TrailsWebSocketServerMessage {
             @SerialName("is_charging") val isCharging: Boolean,
         )
     }
+
+    @Serializable
+    @SerialName("device.ping")
+    data class Ping(
+        @SerialName("pinged_by_device_name") val pingedByDeviceName: String,
+    ): TrailsWebSocketServerMessage()
 }
