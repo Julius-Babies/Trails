@@ -158,11 +158,16 @@ fun HomeContent(
                         ) {
                             Column(
                                 modifier = Modifier
-                                    .padding(8.dp)
+                                    .padding(top = 48.dp) // Map Compass
+                                    .padding(16.dp)
                                     .align(Alignment.TopEnd)
                             ) {
-                                FilledTonalIconButton(
+                                IconButton(
                                     onClick = { backStack.add(Screen.Settings) },
+                                    colors = IconButtonDefaults.filledIconButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                    ),
                                 ) {
                                     Icon(
                                         painter = painterResource(Res.drawable.settings),

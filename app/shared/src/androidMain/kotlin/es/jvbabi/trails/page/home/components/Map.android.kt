@@ -9,9 +9,12 @@ import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +25,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.mapbox.android.gestures.MoveGestureDetector
@@ -146,6 +150,31 @@ actual fun Map(
                 MapStyle(
                     style = if (isSystemInDarkTheme()) Style.TRAFFIC_NIGHT else Style.STANDARD,
                 )
+            },
+            scaleBar = {
+                ScaleBar(
+                    modifier = Modifier
+                        .padding(top = WindowInsets.systemBars.asPaddingValues().calculateTopPadding() + 8.dp)
+                        .padding(horizontal = 16.dp),
+                )
+            },
+            compass = {
+                Compass(
+                    fadeWhenFacingNorth = false,
+                    resetToNorthUponClick = true,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = WindowInsets.systemBars.asPaddingValues().calculateTopPadding() + 8.dp)
+                        .padding(horizontal = 16.dp)
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.mapbox_compass_icon),
+                        contentDescription = "Mapbox Compass"
+                    )
+                }
             },
             composeMapInitOptions = ComposeMapInitOptions(
                 mapOptions = MapOptions.Builder().build(),
