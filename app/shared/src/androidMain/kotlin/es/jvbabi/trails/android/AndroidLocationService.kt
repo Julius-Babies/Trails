@@ -21,30 +21,12 @@ import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
 import co.touchlab.kermit.Logger
-import es.jvbabi.trails.domain.repository.DevicesRepository
-import es.jvbabi.trails.domain.repository.KeyValueRepository
-import es.jvbabi.trails.domain.repository.LocationRepository
-import es.jvbabi.trails.domain.repository.SnapshotRepository
-import es.jvbabi.trails.domain.repository.TrailsServerRepository
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.distinctUntilChangedBy
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import es.jvbabi.trails.domain.repository.*
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import kotlin.time.Duration.Companion.minutes
-import kotlin.uuid.Uuid
 
 class AndroidLocationService: Service(), LocationListener, KoinComponent {
 
@@ -93,16 +75,9 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
 
         serviceScope.launch {
             keyValueRepository
-                .get("trails.thisDeviceId")
+                .get(Key.ThisDeviceId)
                 .filterNotNull()
-                .flatMapLatest { id ->
-                    try {
-                        devicesRepository.getDeviceById(Uuid.parse(id))
-                    } catch (e: IllegalArgumentException) {
-                        Logger.e(e) { "Invalid device ID in store: $id" }
-                        kotlinx.coroutines.flow.flowOf(null)
-                    }
-                }
+                .flatMapLatest { id -> devicesRepository.getDeviceById(id) }
                 .filterNotNull()
                 .distinctUntilChangedBy {}
                 .collect {

@@ -8,6 +8,7 @@ import es.jvbabi.trails.domain.model.User
 import es.jvbabi.trails.domain.repository.DeviceRepository
 import es.jvbabi.trails.domain.repository.DevicesRepository
 import es.jvbabi.trails.domain.repository.FileRepository
+import es.jvbabi.trails.domain.repository.Key
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.currentCoroutineContext
@@ -31,11 +32,7 @@ class DevicesRepositoryImpl(
 ) : DevicesRepository {
 
     private fun deviceProxy(device: Device): Flow<Device> {
-        return keyValueRepository.get("trails.thisDeviceId")
-            .map { id ->
-                if (id == null) null
-                else try { Uuid.parse(id) } catch (_: IllegalArgumentException) { null }
-            }
+        return keyValueRepository.get(Key.ThisDeviceId)
             .flatMapLatest { thisDeviceId ->
                 if (thisDeviceId != device.id) flowOf(device)
                 else deviceRepository.getBatteryState().map { batteryState ->

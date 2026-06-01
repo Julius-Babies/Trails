@@ -3,22 +3,10 @@
 package es.jvbabi.trails.domain.usecase.home
 
 import es.jvbabi.trails.domain.model.Device
-import es.jvbabi.trails.domain.repository.DevicesRepository
-import es.jvbabi.trails.domain.repository.FileRepository
-import es.jvbabi.trails.domain.repository.KeyValueRepository
-import es.jvbabi.trails.domain.repository.ShareRepository
-import es.jvbabi.trails.domain.repository.SnapshotRepository
-import es.jvbabi.trails.domain.repository.UserRepository
+import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.page.home.HomeState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.distinctUntilChangedBy
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
-import kotlin.uuid.Uuid
+import kotlinx.coroutines.flow.*
 
 class GetHomeDeviceLocationsUseCase(
     private val devicesRepository: DevicesRepository,
@@ -29,8 +17,8 @@ class GetHomeDeviceLocationsUseCase(
     private val keyValueRepository: KeyValueRepository,
 ) {
     operator fun invoke(): Flow<List<HomeState.HomeDevice>> {
-        return keyValueRepository.get("trails.userId")
-            .flatMapLatest { it?.let { id -> userRepository.getUser(Uuid.parse(id)) } ?: flowOf(null) }
+        return keyValueRepository.get(Key.UserId)
+            .flatMapLatest { it?.let { id -> userRepository.getUser(id) } ?: flowOf(null) }
             .distinctUntilChangedBy { it?.id }
             .flatMapLatest { user ->
                 val ownedDevices = user?.let { devicesRepository.getDevices(user) } ?: flowOf(emptyList())

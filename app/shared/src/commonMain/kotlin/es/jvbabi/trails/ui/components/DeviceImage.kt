@@ -29,7 +29,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import es.jvbabi.trails.ThemeWrapper
 import es.jvbabi.trails.ui.theme.AppTheme
 import es.jvbabi.trails.utils.rememberBitmapFromBytes

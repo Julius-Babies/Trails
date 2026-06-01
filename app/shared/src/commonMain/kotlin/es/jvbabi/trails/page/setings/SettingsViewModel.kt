@@ -2,29 +2,19 @@ package es.jvbabi.trails.page.setings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dev.icerock.moko.permissions.DeniedAlwaysException
-import dev.icerock.moko.permissions.DeniedException
-import dev.icerock.moko.permissions.Permission
-import dev.icerock.moko.permissions.PermissionState
-import dev.icerock.moko.permissions.PermissionsController
+import dev.icerock.moko.permissions.*
 import dev.icerock.moko.permissions.location.BACKGROUND_LOCATION
 import dev.icerock.moko.permissions.location.LOCATION
 import dev.icerock.moko.permissions.notifications.REMOTE_NOTIFICATION
 import es.jvbabi.trails.domain.model.Device
-import es.jvbabi.trails.domain.repository.BackgroundServiceRepository
-import es.jvbabi.trails.domain.repository.DeviceRepository
-import es.jvbabi.trails.domain.repository.DevicesRepository
-import es.jvbabi.trails.domain.repository.KeyValueRepository
+import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.domain.usecase.SetupNotificationsUseCase
 import es.jvbabi.trails.openUrl
-import io.ktor.http.URLBuilder
-import io.ktor.http.URLProtocol
-import io.ktor.http.appendPathSegments
+import io.ktor.http.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -64,20 +54,19 @@ class SettingsViewModel(
         }
 
         viewModelScope.launch {
-            keyValueRepository.get("trails.userId").collect { userId ->
-                state.update { it.copy(userId = userId?.let { Uuid.parse(it) }) }
+            keyValueRepository.get(Key.UserId).collect { userId ->
+                state.update { it.copy(userId = userId) }
             }
         }
 
         viewModelScope.launch {
-            keyValueRepository.get("trails.host").collect { homeserver ->
+            keyValueRepository.get(Key.Host).collect { homeserver ->
                 state.update { it.copy(currentHomeserverUrl = homeserver) }
             }
         }
 
         viewModelScope.launch {
-            keyValueRepository.get("trails.thisDeviceId")
-                .map { it?.let(Uuid::parse) }
+            keyValueRepository.get(Key.ThisDeviceId)
                 .collectLatest { deviceId ->
                     state.update { it.copy(thisDeviceId = deviceId) }
                     if (deviceId != null) devicesRepository.getDeviceById(deviceId).collectLatest { device ->

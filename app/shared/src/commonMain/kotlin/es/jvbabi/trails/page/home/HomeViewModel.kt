@@ -41,7 +41,7 @@ class HomeViewModel(
 
     init {
         viewModelScope.launch(CoroutineName("Start service if user exists + update user data")) {
-            val doesUserExist = keyValueRepository.get("trails.userId").first() != null
+            val doesUserExist = keyValueRepository.get(Key.UserId).first() != null
             if (!doesUserExist) return@launch
 
             setupNotificationsUseCase()
@@ -65,17 +65,10 @@ class HomeViewModel(
         }
 
         viewModelScope.launch(CoroutineName("This device")) {
-            keyValueRepository.get("trails.thisDeviceId")
+            keyValueRepository.get(Key.ThisDeviceId)
                 .filterNotNull()
                 .distinctUntilChanged()
-                .flatMapLatest { id ->
-                    try {
-                        devicesRepository.getDeviceById(Uuid.parse(id))
-                    } catch (e: IllegalArgumentException) {
-                        Logger.e(e) { "Invalid device ID: $id" }
-                        flowOf(null)
-                    }
-                }
+                .flatMapLatest { id -> devicesRepository.getDeviceById(id) }
                 .collectLatest { device ->
                     state.update { it.copy(currentDevice = device) }
                 }
@@ -90,11 +83,13 @@ class HomeViewModel(
 
         viewModelScope.launch(CoroutineName("Update camera position")) {
             val stateFlow = state
-                .distinctUntilChangedBy { listOf(
-                    it.trackingMode,
-                    it.ownLocation,
-                    it.devices
-                ).map { it.hashCode() }.sum() }
+                .distinctUntilChangedBy { stateSnapshot ->
+                    listOf(
+                        stateSnapshot.trackingMode,
+                        stateSnapshot.ownLocation,
+                        stateSnapshot.devices
+                    ).sumOf { it.hashCode() }
+                }
                 .map {
                     object {
                         val devices = it.devices
@@ -106,7 +101,7 @@ class HomeViewModel(
             val measurementsFlow =
                 combine(viewportDimensions.filterNotNull(), mapContentPadding.filterNotNull()) { viewportDimensions, mapContentPadding ->
                     object {
-                        val viewport = viewportDimensions;
+                        val viewport = viewportDimensions
                         val contentPadding = mapContentPadding
                     }
                 }

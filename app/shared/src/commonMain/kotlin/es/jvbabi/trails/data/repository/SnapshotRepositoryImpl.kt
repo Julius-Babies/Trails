@@ -8,6 +8,7 @@ import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.model.Snapshot
 import es.jvbabi.trails.domain.repository.DeviceRepository
 import es.jvbabi.trails.domain.repository.DevicesRepository
+import es.jvbabi.trails.domain.repository.Key
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.LocationRepository
 import es.jvbabi.trails.domain.repository.SnapshotRepository
@@ -48,15 +49,9 @@ class SnapshotRepositoryImpl(
     override fun startSnapshotCollection(scope: CoroutineScope) {
         if (job?.isActive == true) return
         val device = keyValueRepository
-            .get("trails.thisDeviceId")
+            .get(Key.ThisDeviceId)
             .filterNotNull()
-            .flatMapLatest { id ->
-                try {
-                    devicesRepository.getDeviceById(Uuid.parse(id))
-                } catch (_: IllegalArgumentException) {
-                    flowOf(null)
-                }
-            }
+            .flatMapLatest { id -> devicesRepository.getDeviceById(id) }
             .filterNotNull()
 
         job = combine(

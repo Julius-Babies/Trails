@@ -112,9 +112,10 @@ class TrailsServerRepositoryImpl(
         val deletedState = isDeviceDeletedState.value
         if (deletedState is IsDeviceDeletedState.Deleted) {
             database.deviceDao.deleteDevicesByIds(listOf(deletedState.thisDevice.id))
-            keyValueRepository.delete("trails.thisDeviceId")
-            keyValueRepository.delete("trails.userId")
-            keyValueRepository.delete("trails.host")
+            keyValueRepository.delete(Key.ThisDeviceId)
+            keyValueRepository.delete(Key.UserId)
+            keyValueRepository.delete(Key.Host)
+            keyValueRepository.delete(Key.Token)
         }
         isDeviceDeletedState.value = IsDeviceDeletedState.Unset
     }
@@ -148,11 +149,11 @@ class TrailsServerRepositoryImpl(
                     } ?: throw IllegalStateException("Base URL not set")
                     currentServerHost = url.host
 
-                    val token = keyValueRepository.get("trails.token").first()
+                    val token = keyValueRepository.get(Key.Token).first()
                         ?: throw IllegalStateException("Token not set")
-                    val currentDeviceId = keyValueRepository.get("trails.thisDeviceId").first()
+                    val currentDeviceId = keyValueRepository.get(Key.ThisDeviceId).first()
                         ?: throw IllegalStateException("Current device ID not set")
-                    val device = runCatching { devicesRepository.getDeviceById(Uuid.parse(currentDeviceId)).first() }
+                    val device = runCatching { devicesRepository.getDeviceById(currentDeviceId).first() }
                         .getOrNull() ?: throw IllegalStateException("Current device not found in database")
 
                     logger.i { "Connecting to WS at ${url.buildString()}" }
@@ -265,7 +266,7 @@ class TrailsServerRepositoryImpl(
     }
 
     override fun getBaseUrl(): Flow<URLBuilder?> {
-        return keyValueRepository.get("trails.host")
+        return keyValueRepository.get(Key.Host)
             .map {
                 if (it == null) null
                 else URLBuilder(it.let {
@@ -276,13 +277,10 @@ class TrailsServerRepositoryImpl(
     }
 
     override fun getToken(): Flow<String?> {
-        return keyValueRepository.get("trails.token")
+        return keyValueRepository.get(Key.Token)
     }
 
-    override fun getUserId(): Flow<Uuid?> {
-        return keyValueRepository.get("trails.userId")
-            .map { it?.let { id -> runCatching { Uuid.parse(id) }.getOrNull() } }
-    }
+    override fun getUserId(): Flow<Uuid?> = keyValueRepository.get(Key.UserId)
 
     override suspend fun checkSessionHealth(): SessionHealthState {
         val token = getToken().first() ?: return SessionHealthState.NoSessionExpected
@@ -300,8 +298,8 @@ class TrailsServerRepositoryImpl(
 
         when (val data = response.body<SessionHealthResponse>()) {
             is SessionHealthResponse.DeviceDeleted -> {
-                val thisDeviceId = keyValueRepository.get("trails.thisDeviceId").first() ?: return SessionHealthState.NoSessionExpected
-                val thisDevice = devicesRepository.getDeviceById(Uuid.parse(thisDeviceId)).firstOrNull() ?: return SessionHealthState.NoSessionExpected
+                val thisDeviceId = keyValueRepository.get(Key.ThisDeviceId).first() ?: return SessionHealthState.NoSessionExpected
+                val thisDevice = devicesRepository.getDeviceById(thisDeviceId).firstOrNull() ?: return SessionHealthState.NoSessionExpected
                 isDeviceDeletedState.update { IsDeviceDeletedState.Deleted(thisDevice = thisDevice, deletedByDeviceName = data.deletedByDeviceName) }
                 return SessionHealthState.InvalidOrExpired
             }
@@ -321,10 +319,10 @@ class TrailsServerRepositoryImpl(
 
         if (!response.status.isSuccess()) {
             if (response.status == HttpStatusCode.Unauthorized) {
-                keyValueRepository.delete("trails.token")
-                keyValueRepository.delete("trails.userId")
-                keyValueRepository.delete("trails.thisDeviceId")
-                keyValueRepository.delete("trails.host")
+                keyValueRepository.delete(Key.Token)
+                keyValueRepository.delete(Key.UserId)
+                keyValueRepository.delete(Key.ThisDeviceId)
+                keyValueRepository.delete(Key.Host)
 
                 return Result.failure(IllegalStateException("Token expired"))
             }
@@ -341,8 +339,8 @@ class TrailsServerRepositoryImpl(
             )
         )
 
-        keyValueRepository.setValue("trails.userId", body.id)
-        keyValueRepository.setValue("trails.thisDeviceId", body.thisDeviceId)
+        keyValueRepository.set(Key.UserId, Uuid.parse(body.id))
+        keyValueRepository.set(Key.ThisDeviceId, Uuid.parse(body.thisDeviceId))
 
         return Result.success(body)
     }
@@ -746,7 +744,7 @@ private abstract class WebSocketClientBase(
 
                     is TrailsWebSocketServerMessage.DeviceDeleted -> {
                         val deletedDeviceId = Uuid.parse(message.deviceId)
-                        val thisDeviceId = keyValueRepository.get("trails.thisDeviceId").firstOrNull()?.let(Uuid::parse)
+                        val thisDeviceId = keyValueRepository.get(Key.ThisDeviceId).firstOrNull()
                         if (thisDeviceId == deletedDeviceId) {
                             val thisDevice = devicesRepository.getDeviceById(thisDeviceId).firstOrNull() ?: continue
                             trailsServerRepositoryImpl.setDeviceDeletedState(IsDeviceDeletedState.Deleted(

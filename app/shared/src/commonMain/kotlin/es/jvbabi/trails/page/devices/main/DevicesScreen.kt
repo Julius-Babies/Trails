@@ -48,7 +48,7 @@ import kotlin.uuid.Uuid
 
 @Composable
 fun DevicesTab(
-    contentPadding: es.jvbabi.trails.utils.PaddingValues,
+    contentPadding: PaddingValues,
     nestedScrollConnection: NestedScrollConnection,
     initialRoute: Screen,
     onFocusDevice: (deviceId: Uuid?) -> Unit,
@@ -144,7 +144,7 @@ fun DevicesScreen(
 
 @Composable
 fun DevicesContent(
-    contentPadding: es.jvbabi.trails.utils.PaddingValues,
+    contentPadding: PaddingValues,
     state: DevicesState,
     nestedScrollConnection: NestedScrollConnection?,
     onClickDevice: (device: Device) -> Unit,

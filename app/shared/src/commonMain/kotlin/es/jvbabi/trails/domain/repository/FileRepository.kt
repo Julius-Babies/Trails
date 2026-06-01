@@ -1,6 +1,5 @@
 package es.jvbabi.trails.domain.repository
 
-import kotlinx.coroutines.channels.Channel
 import kotlinx.io.Sink
 
 interface FileRepository {

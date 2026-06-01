@@ -3,6 +3,7 @@ package es.jvbabi.trails.data.repository
 import co.touchlab.kermit.Logger
 import es.jvbabi.trails.data.database.TrailsDatabase
 import es.jvbabi.trails.domain.model.ActiveShare
+import es.jvbabi.trails.domain.repository.Key
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.ShareCreationResult
 import es.jvbabi.trails.domain.repository.ShareRepository
@@ -36,8 +37,8 @@ class ShareRepositoryImpl(
         shareName: String,
         allowMultiuse: Boolean
     ): ShareCreationResult {
-        val token = keyValueRepository.get("trails.token").first() ?: return ShareCreationResult.Error("No token available")
-        val url = (keyValueRepository.get("trails.host").first()?.let { URLBuilder("https://$it") } ?: throw IllegalStateException("No server URL available")).apply {
+        val token = keyValueRepository.get(Key.Token).first() ?: return ShareCreationResult.Error("No token available")
+        val url = (keyValueRepository.get(Key.Host).first()?.let { URLBuilder("https://$it") } ?: throw IllegalStateException("No server URL available")).apply {
             appendPathSegments("api", "v1", "app", "share")
         }.build()
 

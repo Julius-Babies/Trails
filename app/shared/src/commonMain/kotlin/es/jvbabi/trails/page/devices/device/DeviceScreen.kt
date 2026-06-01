@@ -69,7 +69,7 @@ fun DeviceScreen(
 @Composable
 fun DeviceContent(
     state: DeviceState,
-    contentPadding: es.jvbabi.trails.utils.PaddingValues,
+    contentPadding: PaddingValues,
     nestedScrollConnection: NestedScrollConnection,
     onEvent: (event: DeviceEvent) -> Unit,
     onBack: () -> Unit,

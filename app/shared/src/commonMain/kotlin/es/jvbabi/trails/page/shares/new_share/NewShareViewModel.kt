@@ -8,6 +8,7 @@ import co.touchlab.kermit.Logger
 import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.repository.DevicesRepository
 import es.jvbabi.trails.domain.repository.FileRepository
+import es.jvbabi.trails.domain.repository.Key
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.ShareCreationResult
 import es.jvbabi.trails.domain.repository.ShareRepository
@@ -44,9 +45,9 @@ class NewShareViewModel(
     init {
         viewModelScope.launch {
             keyValueRepository
-                .get("trails.thisDeviceId")
+                .get(Key.ThisDeviceId)
                 .filterNotNull()
-                .flatMapLatest { devicesRepository.getDeviceById(Uuid.parse(it)) }
+                .flatMapLatest { devicesRepository.getDeviceById(it) }
                 .filterNotNull()
                 .collectLatest { device ->
                     state.value = state.value.copy(

@@ -2,16 +2,13 @@ package es.jvbabi.trails.page.shares.add_share
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import co.touchlab.kermit.Logger
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
 import es.jvbabi.trails.domain.repository.UseShareLinkResult
 import io.ktor.http.URLBuilder
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.seconds
 
 class AddShareViewModel(
     private val trailsServerRepository: TrailsServerRepository,

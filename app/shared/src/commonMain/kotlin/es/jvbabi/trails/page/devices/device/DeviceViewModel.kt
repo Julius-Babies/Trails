@@ -8,6 +8,7 @@ import es.jvbabi.trails.domain.model.User
 import es.jvbabi.trails.domain.repository.DeviceRepository
 import es.jvbabi.trails.domain.repository.DevicesRepository
 import es.jvbabi.trails.domain.repository.FileRepository
+import es.jvbabi.trails.domain.repository.Key
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.PingResult
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
@@ -63,9 +64,8 @@ class DeviceViewModel(
         }
 
         viewModelScope.launch {
-            keyValueRepository.get("trails.userId")
+            keyValueRepository.get(Key.UserId)
                 .filterNotNull()
-                .map { Uuid.parse(it) }
                 .flatMapLatest { userRepository.getUser(it) }
                 .collectLatest { user ->
                     state.update { it.copy(currentUser = user) }

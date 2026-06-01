@@ -133,8 +133,7 @@ private fun DrawScope.drawBattery(
     val capRadius = capH / 2f                 // fully pill-shaped cap
 
     val bodyTop    = capY + capH + gap
-    val bodyBottom = h
-    val bodyHeight = bodyBottom - bodyTop
+    val bodyHeight = h - bodyTop
     val bodyRadius = w * 0.38f               // very round corners (pill-ish)
 
     // ── Combined mask path: cap + body as one shape ─────────────────────────
@@ -166,18 +165,18 @@ private fun DrawScope.drawBattery(
     // The total fillable range is capY (0f) to bodyBottom (h), which includes
     // the cap and the gap. At pct == 1 the fill reaches the very top of the cap.
     if (pct > 0f) {
-        val totalFillHeight = bodyBottom - capY   // h
-        val fillTop         = bodyBottom - totalFillHeight * pct
+        val totalFillHeight = h - capY   // h
+        val fillTop         = h - totalFillHeight * pct
 
         val fillRect = Path().apply {
-            addRect(Rect(0f, fillTop, w, bodyBottom))
+            addRect(Rect(0f, fillTop, w, h))
         }
 
         clipPath(maskPath) {
             val fillBrush = Brush.verticalGradient(
                 colors = listOf(fillColor.copy(alpha = 0.80f), fillColor),
                 startY = fillTop,
-                endY   = bodyBottom,
+                endY = h,
             )
             drawPath(fillRect, fillBrush)
         }

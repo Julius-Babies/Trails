@@ -5,6 +5,7 @@ package es.jvbabi.trails.page.connection_events
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import es.jvbabi.trails.data.database.entity.ConnectionEvent
+import es.jvbabi.trails.domain.repository.Key
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
 import kotlinx.coroutines.CoroutineName
@@ -51,7 +52,7 @@ class ConnectionEventsViewModel(
                         launch {
                             combine(
                                 state.map { it.server }.distinctUntilChanged().filterNotNull(),
-                                keyValueRepository.get("trails.host").flatMapLatest { homeserver ->
+                                keyValueRepository.get(Key.Host).flatMapLatest { homeserver ->
                                     if (homeserver == state.value.server && state.value.server != null) trailsServerRepository.isConnected
                                     else trailsServerRepository.isServerConnected(state.value.server!!)
                                 }

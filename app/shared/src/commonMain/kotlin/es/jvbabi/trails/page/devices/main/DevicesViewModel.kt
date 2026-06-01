@@ -4,20 +4,14 @@ package es.jvbabi.trails.page.devices.main
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import es.jvbabi.trails.domain.repository.Key
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
 import es.jvbabi.trails.domain.usecase.home.GetHomeDeviceLocationsUseCase
 import es.jvbabi.trails.page.home.HomeState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlin.uuid.Uuid
 
 class DevicesViewModel(
     private val getHomeDeviceLocationsUseCase: GetHomeDeviceLocationsUseCase,
@@ -29,8 +23,7 @@ class DevicesViewModel(
 
     init {
         viewModelScope.launch {
-            keyValueRepository.get("trails.userId")
-                .map { it?.let { Uuid.parse(it) } }
+            keyValueRepository.get(Key.UserId)
                 .collectLatest { userId ->
                     getHomeDeviceLocationsUseCase().collectLatest { devices ->
                         state.update {
@@ -44,9 +37,8 @@ class DevicesViewModel(
         }
 
         viewModelScope.launch {
-            keyValueRepository.get("trails.thisDeviceId")
+            keyValueRepository.get(Key.ThisDeviceId)
                 .filterNotNull()
-                .map { Uuid.parse(it) }
                 .distinctUntilChanged()
                 .collectLatest { deviceId ->
                     getHomeDeviceLocationsUseCase().collectLatest { devices ->
