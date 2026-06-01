@@ -1,6 +1,7 @@
 package es.jvbabi.trails
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.*
@@ -14,6 +15,9 @@ import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import es.jvbabi.trails.domain.repository.Key
+import es.jvbabi.trails.domain.repository.KeyValueRepository
+import es.jvbabi.trails.domain.repository.Theme
 import es.jvbabi.trails.domain.repository.UiRepository
 import es.jvbabi.trails.page.Screen
 import es.jvbabi.trails.page.home.HomeScreen
@@ -22,6 +26,7 @@ import es.jvbabi.trails.ui.components.LocalHazeState
 import es.jvbabi.trails.ui.components.Snackbar
 import es.jvbabi.trails.ui.overlay.DeviceDeletedOverlay
 import es.jvbabi.trails.ui.theme.AppTheme
+import kotlinx.coroutines.flow.map
 import org.koin.compose.koinInject
 
 expect fun openUrl(url: String)
@@ -37,7 +42,20 @@ fun App(
     startNavigation: Screen? = null
 ) {
 
-    AppTheme(dynamicColor = false) {
+    val keyValueRepository = koinInject<KeyValueRepository>()
+    val theme = keyValueRepository.get(Key.Theme)
+        .map { it ?: Theme.System }
+        .collectAsStateWithLifecycle(null)
+        .value
+
+    if (theme != null) AppTheme(
+        dynamicColor = false,
+        darkTheme = when(theme) {
+            Theme.Dark -> true
+            Theme.Light -> false
+            Theme.System -> isSystemInDarkTheme()
+        }
+    ) {
         val backstack = remember { mutableStateListOf<Screen>(Screen.Home) }
 
         LaunchedEffect(startNavigation) {

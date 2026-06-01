@@ -37,4 +37,13 @@ sealed class Key<VALUE>(val key: String) {
     data object UserId: UuidKey("trails.userId")
     data object Host: StringKey("trails.host")
     data object Token: StringKey("trails.token")
+
+    data object Theme: Key<es.jvbabi.trails.domain.repository.Theme>("app.theme") {
+        override fun fromValue(value: es.jvbabi.trails.domain.repository.Theme): String = value.name
+        override fun toValue(value: String): es.jvbabi.trails.domain.repository.Theme = es.jvbabi.trails.domain.repository.Theme.valueOf(value)
+    }
+}
+
+enum class Theme {
+    Light, Dark, System
 }

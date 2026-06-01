@@ -15,6 +15,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -82,6 +83,14 @@ class SettingsViewModel(
                 state.update { it.copy(isBackgroundTrackingServiceRunning = isRunning) }
             }
         }
+
+        viewModelScope.launch {
+            keyValueRepository.get(Key.Theme)
+                .map { it ?: Theme.System }
+                .collect { theme ->
+                    state.update { it.copy(appTheme = theme) }
+                }
+        }
     }
 
     fun onEvent(event: SettingsEvent) {
@@ -136,6 +145,9 @@ class SettingsViewModel(
             is SettingsEvent.StartTracking -> viewModelScope.launch { backgroundServiceRepository.startService() }
             is SettingsEvent.StopTracking -> backgroundServiceRepository.stopService()
             is SettingsEvent.RingDevice -> deviceRepository.startRinging("Settings") {}
+            is SettingsEvent.SetAppTheme -> viewModelScope.launch {
+                keyValueRepository.set(Key.Theme, event.theme)
+            }
         }
     }
 }
@@ -151,6 +163,8 @@ data class SettingsState(
     val userId: Uuid? = null,
     val thisDeviceId: Uuid? = null,
     val thisDevice: Device? = null,
+
+    val appTheme: Theme? = null,
 )
 
 sealed class SettingsEvent {
@@ -164,4 +178,5 @@ sealed class SettingsEvent {
     data object StartTracking : SettingsEvent()
     data object StopTracking : SettingsEvent()
     data object RingDevice : SettingsEvent()
+    data class SetAppTheme(val theme: Theme) : SettingsEvent()
 }

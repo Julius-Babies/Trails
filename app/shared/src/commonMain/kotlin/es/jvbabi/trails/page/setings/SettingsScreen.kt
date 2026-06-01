@@ -2,12 +2,14 @@
 
 package es.jvbabi.trails.page.setings
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -18,10 +20,16 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import es.jvbabi.trails.domain.repository.Theme
+import es.jvbabi.trails.utils.padding
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import trails.app.shared.generated.resources.Res
 import trails.app.shared.generated.resources.arrow_left
+import trails.app.shared.generated.resources.check
+import trails.app.shared.generated.resources.moon
+import trails.app.shared.generated.resources.sun
+import trails.app.shared.generated.resources.sun_moon
 
 @Composable
 fun SettingsScreen(
@@ -69,12 +77,12 @@ fun SettingsContent(
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
         ) {
 
-            Spacer(Modifier.height(8.dp))
-
             Text(
                 text = "Oberfläche".uppercase(),
                 style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 16.dp, bottom = 4.dp)
             )
 
             SingleChoiceSegmentedButtonRow(
@@ -83,21 +91,37 @@ fun SettingsContent(
                     .fillMaxWidth(),
             ) {
                 SegmentedButton(
-                    selected = true,
-                    onClick = {},
+                    selected = state.appTheme == Theme.System,
+                    onClick = { onEvent(SettingsEvent.SetAppTheme(Theme.System)) },
                     icon = {
-
+                        AnimatedContent(
+                            targetState = state.appTheme == Theme.System,
+                        ) { isSelected ->
+                            Icon(
+                                painter = painterResource(if (!isSelected) Res.drawable.sun_moon else Res.drawable.check),
+                                contentDescription = "System",
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
                     },
                     label = {
-                        Text("Automatisch")
+                        Text("Auto")
                     },
                     shape = SegmentedButtonDefaults.itemShape(0, 3),
                 )
                 SegmentedButton(
-                    selected = true,
-                    onClick = {},
+                    selected = state.appTheme == Theme.Light,
+                    onClick = { onEvent(SettingsEvent.SetAppTheme(Theme.Light)) },
                     icon = {
-
+                        AnimatedContent(
+                            targetState = state.appTheme == Theme.Light,
+                        ) { isSelected ->
+                            Icon(
+                                painter = painterResource(if (!isSelected) Res.drawable.sun else Res.drawable.check),
+                                contentDescription = "Hell",
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
                     },
                     label = {
                         Text("Hell")
@@ -105,10 +129,18 @@ fun SettingsContent(
                     shape = SegmentedButtonDefaults.itemShape(1, 3),
                 )
                 SegmentedButton(
-                    selected = true,
-                    onClick = {},
+                    selected = state.appTheme == Theme.Dark,
+                    onClick = { onEvent(SettingsEvent.SetAppTheme(Theme.Dark)) },
                     icon = {
-
+                        AnimatedContent(
+                            targetState = state.appTheme == Theme.Dark,
+                        ) { isSelected ->
+                            Icon(
+                                painter = painterResource(if (!isSelected) Res.drawable.moon else Res.drawable.check),
+                                contentDescription = "Dunkel",
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
                     },
                     label = {
                         Text("Dunkel")
@@ -116,6 +148,8 @@ fun SettingsContent(
                     shape = SegmentedButtonDefaults.itemShape(2, 3),
                 )
             }
+
+            Spacer(Modifier.height(16.dp))
 
             Button(
                 onClick = { onEvent(SettingsEvent.RequestLocationPermissions) },
@@ -196,6 +230,7 @@ private fun SettingsPreview() {
             showLoginDialog = false,
             homeServerUrl = "https://trails.werkbank.space",
             hasLocationPermissions = true,
+            appTheme = Theme.Light,
         ),
         onEvent = {}
     )
