@@ -60,10 +60,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.model.User
 import es.jvbabi.trails.page.home.bottomFadeOut
-import es.jvbabi.trails.page.home.components.PaddingValues
-import es.jvbabi.trails.page.home.components.padding
 import es.jvbabi.trails.shareUrl
 import es.jvbabi.trails.ui.components.DeviceImage
+import es.jvbabi.trails.utils.PaddingValues
+import es.jvbabi.trails.utils.padding
 import es.jvbabi.trails.utils.rememberBitmapFromBytes
 import es.jvbabi.trails.utils.toDp
 import org.jetbrains.compose.resources.painterResource

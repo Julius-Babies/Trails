@@ -40,15 +40,15 @@ import es.jvbabi.trails.page.connection_events.ConnectionEventsSheet
 import es.jvbabi.trails.page.devices.Screen
 import es.jvbabi.trails.page.devices.device.DeviceScreen
 import es.jvbabi.trails.page.devices.main.components.DeviceCard
-import es.jvbabi.trails.page.home.components.PaddingValues
-import es.jvbabi.trails.page.home.components.padding
 import es.jvbabi.trails.ui.components.*
+import es.jvbabi.trails.utils.PaddingValues
+import es.jvbabi.trails.utils.padding
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.uuid.Uuid
 
 @Composable
 fun DevicesTab(
-    contentPadding: PaddingValues,
+    contentPadding: es.jvbabi.trails.utils.PaddingValues,
     nestedScrollConnection: NestedScrollConnection,
     initialRoute: Screen,
     onFocusDevice: (deviceId: Uuid?) -> Unit,
@@ -144,7 +144,7 @@ fun DevicesScreen(
 
 @Composable
 fun DevicesContent(
-    contentPadding: PaddingValues,
+    contentPadding: es.jvbabi.trails.utils.PaddingValues,
     state: DevicesState,
     nestedScrollConnection: NestedScrollConnection?,
     onClickDevice: (device: Device) -> Unit,
@@ -252,7 +252,7 @@ fun DevicesContent(
 @Composable
 private fun DevicesPreview() {
     DevicesContent(
-        contentPadding = PaddingValues(),
+        contentPadding = es.jvbabi.trails.utils.PaddingValues(),
         state = DevicesState(
 
         ),

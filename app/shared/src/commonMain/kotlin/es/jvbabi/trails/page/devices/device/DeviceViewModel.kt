@@ -75,7 +75,7 @@ class DeviceViewModel(
         viewModelScope.launch {
             state
                 .filter { it.device != null && it.currentUser != null }
-                .distinctUntilChangedBy { listOf(it.device, it.currentUser).map { it.hashCode() }.sum() }
+                .distinctUntilChangedBy { listOf(it.device, it.currentUser).sumOf { it.hashCode() } }
                 .collectLatest { snapshot ->
                     val isOwnDevice = snapshot.device!!.device.owner.id == snapshot.currentUser!!.id
 

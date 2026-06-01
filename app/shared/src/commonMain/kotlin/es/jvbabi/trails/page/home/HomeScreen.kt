@@ -44,10 +44,10 @@ import es.jvbabi.trails.domain.repository.Location
 import es.jvbabi.trails.page.Screen
 import es.jvbabi.trails.page.devices.main.DevicesTab
 import es.jvbabi.trails.page.home.components.*
-import es.jvbabi.trails.page.home.components.PaddingValues
 import es.jvbabi.trails.page.shares.main.SharesScreen
 import es.jvbabi.trails.utils.IntPaddingValues
 import es.jvbabi.trails.utils.blendColor
+import es.jvbabi.trails.utils.padding
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.Month
@@ -135,7 +135,7 @@ fun HomeContent(
                 val density = LocalDensity.current
 
                 Scaffold { scaffoldPadding ->
-                    val contentPadding = draggableCardSheetState.backgroundContentPaddingValues + PaddingValues(top = scaffoldPadding.calculateTopPadding())
+                    val contentPadding = (draggableCardSheetState.backgroundContentPaddingValues + es.jvbabi.trails.utils.PaddingValues(top = scaffoldPadding.calculateTopPadding())).assureNonNegative()
                     Box(
                         modifier = Modifier
                             .fillMaxSize()

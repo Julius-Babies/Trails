@@ -26,11 +26,11 @@ import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import es.jvbabi.trails.page.devices.Screen
-import es.jvbabi.trails.page.home.components.PaddingValues
-import es.jvbabi.trails.page.home.components.padding
 import es.jvbabi.trails.ui.components.ConfigureTopBar
 import es.jvbabi.trails.ui.components.DeviceImage
 import es.jvbabi.trails.ui.components.LocalHazeState
+import es.jvbabi.trails.utils.PaddingValues
+import es.jvbabi.trails.utils.padding
 import es.jvbabi.trails.utils.rememberBitmapFromBytes
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
@@ -69,7 +69,7 @@ fun DeviceScreen(
 @Composable
 fun DeviceContent(
     state: DeviceState,
-    contentPadding: PaddingValues,
+    contentPadding: es.jvbabi.trails.utils.PaddingValues,
     nestedScrollConnection: NestedScrollConnection,
     onEvent: (event: DeviceEvent) -> Unit,
     onBack: () -> Unit,

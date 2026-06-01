@@ -6,30 +6,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.calculateStartPadding
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Stable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,20 +19,15 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalInspectionMode
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.Velocity
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.*
 import es.jvbabi.trails.page.home.components.internal.AnchoredDraggableState
-import es.jvbabi.trails.utils.getBottomBorderRadius
 import es.jvbabi.trails.page.home.components.internal.DraggableAnchors
 import es.jvbabi.trails.page.home.components.internal.animateTo
 import es.jvbabi.trails.page.home.components.internal.draggableAnchors
-import es.jvbabi.trails.utils.IntPaddingValues
+import es.jvbabi.trails.utils.PaddingValues
+import es.jvbabi.trails.utils.getBottomBorderRadius
+import es.jvbabi.trails.utils.padding
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
@@ -62,53 +38,6 @@ internal expect fun SheetBackHandler(
     enabled: Boolean,
     onProgress: (Float) -> Unit,
     onBack: (progress: Float) -> Unit,
-)
-
-data class PaddingValues(
-    val start: Dp = 0.dp,
-    val top: Dp = 0.dp,
-    val end: Dp = 0.dp,
-    val bottom: Dp = 0.dp,
-) {
-    constructor(all: Dp) : this(all, all, all, all)
-    constructor(): this(0.dp)
-
-    @Composable
-    fun toIntPaddingValues(localDensity: Density): IntPaddingValues {
-        with(localDensity) {
-            return IntPaddingValues(
-                top = this@PaddingValues.top.roundToPx(),
-                bottom = this@PaddingValues.bottom.roundToPx(),
-                start = this@PaddingValues.start.roundToPx(),
-                end = this@PaddingValues.end.roundToPx(),
-            )
-        }
-    }
-
-    operator fun plus(other: PaddingValues): PaddingValues = PaddingValues(
-        start = this.start + other.start,
-        top = this.top + other.top,
-        end = this.end + other.end,
-        bottom = this.bottom + other.bottom,
-    )
-}
-
-@Composable
-operator fun androidx.compose.foundation.layout.PaddingValues.plus(other: PaddingValues): PaddingValues =
-    PaddingValues(
-        top = this.calculateTopPadding() + other.top,
-        bottom = this.calculateBottomPadding() + other.bottom,
-        start = this.calculateStartPadding(LocalLayoutDirection.current) + other.start,
-        end = this.calculateEndPadding(LocalLayoutDirection.current) + other.end
-    )
-
-fun Modifier.padding(paddingValues: PaddingValues): Modifier = this.then(
-    Modifier.padding(
-        start = paddingValues.start,
-        top = paddingValues.top,
-        end = paddingValues.end,
-        bottom = paddingValues.bottom,
-    )
 )
 
 @Stable

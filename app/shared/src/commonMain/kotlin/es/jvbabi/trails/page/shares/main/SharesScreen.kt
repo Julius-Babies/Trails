@@ -32,10 +32,10 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.NavDisplay
 import es.jvbabi.trails.page.home.bottomFadeOut
-import es.jvbabi.trails.page.home.components.PaddingValues
 import es.jvbabi.trails.page.shares.SharesScreen
 import es.jvbabi.trails.page.shares.add_share.AddShareScreen
 import es.jvbabi.trails.page.shares.new_share.NewShareScreen
+import es.jvbabi.trails.utils.PaddingValues
 import org.jetbrains.compose.resources.painterResource
 import trails.app.shared.generated.resources.Res
 import trails.app.shared.generated.resources.plus
