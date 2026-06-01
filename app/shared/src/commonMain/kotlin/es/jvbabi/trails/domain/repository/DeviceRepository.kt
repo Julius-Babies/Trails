@@ -11,6 +11,9 @@ interface DeviceRepository {
     fun hasFullScreenIntentPermissions(): Flow<Boolean>
     fun requestFullScreenIntentPermissions()
 
+    fun hasDisabledBackgroundBatteryOptimization(): Flow<Boolean>
+    fun requestDisableBackgroundBatteryOptimization()
+
     fun startRinging(
         causedByDeviceName: String,
         onStop: () -> Unit

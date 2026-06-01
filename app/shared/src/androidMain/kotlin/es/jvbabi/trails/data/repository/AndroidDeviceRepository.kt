@@ -1,12 +1,15 @@
 package es.jvbabi.trails.data.repository
 
+import android.app.ActivityManager
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.net.toUri
 import es.jvbabi.trails.android.RingService
@@ -16,8 +19,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.isActive
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import kotlin.time.Duration.Companion.seconds
@@ -145,5 +150,34 @@ class AndroidDeviceRepository : DeviceRepository, KoinComponent {
             action = RingService.ACTION_STOP
         }
         context.startService(intent)
+    }
+
+    override fun hasDisabledBackgroundBatteryOptimization(): Flow<Boolean> {
+        return flow {
+            val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+            while (currentCoroutineContext().isActive) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    emit(powerManager.isIgnoringBatteryOptimizations(context.packageName))
+                } else {
+                    emit(true)
+                    return@flow
+                }
+                delay(1.seconds)
+            }
+        }.distinctUntilChanged()
+    }
+
+    override fun requestDisableBackgroundBatteryOptimization() {
+        val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+
+        if (!powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = "package:${context.packageName}".toUri()
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        }
     }
 }

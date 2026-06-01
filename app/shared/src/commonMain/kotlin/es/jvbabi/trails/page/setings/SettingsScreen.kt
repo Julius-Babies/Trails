@@ -172,6 +172,13 @@ fun SettingsContent(
                 Text("Vollbildaktivitäten erlauben")
             }
 
+            Button(
+                onClick = { onEvent(SettingsEvent.RequestUnrestrictedBatteryBackgroundUsage) },
+                enabled = state.hasUnrestrictedBatteryBackgroundUsage == false
+            ) {
+                Text("Batterieoptimierungen aufheben")
+            }
+
             Button(onClick = { onEvent(SettingsEvent.OpenLoginDialog) }) {
                 Text("Anmelden")
             }

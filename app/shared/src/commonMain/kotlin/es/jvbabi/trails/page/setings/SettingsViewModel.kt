@@ -67,6 +67,12 @@ class SettingsViewModel(
         }
 
         viewModelScope.launch {
+            deviceRepository.hasDisabledBackgroundBatteryOptimization().collect { hasUnrestrictedBatteryBackgroundUsage ->
+                state.update { it.copy(hasUnrestrictedBatteryBackgroundUsage = hasUnrestrictedBatteryBackgroundUsage) }
+            }
+        }
+
+        viewModelScope.launch {
             keyValueRepository.get(Key.ThisDeviceId)
                 .collectLatest { deviceId ->
                     state.update { it.copy(thisDeviceId = deviceId) }
@@ -142,6 +148,7 @@ class SettingsViewModel(
             }
 
             is SettingsEvent.RequestFullscreenIntentPermissions -> deviceRepository.requestFullScreenIntentPermissions()
+            is SettingsEvent.RequestUnrestrictedBatteryBackgroundUsage -> deviceRepository.requestDisableBackgroundBatteryOptimization()
             is SettingsEvent.StartTracking -> viewModelScope.launch { backgroundServiceRepository.startService() }
             is SettingsEvent.StopTracking -> backgroundServiceRepository.stopService()
             is SettingsEvent.RingDevice -> deviceRepository.startRinging("Settings") {}
@@ -158,6 +165,7 @@ data class SettingsState(
     val hasLocationPermissions: Boolean? = null,
     val hasNotificationPermissions: Boolean? = null,
     val hasFullscreenIntentPermissions: Boolean? = null,
+    val hasUnrestrictedBatteryBackgroundUsage: Boolean? = null,
     val isBackgroundTrackingServiceRunning: Boolean = false,
     val currentHomeserverUrl: String? = null,
     val userId: Uuid? = null,
@@ -175,6 +183,7 @@ sealed class SettingsEvent {
     data object RequestLocationPermissions : SettingsEvent()
     data object RequestNotificationPermissions : SettingsEvent()
     data object RequestFullscreenIntentPermissions : SettingsEvent()
+    data object RequestUnrestrictedBatteryBackgroundUsage : SettingsEvent()
     data object StartTracking : SettingsEvent()
     data object StopTracking : SettingsEvent()
     data object RingDevice : SettingsEvent()
