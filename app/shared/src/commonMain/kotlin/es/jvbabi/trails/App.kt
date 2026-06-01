@@ -36,6 +36,8 @@ expect fun getClipboardText(): String?
 @Composable
 expect fun dynamicTheme(dark: Boolean): ColorScheme
 
+val LocalAppTheme = staticCompositionLocalOf { Theme.System }
+
 @Composable
 @Preview
 fun App(
@@ -48,62 +50,66 @@ fun App(
         .collectAsStateWithLifecycle(null)
         .value
 
-    if (theme != null) AppTheme(
-        dynamicColor = false,
-        darkTheme = when(theme) {
-            Theme.Dark -> true
-            Theme.Light -> false
-            Theme.System -> isSystemInDarkTheme()
-        }
-    ) {
-        val backstack = remember { mutableStateListOf<Screen>(Screen.Home) }
+    if (theme != null) {
+        CompositionLocalProvider(LocalAppTheme provides theme) {
+            AppTheme(
+                dynamicColor = false,
+                darkTheme = when(theme) {
+                    Theme.Dark -> true
+                    Theme.Light -> false
+                    Theme.System -> isSystemInDarkTheme()
+                }
+            ) {
+                val backstack = remember { mutableStateListOf<Screen>(Screen.Home) }
 
-        LaunchedEffect(startNavigation) {
-            startNavigation?.let { backstack.add(it) }
-        }
+                LaunchedEffect(startNavigation) {
+                    startNavigation?.let { backstack.add(it) }
+                }
 
-        DeviceDeletedOverlay()
+                DeviceDeletedOverlay()
 
-        val uiRepository = koinInject<UiRepository>()
+                val uiRepository = koinInject<UiRepository>()
 
-        val currentSnackbar = uiRepository.currentSnackbar.collectAsStateWithLifecycle().value
+                val currentSnackbar = uiRepository.currentSnackbar.collectAsStateWithLifecycle().value
 
-        NavDisplay(
-            backStack = backstack,
-            onBack = { backstack.removeLastOrNull() },
-            entryProvider = { key ->
-                return@NavDisplay when (key) {
-                    is Screen.Home -> NavEntry(key = key) {
-                        HomeScreen(
-                            backstack = backstack,
-                        )
+                NavDisplay(
+                    backStack = backstack,
+                    onBack = { backstack.removeLastOrNull() },
+                    entryProvider = { key ->
+                        return@NavDisplay when (key) {
+                            is Screen.Home -> NavEntry(key = key) {
+                                HomeScreen(
+                                    backstack = backstack,
+                                )
+                            }
+
+                            is Screen.Settings -> NavEntry(key = key) {
+                                SettingsScreen(
+                                    onBack = remember { { backstack.removeLastOrNull() } }
+                                )
+                            }
+                        }
                     }
+                )
 
-                    is Screen.Settings -> NavEntry(key = key) {
-                        SettingsScreen(
-                            onBack = remember { { backstack.removeLastOrNull() } }
+                AnimatedContent(
+                    targetState = currentSnackbar,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 8.dp + WindowInsets.safeContent.asPaddingValues().calculateBottomPadding())
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter),
+                    transitionSpec = {
+                        scaleIn() + slideInVertically { -it/2 } + fadeIn() togetherWith scaleOut() + slideOutVertically { -it/2 } + fadeOut()
+                    }
+                ) { currentSnackbar ->
+                    if (currentSnackbar != null) {
+                        Snackbar(
+                            modifier = Modifier.fillMaxWidth(),
+                            snackbar = currentSnackbar
                         )
                     }
                 }
-            }
-        )
-
-        AnimatedContent(
-            targetState = currentSnackbar,
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 8.dp + WindowInsets.safeContent.asPaddingValues().calculateBottomPadding())
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter),
-            transitionSpec = {
-                scaleIn() + slideInVertically { -it/2 } + fadeIn() togetherWith scaleOut() + slideOutVertically { -it/2 } + fadeOut()
-            }
-        ) { currentSnackbar ->
-            if (currentSnackbar != null) {
-                Snackbar(
-                    modifier = Modifier.fillMaxWidth(),
-                    snackbar = currentSnackbar
-                )
             }
         }
     }

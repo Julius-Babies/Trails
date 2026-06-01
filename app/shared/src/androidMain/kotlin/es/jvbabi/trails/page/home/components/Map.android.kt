@@ -52,6 +52,8 @@ import com.mapbox.maps.viewannotation.ViewAnnotationUpdateMode
 import com.mapbox.maps.viewannotation.annotationAnchor
 import com.mapbox.maps.viewannotation.geometry
 import com.mapbox.maps.viewannotation.viewAnnotationOptions
+import es.jvbabi.trails.LocalAppTheme
+import es.jvbabi.trails.domain.repository.Theme
 import es.jvbabi.trails.page.home.HomeState
 import es.jvbabi.trails.utils.rememberBitmapFromBytes
 import kotlin.time.Duration.Companion.seconds
@@ -148,7 +150,11 @@ actual fun Map(
             mapViewportState = mapViewportState,
             style = {
                 MapStyle(
-                    style = if (isSystemInDarkTheme()) Style.TRAFFIC_NIGHT else Style.STANDARD,
+                    style = when(LocalAppTheme.current) {
+                        Theme.Dark -> Style.TRAFFIC_NIGHT
+                        Theme.Light -> Style.STANDARD
+                        Theme.System -> if (isSystemInDarkTheme()) Style.TRAFFIC_NIGHT else Style.STANDARD
+                    }
                 )
             },
             scaleBar = {

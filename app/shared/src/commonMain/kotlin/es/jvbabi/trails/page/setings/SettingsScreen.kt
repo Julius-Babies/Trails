@@ -3,13 +3,7 @@
 package es.jvbabi.trails.page.setings
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -21,15 +15,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import es.jvbabi.trails.domain.repository.Theme
-import es.jvbabi.trails.utils.padding
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
-import trails.app.shared.generated.resources.Res
-import trails.app.shared.generated.resources.arrow_left
-import trails.app.shared.generated.resources.check
-import trails.app.shared.generated.resources.moon
-import trails.app.shared.generated.resources.sun
-import trails.app.shared.generated.resources.sun_moon
+import trails.app.shared.generated.resources.*
 
 @Composable
 fun SettingsScreen(

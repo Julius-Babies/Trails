@@ -44,20 +44,14 @@ fun DeviceImage(
     backgroundColor: Color = Color.Transparent,
     imageFillFraction: Float = 1f,
 ) {
-    var rememberedBitmap by remember { mutableStateOf(bitmap) }
-
-    LaunchedEffect(bitmap != null) {
-        if (bitmap != null) rememberedBitmap = bitmap
-    }
-
     Box(
         modifier = modifier.clip(shape).background(backgroundColor),
         contentAlignment = Alignment.Center,
     ) {
-        AnimatedContent(targetState = rememberedBitmap != null) { hasImage ->
-            if (hasImage && rememberedBitmap != null) {
+        AnimatedContent(targetState = bitmap != null) { hasImage ->
+            if (hasImage && bitmap != null) {
                 Image(
-                    bitmap = rememberedBitmap!!,
+                    bitmap = bitmap,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(imageFillFraction),
                 )
