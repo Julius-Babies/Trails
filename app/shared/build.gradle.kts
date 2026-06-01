@@ -28,6 +28,8 @@ kotlin {
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         namespace = "es.jvbabi.trails.shared.compose"
 
+        minSdk = libs.versions.android.minSdk.get().toInt()
+
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
         }
