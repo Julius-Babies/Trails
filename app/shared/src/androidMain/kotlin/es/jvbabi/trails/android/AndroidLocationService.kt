@@ -4,10 +4,13 @@ package es.jvbabi.trails.android
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.AlarmManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.location.Location
@@ -16,8 +19,8 @@ import android.location.LocationManager
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.os.SystemClock
 import android.util.Log
-import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
 import co.touchlab.kermit.Logger
@@ -26,12 +29,10 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import kotlin.time.Duration.Companion.minutes
 
 class AndroidLocationService: Service(), LocationListener, KoinComponent {
 
     private val serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-    private var wakeLockReacquireJob: Job? = null
 
     private val locationRepository by inject<LocationRepository>()
     private val snapshotRepository by inject<SnapshotRepository>()
@@ -50,28 +51,19 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
     override fun onCreate() {
         super.onCreate()
         locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+        val notification = createNotification()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+        } else {
+            startForeground(1, notification)
+        }
     }
 
-    @SuppressLint("MissingPermission")
-    @RequiresApi(Build.VERSION_CODES.ECLAIR)
+    @SuppressLint("MissingPermission", "WakelockTimeout")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val pm = getSystemService(POWER_SERVICE) as PowerManager
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Trails:LocationWakeLock")
-        wakeLock?.acquire(60.minutes.inWholeMilliseconds)
-
-        wakeLockReacquireJob = serviceScope.launch {
-            while (true) {
-                delay(30.minutes)
-                wakeLock?.let {
-                    if (it.isHeld) {
-                        it.release()
-                        it.acquire(60.minutes.inWholeMilliseconds)
-                    } else {
-                        it.acquire(60.minutes.inWholeMilliseconds)
-                    }
-                }
-            }
-        }
+        wakeLock?.acquire()
 
         serviceScope.launch {
             keyValueRepository
@@ -85,25 +77,24 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
                 }
         }
         serviceScope.launch {
-            val notification = createNotification()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
-            } else {
-                startForeground(1, notification)
-            }
-
             withContext(Dispatchers.Main) {
                 startTracking()
             }
-
         }
         return START_STICKY
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        val restartIntent = Intent(applicationContext, AndroidLocationService::class.java)
-        applicationContext.startService(restartIntent)
+        val restartIntent = Intent(applicationContext, AndroidLocationService::class.java).also {
+            it.`package` = packageName
+        }
+        val restartPendingIntent = PendingIntent.getService(
+            this, 1, restartIntent,
+            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val alarmService = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarmService.set(AlarmManager.ELAPSED_REALTIME, SystemClock.elapsedRealtime() + 1000, restartPendingIntent)
     }
 
     @RequiresPermission(anyOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
@@ -171,8 +162,9 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
     @RequiresPermission(anyOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     override fun onDestroy() {
         super.onDestroy()
-        wakeLockReacquireJob?.cancel()
-        wakeLock?.release()
+        wakeLock?.let {
+            if (it.isHeld) it.release()
+        }
         wakeLock = null
         serviceScope.cancel()
         locationManager.removeUpdates(this)
