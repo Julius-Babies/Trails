@@ -54,6 +54,8 @@ class DeviceViewModel(
                         device = device,
                         deletionState = null,
                         image = if (it.device?.device?.id != device.device.id) null else it.image,
+                        pingState = if (it.device?.device?.id != device.device.id) null else it.pingState,
+                        ringState = if (it.device?.device?.id != device.device.id) null else it.ringState,
                     ) }
 
                     devicesRepository.hasDeviceImage(device.device).first { it }
@@ -73,12 +75,14 @@ class DeviceViewModel(
         }
 
         viewModelScope.launch {
+            var previousDeviceId: Uuid? = null
             state
                 .filter { it.device != null && it.currentUser != null }
                 .distinctUntilChangedBy { listOf(it.device!!.device.id, it.currentUser!!.id).sumOf { it.hashCode() } }
                 .collect { snapshot ->
                     val isOwnDevice = snapshot.device!!.device.owner.id == snapshot.currentUser!!.id
-                    val hasDeviceChanged = state.value.device?.device?.id != snapshot.device.device.id
+                    val hasDeviceChanged = previousDeviceId != snapshot.device.device.id
+                    previousDeviceId = snapshot.device.device.id
 
                     state.update { it.copy(
                         pingState = when {
