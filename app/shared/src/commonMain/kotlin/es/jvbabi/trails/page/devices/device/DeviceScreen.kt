@@ -271,7 +271,8 @@ fun DeviceContent(
                                 }
                             } else {
                                 Button(
-                                    onClick = { onEvent(DeviceEvent.Ring) }
+                                    onClick = { onEvent(DeviceEvent.Ring) },
+                                    enabled = state.ringState == DeviceState.RingState.Ready,
                                 ) {
                                     AnimatedContent(
                                         targetState = state.ringState == DeviceState.RingState.Loading,

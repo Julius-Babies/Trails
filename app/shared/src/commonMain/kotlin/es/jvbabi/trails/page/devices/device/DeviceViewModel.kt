@@ -76,17 +76,18 @@ class DeviceViewModel(
             state
                 .filter { it.device != null && it.currentUser != null }
                 .distinctUntilChangedBy { listOf(it.device!!.device.id, it.currentUser!!.id).sumOf { it.hashCode() } }
-                .collectLatest { snapshot ->
+                .collect { snapshot ->
                     val isOwnDevice = snapshot.device!!.device.owner.id == snapshot.currentUser!!.id
+                    val hasDeviceChanged = state.value.device?.device?.id != snapshot.device.device.id
 
                     state.update { it.copy(
                         pingState = when {
-                            it.pingState == null && isOwnDevice -> DeviceState.PingState.Ready
+                            hasDeviceChanged && isOwnDevice -> DeviceState.PingState.Ready
                             !isOwnDevice -> DeviceState.PingState.Disabled
                             else -> it.pingState
                         },
                         ringState = when {
-                            it.ringState == null && isOwnDevice -> DeviceState.RingState.Ready
+                            hasDeviceChanged && isOwnDevice -> DeviceState.RingState.Ready
                             !isOwnDevice -> DeviceState.RingState.Disabled
                             else -> it.ringState
                         }
