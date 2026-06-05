@@ -47,6 +47,10 @@ fun Application.installAuthentikt() {
 
     val instance = installAuthentikt {
         apiPrefix = "/api/v1/auth"
+        baseUrl = applicationConfig.config.baseUrl
+        uiLoginBaseUrl = URLBuilder(applicationConfig.config.baseUrl).apply {
+            appendPathSegments("auth", "authorize")
+        }.buildString()
 
         var emailPlugin: EmailUserSelectionPlugin<User>? = null
         var passwordPlugin: PasswordPlugin<User>? = null
@@ -79,13 +83,9 @@ fun Application.installAuthentikt() {
             oauthPlugin = OIDCPlugin {
                 clientId = applicationConfig.config.auth!!.oauth!!.clientId
                 clientSecret = applicationConfig.config.auth!!.oauth!!.clientSecret
-                baseUrl = applicationConfig.config.baseUrl
                 authorizationEndpoint = applicationConfig.config.auth!!.oauth!!.authorizationEndpoint
                 userInfoEndpoint = applicationConfig.config.auth!!.oauth!!.userinfoEndpoint
                 tokenEndpoint = applicationConfig.config.auth!!.oauth!!.tokenEndpoint
-                uiLoginBaseUrl = URLBuilder(applicationConfig.config.baseUrl).apply {
-                    appendPathSegments("auth", "authorize")
-                }.buildString()
                 scopes(*applicationConfig.config.auth!!.oauth!!.scopes.toTypedArray())
 
                 onUserInfo { response ->
