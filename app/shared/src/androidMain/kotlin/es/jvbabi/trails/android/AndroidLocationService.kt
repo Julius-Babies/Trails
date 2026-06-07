@@ -91,13 +91,6 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
         return START_STICKY
     }
 
-    override fun onTaskRemoved(rootIntent: Intent?) {
-        super.onTaskRemoved(rootIntent)
-        // Service remains running because of stopWithTask="false" in manifest.
-        // Avoid using AlarmManager to restart the service on Android 12+ 
-        // to prevent ForegroundServiceStartNotAllowedException crashes.
-    }
-
     @RequiresPermission(anyOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     private fun startTracking() {
         _isRunning.value = true
@@ -145,7 +138,7 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Google-freies Tracking",
+                "GPS-Tracking",
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java) as NotificationManager
@@ -154,9 +147,11 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
 
         return NotificationCompat.Builder(this, channelId)
             .setContentTitle("GPS-Tracking läuft")
-            .setContentText("Standort wird alle 10 Sekunden nativ erfasst.")
+            .setContentText("Standort wird mit deinem Trails-Homeserver geteilt.")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setOngoing(true)
+            .setSilent(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
     }
 
