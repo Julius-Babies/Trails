@@ -7,8 +7,10 @@ export default defineConfig({
     server: {
         allowedHosts: [
             "trails.werkbank.space",
-            "trailsdevelopment.jvbabi.es",
+            "trails.julius-babies.wbcloud-dev-juliusbabies-midnight.wbspace.app",
+            "trails.julius-babies.wbspace.app",
+            "trails.julius-babies.werkbank.werkbank.space",
         ],
         host: true,
-    }
+    },
 });

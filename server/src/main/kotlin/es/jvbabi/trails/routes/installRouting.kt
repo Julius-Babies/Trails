@@ -10,6 +10,9 @@ import es.jvbabi.trails.routes.me.me
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import es.jvbabi.trails.routes.app.app
+import io.ktor.server.response.respondText
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.seconds
 
 fun Application.installRouting() {
     routing {

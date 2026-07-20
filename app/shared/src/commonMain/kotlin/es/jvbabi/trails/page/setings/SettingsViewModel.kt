@@ -156,7 +156,7 @@ class SettingsViewModel(
 }
 
 data class SettingsState(
-    val homeServerUrl: String = "https://trailsdevelopment.jvbabi.es", // TODO remove default value for prod, just for testing
+    val homeServerUrl: String = "https://trails.julius-babies.wbspace.app/", // TODO remove default value for prod, just for testing
     val showLoginDialog: Boolean = false,
     val hasLocationPermissions: Boolean? = null,
     val hasNotificationPermissions: Boolean? = null,

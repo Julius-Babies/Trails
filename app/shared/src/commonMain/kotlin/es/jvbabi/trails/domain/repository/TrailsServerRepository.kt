@@ -11,7 +11,7 @@ import kotlin.uuid.Uuid
 
 interface TrailsServerRepository {
 
-    fun connectWithHomeserver(): Deferred<Boolean>
+    fun connectWithHomeserver(parentSpan: Span): Deferred<Boolean>
     suspend fun connectWithOtherServer(server: String)
     suspend fun stopAllOtherServerConnections()
 

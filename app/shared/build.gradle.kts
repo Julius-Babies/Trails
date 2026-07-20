@@ -1,3 +1,4 @@
+import com.codingfeline.buildkonfig.compiler.FieldSpec
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
@@ -9,6 +10,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.ksp)
     alias(libs.plugins.androidx.room)
+    alias(libs.plugins.app.buildkonfig)
 }
 
 val localProperties = Properties().apply {
@@ -22,6 +24,7 @@ kotlin {
     compilerOptions {
         freeCompilerArgs.add("-Xexplicit-backing-fields")
         optIn.add("kotlin.uuid.ExperimentalUuidApi")
+        optIn.add("io.opentelemetry.kotlin.ExperimentalApi")
     }
 
     android {
@@ -100,7 +103,16 @@ kotlin {
             api(libs.app.ktor.client.core)
             implementation(libs.app.ktor.client.content.negotiation)
             implementation(libs.app.ktor.client.websockets)
+            implementation(libs.app.ktor.client.logging)
             implementation(libs.app.ktor.serialization.kotlinx.json)
+
+            api(libs.app.opentelemetry.api)
+            api(libs.app.opentelemetry.sdk.api)
+            api(libs.app.opentelemetry.sdk.common)
+            implementation(libs.app.opentelemetry.core)
+            implementation(libs.app.opentelemetry.implementation)
+            implementation(libs.app.opentelemetry.semconv)
+            implementation(libs.app.opentelemetry.exporters.otlp)
         }
 
         iosMain.dependencies {
@@ -125,4 +137,12 @@ room {
 
 dependencies {
     androidRuntimeClasspath(libs.app.compose.uiTooling)
+}
+
+buildkonfig {
+    packageName = "es.jvbabi.trails"
+
+    defaultConfigs {
+        buildConfigField(FieldSpec.Type.STRING, "OTEL_HTTP_COLLECTOR", localProperties.getProperty("otlp.export.http.endpoint")!!)
+    }
 }

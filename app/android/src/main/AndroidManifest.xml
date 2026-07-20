@@ -72,8 +72,6 @@
             android:foregroundServiceType="specialUse"
             android:stopWithTask="true" />
 
-
-
         <receiver
             android:name=".android.BootReceiver"
             android:exported="true">

@@ -50,6 +50,7 @@ class TrailsServerRepositoryImpl(
     private val userRepository: UserRepository,
     private val fileRepository: FileRepository,
     private val notificationRepository: NotificationRepository,
+    private val analyticsRepository: AnalyticsRepository,
 ) : TrailsServerRepository {
 
     val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -129,9 +130,11 @@ class TrailsServerRepositoryImpl(
 
     private var homeServerConnectJob: Job? = null
 
-    override fun connectWithHomeserver(): Deferred<Boolean> {
+    override fun connectWithHomeserver(parentSpan: Span): Deferred<Boolean> {
         val deferred = CompletableDeferred<Boolean>()
+        val span = parentSpan.createChild("homeserver-connection")
         if (this.isConnected.value || homeServerConnectJob?.isActive == true) {
+            span.addEvent("already_connected")
             deferred.complete(this.isConnected.value)
             return deferred
         }
@@ -148,6 +151,7 @@ class TrailsServerRepositoryImpl(
                         appendPathSegments("api", "v1", "app", "ws")
                     } ?: throw IllegalStateException("Base URL not set")
                     currentServerHost = url.host
+                    span.setProperty("url", url.buildString())
 
                     val token = keyValueRepository.get(Key.Token).first()
                         ?: throw IllegalStateException("Token not set")
@@ -163,6 +167,8 @@ class TrailsServerRepositoryImpl(
                     ) {
                         bearerAuth(token)
                     }
+
+                    span.addEvent("connected")
 
                     isConnected.value = true
                     wasConnected = true
@@ -225,6 +231,8 @@ class TrailsServerRepositoryImpl(
 
                 } catch (e: Exception) {
                     Logger.e(e) { "Error connecting to WS: ${e.message}" }
+                    span.addEvent("exception")
+                    span.setProperty("error", e.stackTraceToString())
                     locationUpdater?.cancel()
                     if (currentServerHost != null) stopCrashDetection(currentServerHost)
                     isConnected.value = false
@@ -283,41 +291,55 @@ class TrailsServerRepositoryImpl(
     override fun getUserId(): Flow<Uuid?> = keyValueRepository.get(Key.UserId)
 
     override suspend fun checkSessionHealth(): SessionHealthState {
-        val token = getToken().first() ?: return SessionHealthState.NoSessionExpected
-        val url = (getBaseUrl().first() ?: return SessionHealthState.NoSessionExpected).apply {
+        val span = analyticsRepository.startSpan("check-session-health")
+        val token = getToken().first() ?: return SessionHealthState.NoSessionExpected.also { span.addEvent("no_token") }
+        val url = (getBaseUrl().first() ?: return SessionHealthState.NoSessionExpected.also { span.addEvent("no_base_url") }).apply {
             appendPathSegments("api", "v1", "app", "session-healthcheck")
         }
+
+        span.setProperty("url", url.buildString())
 
         val response = httpClient.get(url.buildString()) {
             bearerAuth(token)
         }
 
         if (!response.status.isSuccess()) {
+            span.addEvent("error")
+            span.setProperty("status", response.status.toString())
             return SessionHealthState.Error("Error checking session health: ${response.status} ${response.bodyAsText()}")
         }
 
         when (val data = response.body<SessionHealthResponse>()) {
             is SessionHealthResponse.DeviceDeleted -> {
+                span.addEvent("device_deleted")
                 val thisDeviceId = keyValueRepository.get(Key.ThisDeviceId).first() ?: return SessionHealthState.NoSessionExpected
                 val thisDevice = devicesRepository.getDeviceById(thisDeviceId).firstOrNull() ?: return SessionHealthState.NoSessionExpected
                 isDeviceDeletedState.update { IsDeviceDeletedState.Deleted(thisDevice = thisDevice, deletedByDeviceName = data.deletedByDeviceName) }
                 return SessionHealthState.InvalidOrExpired
             }
-            is SessionHealthResponse.Valid -> return SessionHealthState.Ok
+            is SessionHealthResponse.Valid -> {
+                span.addEvent("valid")
+                return SessionHealthState.Ok
+            }
         }
     }
 
     override suspend fun getMeData(): Result<MeResponse> {
-        val token = getToken().first() ?: throw IllegalStateException("Token not set")
-        val url = (getBaseUrl().first() ?: throw IllegalStateException("Base URL not set")).apply {
+        val span = analyticsRepository.startSpan("get-me-data")
+        val token = getToken().first() ?: throw IllegalStateException("Token not set").also { span.addEvent("missing_token") }
+        val url = (getBaseUrl().first() ?: throw IllegalStateException("Base URL not set").also { span.addEvent("missing_base_url") }).apply {
             appendPathSegments("api", "v1", "me")
         }
+        
+        span.setProperty("url", url.buildString())
 
         val response = httpClient.get(url.buildString()) {
             bearerAuth(token)
         }
 
         if (!response.status.isSuccess()) {
+            span.addEvent("error")
+            span.setProperty("status", response.status.toString())
             if (response.status == HttpStatusCode.Unauthorized) {
                 keyValueRepository.delete(Key.Token)
                 keyValueRepository.delete(Key.UserId)
@@ -329,6 +351,7 @@ class TrailsServerRepositoryImpl(
             return Result.failure(IllegalStateException("Error fetching me data: ${response.status} ${response.bodyAsText()}"))
         }
 
+        span.addEvent("success")
         val body = response.body<MeResponse>()
 
         database.userDao.upsert(
@@ -346,20 +369,27 @@ class TrailsServerRepositoryImpl(
     }
 
     override suspend fun updateUserDevices() {
-        val token = getToken().first() ?: throw IllegalStateException("Token not set")
-        val userId = getUserId().first() ?: throw IllegalStateException("User ID not set")
-        val user = userRepository.getUser(userId).firstOrNull() ?: throw IllegalStateException("User not found in database")
-        val url = (getBaseUrl().first() ?: throw IllegalStateException("Base URL not set")).apply {
+        val span = analyticsRepository.startSpan("update-user-devices")
+        val token = getToken().first() ?: throw IllegalStateException("Token not set").also { span.addEvent("missing_token") }
+        val userId = getUserId().first() ?: throw IllegalStateException("User ID not set").also { span.addEvent("missing_user_id") }
+        val user = userRepository.getUser(userId).firstOrNull() ?: throw IllegalStateException("User not found in database").also { span.addEvent("missing_user_db") }
+        val url = (getBaseUrl().first() ?: throw IllegalStateException("Base URL not set").also { span.addEvent("missing_base_url") }).apply {
             appendPathSegments("api", "v1", "devices")
         }
+
+        span.setProperty("url", url.buildString())
 
         val response = httpClient.get(url.buildString()) {
             bearerAuth(token)
         }
 
         if (!response.status.isSuccess()) {
+            span.addEvent("error")
+            span.setProperty("status", response.status.toString())
             throw IllegalStateException("Error fetching devices: ${response.status}")
         }
+        
+        span.addEvent("success")
 
         val body = response.body<List<DeviceResponse>>()
 
@@ -397,13 +427,20 @@ class TrailsServerRepositoryImpl(
     }
 
     override suspend fun requestPing(device: Device): PingResult {
+        val span = analyticsRepository.startSpan("request-ping")
+        span.setProperty("device_id", device.id.toString())
         val deferred = CompletableDeferred<PingResult>()
         pendingPingResults[device.id] = deferred
         val session = websocketSession
-        if (session == null || !session.isActive) return PingResult.Error("WebSocket not connected")
+        if (session == null || !session.isActive) {
+            span.addEvent("no_websocket")
+            return PingResult.Error("WebSocket not connected")
+        }
+        span.addEvent("sending_ping")
         session.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.DevicePing(device.id.toString()))
         val result = withTimeoutOrNull(10.seconds) { deferred.await() }
         pendingPingResults.remove(device.id)
+        if (result == null) span.addEvent("timeout") else span.addEvent("result_received")
         return result ?: PingResult.Timeout
     }
 
@@ -422,6 +459,8 @@ class TrailsServerRepositoryImpl(
     }
 
     override suspend fun useShareLink(hostname: String, id: String): UseShareLinkResult {
+        val span = analyticsRepository.startSpan("use-share-link")
+        span.setProperty("hostname", hostname)
         val url = URLBuilder("https://$hostname").apply {
             appendPathSegments("api", "v1", "app", "share", "use")
         }
@@ -432,14 +471,24 @@ class TrailsServerRepositoryImpl(
         }
 
         when (response.status) {
-            HttpStatusCode.NotFound -> return UseShareLinkResult.NotExisting
-            HttpStatusCode.Forbidden -> return UseShareLinkResult.Used
+            HttpStatusCode.NotFound -> {
+                span.addEvent("not_existing")
+                return UseShareLinkResult.NotExisting
+            }
+            HttpStatusCode.Forbidden -> {
+                span.addEvent("used")
+                return UseShareLinkResult.Used
+            }
         }
 
         if (!response.status.isSuccess()) {
+            span.addEvent("error")
+            span.setProperty("status", response.status.toString())
             Logger.e(NetworkRequestUnsuccessfulException(response)) { "Error using share link" }
             return UseShareLinkResult.Error("Error using share link: ${response.status}")
         }
+        
+        span.addEvent("success")
 
         val body = response.body<UseShareLinkResponse>()
         database.userDao.upsert(DbUser(
@@ -478,9 +527,14 @@ class TrailsServerRepositoryImpl(
     override suspend fun connectWithOtherServer(server: String) = connectWithOtherServer(server, 0)
 
     private suspend fun connectWithOtherServer(server: String, retryCount: Int) {
+        val span = analyticsRepository.startSpan("connect-other-server")
+        span.setProperty("server", server)
         var currentRetry = retryCount
         while (currentCoroutineContext().isActive) {
-            if (activeExternalSessions[server]?.isActive == true) return
+            if (activeExternalSessions[server]?.isActive == true) {
+                span.addEvent("already_connected")
+                return
+            }
             val url = URLBuilder("wss://$server").apply {
                 appendPathSegments("api", "v1", "app", "ws")
             }
@@ -490,6 +544,7 @@ class TrailsServerRepositoryImpl(
                 Logger.i { "Connecting with external server $server" }
                 activeExternalSessions[server] = httpClient.webSocketSession(urlString = url.buildString())
 
+                span.addEvent("connected")
                 database.connectionEventDao.upsert(ConnectionEvent(
                     id = Uuid.random(),
                     server = url.host,
@@ -513,6 +568,8 @@ class TrailsServerRepositoryImpl(
                 activeExternalSessions.remove(server)
 
             } catch (e: Exception) {
+                span.addEvent("exception")
+                span.setProperty("error", e.stackTraceToString())
                 Logger.e(e) { "Error connecting to WS: ${e.message}" }
                 stopCrashDetection(server)
                 database.connectionEventDao.upsert(ConnectionEvent(

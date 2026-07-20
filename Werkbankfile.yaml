@@ -1,23 +1,32 @@
 project:
   name: "Trails"
   id: "trails"
-  external_domain: "trailsdevelopment.jvbabi.es"
+  external_domain: "trails.julius-babies.wbspace.app"
 
 services:
   - name: "api"
-    path_prefixes:
-      - "/api"
     modes:
       local:
         port: 8080
 
   - name: "frontend"
-    path_prefixes:
-      - "/"
     modes:
       local:
-        port: 5173
+        port: 4050
+
+  - name: "Jaeger"
+    modes:
+      local:
+        port: 4318
+
+http:
+  - path_prefixes:
+      - /api
+    target_service: api
+  - path_prefixes:
+      - /
+    target_service: frontend
 
 dependencies:
   androiddns: true
-  keycloak: true
+  keycloak: false
