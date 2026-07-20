@@ -5,18 +5,24 @@ project:
 
 services:
   - name: "api"
-    path_prefixes:
-      - "/api"
     modes:
       local:
         port: 8080
 
   - name: "frontend"
-    path_prefixes:
-      - "/"
     modes:
       local:
         port: 5173
+
+http:
+  - path_prefixes:
+      - /api
+    target_service: api
+    priority: 100
+  - priority: 50
+    path_prefixes:
+      - /
+    target_service: frontend
 
 dependencies:
   androiddns: true
