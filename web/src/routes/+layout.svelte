@@ -26,7 +26,7 @@
 
 <main class="pointer-events-none relative z-10 flex h-full w-full flex-col p-4">
     <div
-            class="xl-card pointer-events-auto h-full w-full max-w-100 overflow-y-auto rounded-3xl border border-border bg-card p-4 pt-6 text-card-foreground shadow-2xl
+            class="xl-card pointer-events-auto h-full w-full max-w-100 overflow-y-auto rounded-3xl border border-border bg-accent text-card-foreground shadow-2xl
                md:w-1/2
                lg:w-1/3
                xl:mt-auto

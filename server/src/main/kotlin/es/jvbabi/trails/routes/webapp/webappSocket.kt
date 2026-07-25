@@ -6,6 +6,7 @@ import es.jvbabi.trails.api.TRAILS_WEBAPP_REALM
 import es.jvbabi.trails.api.TrailsWebappPrincipal
 import es.jvbabi.trails.data.DeviceSubscriptionMessage
 import es.jvbabi.trails.data.DeviceSubscriptionRepository
+import es.jvbabi.trails.data.ReverseGeocoding
 import es.jvbabi.trails.data.UserSubscriptionMessage
 import es.jvbabi.trails.data.UserSubscriptionRepository
 import es.jvbabi.trails.database.DatabaseManager
@@ -29,6 +30,7 @@ fun Route.webappSocket() {
 
     val userSubscriptionRepository by inject<UserSubscriptionRepository>()
     val deviceSubscriptionRepository by inject<DeviceSubscriptionRepository>()
+    val reverseGeocoding by inject<ReverseGeocoding>()
     val db by inject<DatabaseManager>()
 
     authenticate(TRAILS_WEBAPP_REALM) {
@@ -44,7 +46,28 @@ fun Route.webappSocket() {
                         .filter { it.deletion == null }
                         .map { device -> WebAppSocketServerMessage.DevicesUpdate.Device.fromDevice(device) }
                 }
-                sendSerialized<WebAppSocketServerMessage>(WebAppSocketServerMessage.DevicesUpdate(devices = devices))
+                // Reverse-geocode the last known location outside the DB
+                // transaction so the network call doesn't hold a connection.
+                val enriched = devices.map { device ->
+                    val location = device.lastLocation ?: return@map device
+                    val address = reverseGeocoding.reverseGeocode(location.latitude, location.longitude)
+                        ?: return@map device
+                    device.copy(
+                        lastLocation = location.copy(
+                            address = WebAppSocketServerMessage.DevicesUpdate.Device.LastLocation.Address(
+                                road = address.road,
+                                houseNumber = address.houseNumber,
+                                postcode = address.postcode,
+                                city = address.city,
+                                state = address.state,
+                                country = address.country,
+                                displayName = address.displayName,
+                                label = address.shortLabel,
+                            )
+                        )
+                    )
+                }
+                sendSerialized<WebAppSocketServerMessage>(WebAppSocketServerMessage.DevicesUpdate(devices = enriched))
             }
 
             // Subscribe to a single device flow and re-send the device list on
@@ -108,7 +131,8 @@ sealed class WebAppSocketServerMessage {
             @SerialName("model") val model: String,
             @SerialName("friendly_name") val friendlyName: String,
             @SerialName("display_name") val displayName: String,
-            @SerialName("battery") val battery: Battery?
+            @SerialName("battery") val battery: Battery?,
+            @SerialName("last_location") val lastLocation: LastLocation?,
         ) {
             companion object {
                 fun fromDevice(device: es.jvbabi.trails.database.Device): Device {
@@ -130,6 +154,16 @@ sealed class WebAppSocketServerMessage {
                                 percentage = (level * 100).toInt(),
                                 isCharging = charging
                             )
+                        },
+                        lastLocation = latestSnapshot?.let { snapshot ->
+                            val latitude = snapshot.latitude
+                            val longitude = snapshot.longitude
+                            val foundAt = snapshot.createdAt.toEpochMilliseconds()
+                            LastLocation(
+                                latitude = latitude,
+                                longitude = longitude,
+                                foundAt = foundAt
+                            )
                         }
                     )
                 }
@@ -140,6 +174,26 @@ sealed class WebAppSocketServerMessage {
                 @SerialName("percentage") val percentage: Int,
                 @SerialName("is_charging") val isCharging: Boolean
             )
+
+            @Serializable
+            data class LastLocation(
+                @SerialName("latitude") val latitude: Double,
+                @SerialName("longitude") val longitude: Double,
+                @SerialName("found_at") val foundAt: Long,
+                @SerialName("address") val address: Address? = null,
+            ) {
+                @Serializable
+                data class Address(
+                    @SerialName("road") val road: String?,
+                    @SerialName("house_number") val houseNumber: String?,
+                    @SerialName("postcode") val postcode: String?,
+                    @SerialName("city") val city: String?,
+                    @SerialName("state") val state: String?,
+                    @SerialName("country") val country: String?,
+                    @SerialName("display_name") val displayName: String?,
+                    @SerialName("label") val label: String,
+                )
+            }
         }
     }
 }

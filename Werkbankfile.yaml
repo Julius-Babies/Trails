@@ -14,6 +14,25 @@ services:
       local:
         port: 5173
 
+  - name: "nominatim"
+    modes:
+      docker:
+        container: "nominatim"
+        port: 8080
+
+containers:
+  - name: "nominatim"
+    image: "mediagis/nominatim:5.3"
+    type: "dependency"
+    environment:
+      # Region to import on first start. Monaco is a small dataset for quick
+      # dev startup — replace with the extract you need, e.g.
+      # https://download.geofabrik.de/europe/germany-latest.osm.pbf
+      PBF_URL: "https://download.geofabrik.de/europe/germany/sachsen-latest.osm.pbf"
+    volumes:
+      # Persist the imported Postgres database across container re-creation.
+      - "nominatim:/var/lib/postgresql/16/main"
+
 http:
   - path_prefixes:
       - /api

@@ -4,6 +4,8 @@ import es.jvbabi.trails.ApplicationLaunchConfig
 import es.jvbabi.trails.config.ApplicationConfig
 import es.jvbabi.trails.data.DeviceInformationRepository
 import es.jvbabi.trails.data.DeviceSubscriptionRepository
+import es.jvbabi.trails.data.NominatimService
+import es.jvbabi.trails.data.ReverseGeocoding
 import es.jvbabi.trails.data.UserSubscriptionRepository
 import es.jvbabi.trails.database.DatabaseManager
 import io.ktor.server.application.*
@@ -16,6 +18,7 @@ private val coreModule = module {
     single { DeviceInformationRepository() }
     single { DeviceSubscriptionRepository() }
     single { UserSubscriptionRepository() }
+    single<ReverseGeocoding> { NominatimService() }
 }
 
 fun Application.installKoin(
@@ -33,5 +36,8 @@ fun Application.installKoin(
     monitor.subscribe(ApplicationStopping) {
         val deviceInformationRepository by inject<DeviceInformationRepository>()
         deviceInformationRepository.close()
+
+        val reverseGeocoding by inject<ReverseGeocoding>()
+        reverseGeocoding.close()
     }
 }

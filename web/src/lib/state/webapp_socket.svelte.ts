@@ -5,6 +5,24 @@ export interface Battery {
     is_charging: boolean;
 }
 
+export interface Address {
+    road: string | null;
+    house_number: string | null;
+    postcode: string | null;
+    city: string | null;
+    state: string | null;
+    country: string | null;
+    display_name: string | null;
+    label: string;
+}
+
+export interface LastLocation {
+    latitude: number;
+    longitude: number;
+    found_at: number;
+    address: Address | null;
+}
+
 export interface Device {
     [x: string]: any;
     id: string;
@@ -13,6 +31,7 @@ export interface Device {
     display_name: string;
     friendly_name: string;
     battery: Battery | null;
+    last_location: LastLocation | null;
 }
 
 type ServerMessage =
