@@ -129,6 +129,21 @@ class TrailsServerRepositoryImpl(
 
     private var homeServerConnectJob: Job? = null
 
+    /**
+     * Wartet bis zu [delayMs] ms, wacht aber sofort auf, sobald die App (neu) in den
+     * Vordergrund kommt. Gibt true zurück, wenn durch den Vordergrund-Wechsel geweckt
+     * wurde – dann soll unmittelbar ein neuer Verbindungsversuch erfolgen und der
+     * Backoff zurückgesetzt werden.
+     */
+    private suspend fun delayOrUntilForeground(delayMs: Long): Boolean {
+        return withTimeoutOrNull(delayMs.milliseconds) {
+            applicationRepository.getApplicationForegroundState()
+                .dropWhile { it }   // aktuellen Vordergrund-Zustand überspringen
+                .first { it }       // auf Wechsel nach Vordergrund warten
+            true
+        } ?: false
+    }
+
     override fun connectWithHomeserver(): Deferred<Boolean> {
         val deferred = CompletableDeferred<Boolean>()
         if (this.isConnected.value || homeServerConnectJob?.isActive == true) {
@@ -250,8 +265,8 @@ class TrailsServerRepositoryImpl(
                         // 1L shl bei zu großem Exponenten vermeiden -> Exponent deckeln.
                         minOf(30_000L, 5_000L * (1L shl minOf(currentRetry, 6)))
                     }
-                    delay(delayMs.milliseconds)
-                    currentRetry++
+                    // Kommt die App in den Vordergrund, sofort erneut versuchen und Backoff resetten.
+                    if (delayOrUntilForeground(delayMs)) currentRetry = 0 else currentRetry++
                 } else {
                     if (!deferred.isCompleted) deferred.complete(true)
                     val delayMs = if (applicationRepository.getApplicationForegroundState().first()) {
@@ -532,8 +547,8 @@ class TrailsServerRepositoryImpl(
                 } else {
                     minOf(30_000L, 5_000L * (1L shl minOf(currentRetry, 6)))
                 }
-                delay(delayMs.milliseconds)
-                currentRetry++
+                // Kommt die App in den Vordergrund, sofort erneut versuchen und Backoff resetten.
+                if (delayOrUntilForeground(delayMs)) currentRetry = 0 else currentRetry++
             } else {
                 val delayMs = if (applicationRepository.getApplicationForegroundState().first()) {
                     1_000L
