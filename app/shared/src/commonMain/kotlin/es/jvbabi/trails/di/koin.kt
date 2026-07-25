@@ -39,6 +39,7 @@ import es.jvbabi.trails.ui.overlay.DeviceDeletedViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.sse.SSE
+import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.pingInterval
 import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
@@ -78,6 +79,10 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
 
             HttpClient {
                 install(ContentNegotiation) {
+                    // Verhindert, dass ContentNegotiation beim WS-Handshake versucht, die
+                    // WebSocket-Session selbst zu (de)serialisieren
+                    // ("Serializer for class 'DefaultClientWebSocketSession' is not found").
+                    ignoreType<DefaultClientWebSocketSession>()
                     json(jsonInstance)
                 }
 
