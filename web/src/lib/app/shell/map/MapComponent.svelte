@@ -1,42 +1,54 @@
 <script lang="ts">
     import { onMount } from "svelte";
+    import { MediaQuery } from "svelte/reactivity";
     import mapboxgl from "mapbox-gl";
     import "mapbox-gl/dist/mapbox-gl.css";
-    import {env} from "$env/dynamic/public";
+    import { getMapboxToken } from "$lib/api/mapbox/get_mapbox_token";
+    import mapDark from "$lib/assets/map-dark.png";
+    import mapLight from "$lib/assets/map-light.png";
 
-    let mapContainer: HTMLDivElement;
+    let mapContainer: HTMLDivElement | null = $state(null);
+    let showPlaceholder = $state(false);
+    let map: mapboxgl.Map | undefined = $state();
+
+    const darkMode = new MediaQuery("(prefers-color-scheme: dark)");
+    const style = $derived(
+        darkMode.current
+            ? "mapbox://styles/mapbox/traffic-night-v2"
+            : "mapbox://styles/mapbox/standard"
+    );
 
     onMount(() => {
-        const mediaQuery = window.matchMedia(
-            "(prefers-color-scheme: dark)"
-        );
+        getMapboxToken().then((accessToken) => {
+            if (accessToken == null) {
+                showPlaceholder = true;
+                return;
+            }
 
-        const map = new mapboxgl.Map({
-            accessToken: env.PUBLIC_MAPBOX_TOKEN,
-            container: mapContainer,
-            style: getStyle(mediaQuery.matches),
-            projection: "globe",
-            center: [13.7373, 51.0504],
-            zoom: 11
+            map = new mapboxgl.Map({
+                accessToken,
+                container: mapContainer!,
+                style,
+                projection: "globe",
+                center: [13.7373, 51.0504],
+                zoom: 11
+            });
         });
 
-        function handleThemeChange(event: MediaQueryListEvent) {
-            map.setStyle(getStyle(event.matches));
-        }
-
-        mediaQuery.addEventListener("change", handleThemeChange);
-
-        return () => {
-            mediaQuery.removeEventListener("change", handleThemeChange);
-            map.remove();
-        };
+        return () => map?.remove();
     });
 
-    function getStyle(isDark: boolean) {
-        return isDark
-            ? "mapbox://styles/mapbox/traffic-night-v2"
-            : "mapbox://styles/mapbox/standard";
-    }
+    $effect(() => {
+        map?.setStyle(style);
+    });
 </script>
 
-<div bind:this={mapContainer} class="h-full w-full"></div>
+{#if showPlaceholder}
+    <img
+        src={darkMode.current ? mapDark : mapLight}
+        alt=""
+        class="h-full w-full object-cover object-center"
+    />
+{:else}
+    <div bind:this={mapContainer} class="h-full w-full"></div>
+{/if}

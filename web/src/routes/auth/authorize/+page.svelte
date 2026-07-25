@@ -33,12 +33,12 @@
             </div>
         {/if}
 
-        <div class="w-full h-full flex flex-col items-center justify-center md:py-8 md:bg-zinc-50">
-            <div class="flex flex-col items-center p-4 h-full md:max-h-10/12 max-md:w-full md:w-xl md:rounded-md md:shadow-xl bg-white overflow-y-auto">
+        <div class="w-full h-full flex flex-col items-center justify-center">
+            <div class="flex flex-col items-center w-full h-full overflow-y-auto px-2">
                 <span class="text-6xl font-extralight pt-8">Trails</span>
                 <span class="text-base font-light text-zinc-600 pt-1 pb-2">Mit Benutzerkonto anmelden.</span>
 
-                <div class="flex grow w-full">
+                <div class="flex grow w-full pt-4">
                     {#if !authentikt.currentFlow}
                         <LinkFlow />
                     {:else}

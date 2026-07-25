@@ -12,6 +12,7 @@ import io.ktor.server.routing.*
 import es.jvbabi.trails.routes.app.app
 import es.jvbabi.trails.routes.auth.webapp.webappAuthorization
 import es.jvbabi.trails.routes.webapp.me.webappMe
+import es.jvbabi.trails.routes.webapp.mapbox.webappMapbox
 
 fun Application.installRouting() {
     routing {
@@ -53,6 +54,10 @@ fun Application.installRouting() {
             route("/webapp") {
                 route("/me") {
                     webappMe()
+                }
+
+                route("/mapbox") {
+                    webappMapbox()
                 }
             }
 

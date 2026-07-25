@@ -1,17 +1,14 @@
 <script lang="ts">
     import './layout.css';
     import favicon from '$lib/assets/favicon.svg';
-    import {getMe} from "$lib/api/auth/get_me";
     import {page} from "$app/state";
     import MapComponent from "$lib/app/shell/map/MapComponent.svelte";
+    import {currentUser, updateUser} from "$lib/state/current_user";
 
     let { children } = $props();
 
     $effect(() => {
-        if (!page.url.pathname.startsWith("/auth")) getMe()
-            .then(user => {
-                if (user == null) window.location.href = "/api/v1/auth/webapp-authorization"
-            })
+        if (!page.url.pathname.startsWith("/auth") && $currentUser === "loading") updateUser()
     })
 </script>
 
@@ -20,14 +17,17 @@
     <title>Trails</title>
 </svelte:head>
 
-{#if !page.url.pathname.startsWith("/auth")}
-    <div class="fixed inset-0 z-0">
-        <MapComponent />
-    </div>
-{/if}
+<div class="fixed inset-0 z-0">
+    <MapComponent />
+</div>
 
-<main class="relative z-10 w-fit h-fit p-4">
-    <div class="w-64 h-fit bg-background p-8 rounded-lg drop-shadow-2xl">
+<main class="pointer-events-none relative z-10 h-full w-full p-4">
+    <div
+            class="pointer-events-auto h-full w-full max-w-100 rounded-lg border border-border bg-card p-4 text-card-foreground shadow-2xl
+               md:w-1/2
+               lg:w-1/3
+               xl:w-100"
+    >
         {@render children()}
     </div>
 </main>

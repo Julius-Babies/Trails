@@ -17,6 +17,7 @@ class ApplicationConfig(
 
     private val baseUrl = config.baseUrl
     val database = config.database ?: ApplicationConfigFile.Database.Sqlite(path = File(storageDirectory).resolve("database.db").absolutePath)
+    val mapboxAccessToken = config.mapbox?.accessToken
 
     val url = URLBuilder(baseUrl)
     val storage = File(storageDirectory).apply { mkdirs() }
@@ -33,7 +34,14 @@ data class ApplicationConfigFile(
     @SerialName("base_url") val baseUrl: String,
     @SerialName("database") val database: Database? = null,
     @SerialName("auth") val auth: Auth? = null,
+    @SerialName("mapbox") val mapbox: Mapbox? = null,
 ) {
+    @Serializable
+    data class Mapbox(
+        @SerialName("access_token") val accessToken: String,
+    )
+
+
     @Serializable
     sealed class Database {
         @Serializable
