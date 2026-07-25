@@ -32,6 +32,7 @@
 	"dependencies": {
 		"@Julius-Babies/authentikt-svelte": "^0.3.1",
 		"@lucide/svelte": "^1.16.0",
-		"@sveltejs/adapter-node": "^5.5.4"
+		"@sveltejs/adapter-node": "^5.5.4",
+		"mapbox-gl": "^3.27.0"
 	}
 }
