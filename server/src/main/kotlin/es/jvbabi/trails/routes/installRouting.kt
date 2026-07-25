@@ -11,6 +11,7 @@ import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import es.jvbabi.trails.routes.app.app
 import es.jvbabi.trails.routes.auth.webapp.webappAuthorization
+import es.jvbabi.trails.routes.auth.webapp.webappLogout
 import es.jvbabi.trails.routes.webapp.me.webappMe
 import es.jvbabi.trails.routes.webapp.mapbox.webappMapbox
 
@@ -58,6 +59,12 @@ fun Application.installRouting() {
 
                 route("/mapbox") {
                     webappMapbox()
+                }
+
+                route("/auth") {
+                    route("/logout") {
+                        webappLogout()
+                    }
                 }
             }
 

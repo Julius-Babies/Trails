@@ -6,7 +6,7 @@ export interface User {
     username: string;
 }
 
-export const currentUser = writable<User | "loading" | null>("loading");
+export const currentUser = writable<User | null>(null);
 
 export async function updateUser() {
     const currentUserResult = await getMe();
