@@ -236,20 +236,22 @@ class TrailsServerRepositoryImpl(
                     ).toEntity())
                 }
 
-                val maxRetries = 30
+                // Anzahl Fehlversuche, nach denen der Aufrufer nicht länger blockiert wird.
+                // Die Schleife gibt NICHT auf, sondern versucht im Hintergrund weiter zu
+                // verbinden (Tracking-App muss dauerhaft reconnecten).
+                val retriesBeforeUnblockingCaller = 30
                 if (!wasConnected) {
-                    if (currentRetry < maxRetries) {
-                        val delayMs = if (applicationRepository.getApplicationForegroundState().first()) {
-                            1_000L
-                        } else {
-                            minOf(30_000L, 5_000L * (1L shl currentRetry))
-                        }
-                        delay(delayMs.milliseconds)
-                        currentRetry++
-                    } else {
-                        if (!deferred.isCompleted) deferred.complete(false)
-                        break
+                    if (currentRetry >= retriesBeforeUnblockingCaller && !deferred.isCompleted) {
+                        deferred.complete(false)
                     }
+                    val delayMs = if (applicationRepository.getApplicationForegroundState().first()) {
+                        1_000L
+                    } else {
+                        // 1L shl bei zu großem Exponenten vermeiden -> Exponent deckeln.
+                        minOf(30_000L, 5_000L * (1L shl minOf(currentRetry, 6)))
+                    }
+                    delay(delayMs.milliseconds)
+                    currentRetry++
                 } else {
                     if (!deferred.isCompleted) deferred.complete(true)
                     val delayMs = if (applicationRepository.getApplicationForegroundState().first()) {
@@ -523,19 +525,15 @@ class TrailsServerRepositoryImpl(
                 ).toEntity())
             }
 
-            val maxRetries = 30
             if (!wasConnected) {
-                if (currentRetry < maxRetries) {
-                    val delayMs = if (applicationRepository.getApplicationForegroundState().first()) {
-                        1_000L
-                    } else {
-                        minOf(30_000L, 5_000L * (1L shl currentRetry))
-                    }
-                    delay(delayMs.milliseconds)
-                    currentRetry++
+                // Nie endgültig aufgeben, weiter mit gedeckeltem Backoff versuchen.
+                val delayMs = if (applicationRepository.getApplicationForegroundState().first()) {
+                    1_000L
                 } else {
-                    break
+                    minOf(30_000L, 5_000L * (1L shl minOf(currentRetry, 6)))
                 }
+                delay(delayMs.milliseconds)
+                currentRetry++
             } else {
                 val delayMs = if (applicationRepository.getApplicationForegroundState().first()) {
                     1_000L
