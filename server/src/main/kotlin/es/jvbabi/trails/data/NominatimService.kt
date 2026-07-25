@@ -8,11 +8,13 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import es.jvbabi.trails.config.ApplicationConfig
+import es.jvbabi.trails.config.ApplicationConfigFile
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import java.util.Optional
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -27,6 +29,11 @@ class NominatimService : ReverseGeocoding, KoinComponent {
     private val applicationConfig by inject<ApplicationConfig>()
     private val baseUrl = applicationConfig.nominatimBaseUrl
 
+    // Only the public instance is rate limited, so caching is only worthwhile
+    // there. A self-hosted instance can be queried freely, so we skip the cache
+    // to always return fresh results.
+    private val usePublicInstance = baseUrl == ApplicationConfigFile.Nominatim.DEFAULT_BASE_URL
+
     private val httpClient = HttpClient(CIO) {
         install(ContentNegotiation) {
             json(Json {
@@ -38,13 +45,14 @@ class NominatimService : ReverseGeocoding, KoinComponent {
 
     // The public Nominatim instance is rate limited (max 1 req/s) and returns
     // the same address for nearby coordinates, so we cache results by rounded
-    // coordinate to avoid hammering it on every snapshot. A missing key means
-    // "not looked up yet", a present null value means "looked up, no result".
-    private val cache = ConcurrentHashMap<String, GeocodedAddress?>()
+    // coordinate to avoid hammering it on every snapshot. ConcurrentHashMap
+    // rejects null values, so an empty Optional encodes "looked up, no result";
+    // a missing key means "not looked up yet".
+    private val cache = ConcurrentHashMap<String, Optional<GeocodedAddress>>()
 
     override suspend fun reverseGeocode(latitude: Double, longitude: Double): GeocodedAddress? {
         val cacheKey = "%.5f,%.5f".format(latitude, longitude)
-        if (cache.containsKey(cacheKey)) return cache[cacheKey]
+        if (usePublicInstance) cache[cacheKey]?.let { return it.orElse(null) }
 
         val response = try {
             httpClient.get(URLBuilder(baseUrl).apply {
@@ -64,7 +72,7 @@ class NominatimService : ReverseGeocoding, KoinComponent {
         }
 
         if (!response.status.isSuccess()) {
-            cache[cacheKey] = null
+            if (usePublicInstance) cache[cacheKey] = Optional.empty()
             return null
         }
 
@@ -85,7 +93,7 @@ class NominatimService : ReverseGeocoding, KoinComponent {
                 displayName = body.displayName,
             )
         }
-        cache[cacheKey] = address
+        if (usePublicInstance) cache[cacheKey] = Optional.ofNullable(address)
         return address
     }
 
