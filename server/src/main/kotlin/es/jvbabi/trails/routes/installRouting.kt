@@ -14,6 +14,7 @@ import es.jvbabi.trails.routes.auth.webapp.webappAuthorization
 import es.jvbabi.trails.routes.auth.webapp.webappLogout
 import es.jvbabi.trails.routes.webapp.me.webappMe
 import es.jvbabi.trails.routes.webapp.mapbox.webappMapbox
+import es.jvbabi.trails.routes.webapp.webappSocket
 
 fun Application.installRouting() {
     routing {
@@ -53,6 +54,11 @@ fun Application.installRouting() {
             }
 
             route("/webapp") {
+
+                route("/ws") {
+                    webappSocket()
+                }
+
                 route("/me") {
                     webappMe()
                 }

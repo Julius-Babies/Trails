@@ -1,6 +1,7 @@
 <script lang="ts">
     import {currentUser} from "$lib/state/current_user";
     import {Button} from "$lib/components/ui/button";
+    import DeviceList from "$lib/app/devices/DeviceList.svelte";
 </script>
 
 {#if $currentUser === null}
@@ -10,7 +11,5 @@
     </div>
 
 {:else}
-    <div class="flex flex-col h-full">
-        <h1 class="text-xl font-bold">Geräte</h1>
-    </div>
+    <DeviceList />
 {/if}
