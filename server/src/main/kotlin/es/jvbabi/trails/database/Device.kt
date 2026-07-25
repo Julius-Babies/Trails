@@ -1,5 +1,7 @@
 package es.jvbabi.trails.database
 
+import database.DataSnapshot
+import database.DataSnapshots
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.dao.id.UuidTable
@@ -20,6 +22,8 @@ class Device(id: EntityID<Uuid>) : UuidEntity(id) {
     var owner by User referencedOn Devices.owner
     var createdAt by Devices.createdAt
     var deletion by DeviceDeletion optionalReferencedOn Devices.deletion
+
+    val snapshots by DataSnapshot referrersOn DataSnapshots.device
 }
 
 object Devices : UuidTable("devices") {

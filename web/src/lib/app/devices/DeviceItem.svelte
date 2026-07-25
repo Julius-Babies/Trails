@@ -1,6 +1,7 @@
 <script lang="ts">
     import type {Device} from "$lib/state/webapp_socket.svelte";
     import {DeviceMobileIcon} from "phosphor-svelte";
+    import BatteryIcon from "$lib/components/BatteryIcon.svelte";
 
     let {
         device,
@@ -33,7 +34,7 @@
         {/if}
     </div>
 
-    <div class="flex flex-col">
+    <div class="flex flex-col flex-1">
         <span class="font-lg">
             {#if hasCustomDisplayName}
                 {device.display_name}
@@ -45,6 +46,12 @@
             <span class="text-xs font-light text-muted-foreground">
                 {device.manufacturer} {device.friendly_name}
             </span>
+        {/if}
+    </div>
+
+    <div>
+        {#if device.battery}
+            <BatteryIcon height={16} width={10} isCharging={device.battery.is_charging} percentage={device.battery.percentage} />
         {/if}
     </div>
 </div>

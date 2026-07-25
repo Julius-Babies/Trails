@@ -185,8 +185,10 @@ fun Application.installAuthentikt() {
                 if (user == null) return@authorization oauthPlugin!!
             }
 
-            val nextStep = authSessionDeviceSelection(session, user.user)
-            if (nextStep != null) return@authorization nextStep
+            if (session.destination == Destination.App) {
+                val nextStep = authSessionDeviceSelection(session, user.user)
+                if (nextStep != null) return@authorization nextStep
+            }
 
             return@authorization donePlugin
         }

@@ -1,11 +1,18 @@
 import {currentUser, type User} from "$lib/state/current_user";
 
+export interface Battery {
+    percentage: number;
+    is_charging: boolean;
+}
+
 export interface Device {
+    [x: string]: any;
     id: string;
     manufacturer: string;
     model: string;
     display_name: string;
     friendly_name: string;
+    battery: Battery | null;
 }
 
 type ServerMessage =
