@@ -20,7 +20,6 @@ val localProperties = Properties().apply {
 
 kotlin {
     compilerOptions {
-        freeCompilerArgs.add("-Xexplicit-backing-fields")
         optIn.add("kotlin.uuid.ExperimentalUuidApi")
     }
 
