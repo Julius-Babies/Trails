@@ -3,6 +3,7 @@ package es.jvbabi.trails.data.repository
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.util.Log
 import androidx.core.content.ContextCompat.startForegroundService
 import dev.icerock.moko.permissions.Permission
 import dev.icerock.moko.permissions.PermissionState
@@ -23,10 +24,16 @@ class BackgroundServiceRepositoryImpl: BackgroundServiceRepository, KoinComponen
     override suspend fun startService() {
         if (permissionsController.getPermissionState(Permission.LOCATION) != PermissionState.Granted) return
         if (permissionsController.getPermissionState(Permission.BACKGROUND_LOCATION) != PermissionState.Granted) return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(context, serviceIntent)
-        } else {
-            context.startService(serviceIntent)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(context, serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            // Ab Android 12 kann der location-Foreground-Service aus dem Hintergrund
+            // nicht gestartet werden (ForegroundServiceStartNotAllowedException).
+            Log.w("BackgroundService", "Konnte Service nicht starten: $e")
         }
     }
 

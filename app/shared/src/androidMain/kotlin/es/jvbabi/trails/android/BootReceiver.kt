@@ -15,10 +15,16 @@ class BootReceiver : BroadcastReceiver() {
         logger.d { "Received boot completed intent; action: ${intent.action}" }
         if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         val serviceIntent = Intent(context, AndroidLocationService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(context, serviceIntent)
-        } else {
-            context.startService(serviceIntent)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(context, serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+        } catch (e: Exception) {
+            // Ab Android 12 ist der Start eines location-Foreground-Service aus dem
+            // Hintergrund (auch nach BOOT_COMPLETED) verboten. Nicht abstürzen.
+            logger.w { "Konnte Service nach Boot nicht starten: $e" }
         }
     }
 }

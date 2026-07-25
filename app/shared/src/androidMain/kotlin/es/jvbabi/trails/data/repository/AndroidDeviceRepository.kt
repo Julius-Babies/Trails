@@ -9,6 +9,7 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 import androidx.core.net.toUri
 import es.jvbabi.trails.android.RingService
 import es.jvbabi.trails.domain.repository.BatteryState
@@ -128,10 +129,16 @@ class AndroidDeviceRepository : DeviceRepository, KoinComponent {
             action = RingService.ACTION_START
             putExtra(RingService.EXTRA_DEVICE_NAME, causedByDeviceName)
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(intent)
-        } else {
-            context.startService(intent)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        } catch (e: Exception) {
+            // Ab Android 12 kann ein Foreground-Service aus dem Hintergrund verboten sein
+            // (ForegroundServiceStartNotAllowedException). Nicht abstürzen.
+            Log.w("DeviceRepository", "Konnte Ring-Service nicht starten: $e")
         }
     }
 

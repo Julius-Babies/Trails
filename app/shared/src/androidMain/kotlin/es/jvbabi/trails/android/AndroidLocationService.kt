@@ -48,21 +48,37 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
     private lateinit var locationManager: LocationManager
     private var wakeLock: PowerManager.WakeLock? = null
 
+    private var foregroundStarted = false
+
     override fun onCreate() {
         super.onCreate()
         locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
         val notification = createNotification()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
-        } else {
-            startForeground(1, notification)
+        foregroundStarted = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+            } else {
+                startForeground(1, notification)
+            }
+            true
+        } catch (e: Exception) {
+            // Ab Android 12 darf ein location-Foreground-Service nicht aus dem Hintergrund
+            // gestartet werden -> ForegroundServiceStartNotAllowedException. Sauber beenden
+            // statt die App abstürzen zu lassen.
+            Log.w("LocationService", "startForeground nicht erlaubt, Service wird beendet: $e")
+            false
         }
+        if (!foregroundStarted) stopSelf()
     }
 
     private var isStarted = false
 
     @SuppressLint("MissingPermission", "WakelockTimeout")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (!foregroundStarted) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
         if (wakeLock == null) {
             val pm = getSystemService(POWER_SERVICE) as PowerManager
             wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Trails:LocationWakeLock")
