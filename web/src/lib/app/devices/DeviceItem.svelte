@@ -29,10 +29,10 @@
         const address = location.address;
         const place = address != null
             ? [
-                [address.road, address.house_number].filter(Boolean).join(" "),
-                address.city,
-                address.country,
-            ].filter(Boolean).join(", ") || address.label
+            [address.road, address.house_number].filter(Boolean).join(" "),
+            address.city,
+            address.country,
+        ].filter(Boolean).join(", ") || address.label
             : `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`;
 
         if (Date.now() - location.found_at < TWO_MINUTES_MS) return `${place} · gerade eben`;
@@ -41,7 +41,8 @@
     });
 </script>
 
-<a class="flex flex-row gap-3 items-center transition-colors duration-100 hover:bg-slate-200 cursor-pointer py-3 pl-2 pr-4 rounded-2xl" href={`/devices/${device.id}`}>
+<a class="flex flex-row gap-3 items-center transition-colors duration-100 hover:bg-foreground/10 cursor-pointer py-3 pl-2 pr-4 rounded-2xl"
+   href={`/devices/${device.id}`}>
     <div class="size-10 bg-accent rounded-full flex items-center justify-center">
         {#if imageAvailable}
             <img
@@ -75,7 +76,13 @@
 
     <div>
         {#if device.battery}
-            <BatteryIcon height={16} width={10} isCharging={device.battery.is_charging} percentage={device.battery.percentage} />
+            <BatteryIcon
+                    height={16}
+                    width={10}
+                    isCharging={device.battery.is_charging}
+                    percentage={device.battery.percentage}
+                    emptyColor="color-mix(in oklab, var(--color-foreground) 18%, transparent)"
+            />
         {/if}
     </div>
 </a>
