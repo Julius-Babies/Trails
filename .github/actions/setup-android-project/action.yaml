@@ -28,7 +28,9 @@ runs:
       uses: gradle/actions/setup-gradle@v6
 
     - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+      uses: android-actions/setup-android@v4
+      with:
+        cmdline-tools-version: '15859902'
 
     - name: Restore Keystore and Configure Properties
       shell: bash
