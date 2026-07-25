@@ -8,7 +8,13 @@ export default defineConfig({
         allowedHosts: [
             "trails.werkbank.space",
             "trailsdevelopment.jvbabi.es",
+            "trails.julius-babies.wbspace.app"
         ],
-        host: true,
+        host: '127.0.0.1',
+        strictPort: true,
+        hmr: {
+            clientPort: 443,
+            protocol: 'wss'
+        }
     }
 });

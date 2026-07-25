@@ -5,6 +5,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import es.jvbabi.authentikt.core.AuthentiktUser
 import es.jvbabi.authentikt.core.installAuthentikt
+import es.jvbabi.authentikt.core.session.SessionDestination
 import es.jvbabi.authentikt.core.step.plugins.builtin.*
 import es.jvbabi.trails.config.ApplicationConfig
 import es.jvbabi.trails.database.*
@@ -17,6 +18,8 @@ import kotlinx.datetime.toJavaLocalDateTime
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.or
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import org.koin.core.context.loadKoinModules
 import org.koin.dsl.module
 import org.koin.ktor.ext.inject
@@ -88,7 +91,7 @@ fun Application.installAuthentikt() {
                 tokenEndpoint = applicationConfig.config.auth!!.oauth!!.tokenEndpoint
                 scopes(*applicationConfig.config.auth!!.oauth!!.scopes.toTypedArray())
 
-                onUserInfo { response ->
+                onUserInfo { response, _ ->
                     val map = response.body<Map<String, String>>()
                     val user = db.transaction { User.find { Users.email eq map["email"]!! }.firstOrNull() }
                     if (user == null) return@onUserInfo UserInfo.Result.Failure("user not found")
@@ -101,40 +104,68 @@ fun Application.installAuthentikt() {
         val donePlugin = DonePlugin<User> {
             onSuccess { session, user ->
 
-                val deviceId = session.attributes[authSessionSelectedDeviceIdAttribute]
-                val device = db.transaction { Device.findById(deviceId!!)!! }
-                require(db.transaction { device.owner.id == user.id }) { "Device does not belong to user" }
+                when (session.destination) {
+                    Destination.App -> {
+                        val deviceId = session.attributes[authSessionSelectedDeviceIdAttribute]
+                        val device = db.transaction { Device.findById(deviceId!!)!! }
+                        require(db.transaction { device.owner.id == user.id }) { "Device does not belong to user" }
 
-                val jwt = JWT
-                    .create()
-                    .withAudience("trails-app")
-                    .withIssuer("trails-app-server")
-                    .withClaim("user_id", user.id.value.toString())
-                    .withClaim("device_id", device.id.value.toString())
-                    .withExpiresAt(
-                        Clock.System.now()
-                            .toLocalDateTime(TimeZone.currentSystemDefault())
-                            .plus(365.days)
-                            .toJavaLocalDateTime()
-                            .toInstant(ZoneOffset.UTC)
-                    )
-                    .sign(Algorithm.HMAC256(applicationConfig.jwtSecret))
+                        val jwt = JWT
+                            .create()
+                            .withAudience("trails-app")
+                            .withIssuer("trails-app-server")
+                            .withClaim("user_id", user.id.value.toString())
+                            .withClaim("device_id", device.id.value.toString())
+                            .withExpiresAt(
+                                Clock.System.now()
+                                    .toLocalDateTime(TimeZone.currentSystemDefault())
+                                    .plus(365.days)
+                                    .toJavaLocalDateTime()
+                                    .toInstant(ZoneOffset.UTC)
+                            )
+                            .sign(Algorithm.HMAC256(applicationConfig.jwtSecret))
 
-                db.transaction {
-                    Session.new {
-                        this.device = device
-                        this.tokenHash = MessageDigest.getInstance("SHA-256").digest(jwt.toByteArray()).joinToString("") { "%02x".format(it) }
+                        db.transaction {
+                            Session.new {
+                                this.device = device
+                                this.tokenHash = MessageDigest.getInstance("SHA-256").digest(jwt.toByteArray()).joinToString("") { "%02x".format(it) }
+                            }
+                        }
+
+                        val url = URLBuilder(Destination.App.redirectUri).apply {
+                            parameters.append("token", jwt)
+                        }
+
+                        redirect(url.buildString())
                     }
-                }
 
-                val url = URLBuilder().apply {
-                    protocol = URLProtocol("trailsapp", -1)
-                    host = "application"
-                    appendPathSegments(applicationConfig.url.host)
-                    appendPathSegments("auth", "redirect")
-                    parameters.append("token", jwt)
+                    Destination.Webapp -> {
+                        val jwt = JWT
+                            .create()
+                            .withAudience("trails-webapp")
+                            .withIssuer("trails-app-server")
+                            .withClaim("user_id", user.id.value.toString())
+                            .withExpiresAt(
+                                Clock.System.now()
+                                    .toLocalDateTime(TimeZone.currentSystemDefault())
+                                    .plus(365.days)
+                                    .toJavaLocalDateTime()
+                                    .toInstant(ZoneOffset.UTC)
+                            )
+                            .sign(Algorithm.HMAC256(applicationConfig.jwtSecret))
+
+                        cookie(Cookie(
+                            name = "trails-webapp-token",
+                            value = jwt,
+                            path = "/",
+                            secure = true,
+                            httpOnly = true,
+                        ))
+                        redirect(Destination.Webapp.redirectUri)
+                    }
+
+                    else -> {}
                 }
-                redirect(url.buildString())
             }
         }
         install(donePlugin)
@@ -162,4 +193,27 @@ fun Application.installAuthentikt() {
     }
 
     loadKoinModules(module { single { instance } })
+}
+
+object Destination : KoinComponent {
+    private val applicationConfig by inject<ApplicationConfig>()
+
+    val App = SessionDestination.OAuth(
+        redirectUri = URLBuilder().apply {
+            protocol = URLProtocol("trailsapp", -1)
+            host = "application"
+            appendPathSegments(applicationConfig.url.host)
+            appendPathSegments("auth", "redirect")
+        }.buildString(),
+        applicationId = "app",
+        applicationName = "Trails App",
+    )
+
+    val Webapp = SessionDestination.OAuth(
+        redirectUri = URLBuilder(applicationConfig.url).apply {
+            appendPathSegments("auth", "webapp", "callback")
+        }.buildString(),
+        applicationId = "webapp",
+        applicationName = "Trails Webapp",
+    )
 }

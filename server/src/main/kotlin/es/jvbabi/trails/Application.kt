@@ -3,12 +3,14 @@ package es.jvbabi.trails
 import es.jvbabi.trails.api.installAuthentication
 import es.jvbabi.trails.api.installCallLogging
 import es.jvbabi.trails.api.installContentNegotiation
+import es.jvbabi.trails.api.installDefaultHeaders
 import es.jvbabi.trails.api.installSse
 import es.jvbabi.trails.api.installWebsocket
 import es.jvbabi.trails.auth.installAuthentikt
 import es.jvbabi.trails.di.installKoin
 import es.jvbabi.trails.routes.installRouting
 import io.ktor.server.application.*
+import io.ktor.server.plugins.defaultheaders.DefaultHeaders
 import org.slf4j.LoggerFactory
 
 fun Application.rootModule(
@@ -18,6 +20,7 @@ fun Application.rootModule(
     logger.info("Starting application")
     logger.info("Storage at ${applicationLaunchConfig.storageDirectory}")
     installKoin(applicationLaunchConfig)
+    installDefaultHeaders()
     installWebsocket()
     installSse()
     installCallLogging()

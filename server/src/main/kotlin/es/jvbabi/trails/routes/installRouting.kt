@@ -10,6 +10,8 @@ import es.jvbabi.trails.routes.me.me
 import io.ktor.server.application.*
 import io.ktor.server.routing.*
 import es.jvbabi.trails.routes.app.app
+import es.jvbabi.trails.routes.auth.webapp.webappAuthorization
+import es.jvbabi.trails.routes.webapp.me.webappMe
 
 fun Application.installRouting() {
     routing {
@@ -19,6 +21,9 @@ fun Application.installRouting() {
                     appAuthorization()
                 }
 
+                route("/webapp-authorization") {
+                    webappAuthorization()
+                }
             }
 
             route("/me") {
@@ -42,6 +47,12 @@ fun Application.installRouting() {
                     route("/use") {
                         useShare()
                     }
+                }
+            }
+
+            route("/webapp") {
+                route("/me") {
+                    webappMe()
                 }
             }
 

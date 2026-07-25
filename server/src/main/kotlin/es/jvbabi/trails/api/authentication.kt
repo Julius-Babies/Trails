@@ -9,6 +9,7 @@ import es.jvbabi.trails.database.Devices
 import es.jvbabi.trails.database.Session
 import es.jvbabi.trails.database.Sessions
 import es.jvbabi.trails.database.User
+import io.ktor.http.HttpHeaders
 import io.ktor.http.auth.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -25,6 +26,7 @@ import java.security.MessageDigest
 import kotlin.uuid.Uuid
 
 const val TRAILS_USER_REALM = "trails"
+const val TRAILS_WEBAPP_REALM = "trails-webapp"
 
 fun Application.installAuthentication() {
     val applicationConfig by inject<ApplicationConfig>()
@@ -65,6 +67,41 @@ fun Application.installAuthentication() {
                 }
             }
         }
+
+        jwt(name = TRAILS_WEBAPP_REALM) {
+            realm = "Trails Webapp"
+            verifier(JWT
+                .require(Algorithm.HMAC256(applicationConfig.jwtSecret))
+                .withAudience("trails-webapp")
+                .withIssuer("trails-app-server")
+                .build()
+            )
+
+            authHeader { call ->
+                val token = call.request.headers[HttpHeaders.Authorization]?.removePrefix("Bearer ")?.ifBlank { null }
+                if (token != null) {
+                    return@authHeader parseAuthorizationHeader("Bearer $token")
+                }
+
+                val cookieName = "trails-webapp-token"
+
+                val cookie = call.request.cookies[cookieName]?.ifBlank { null }
+                if (cookie != null) {
+                    return@authHeader parseAuthorizationHeader("Bearer $cookie")
+                }
+
+                return@authHeader null
+            }
+
+            validate { credential ->
+                val userId = Uuid.parse(credential.payload.getClaim("user_id").asString())
+                db.transaction {
+                    User.findById(userId)
+                }?.let {
+                    TrailsWebappPrincipal(it)
+                }
+            }
+        }
     }
 }
 
@@ -79,3 +116,7 @@ data class TrailsAppUserPrincipal(
         if (db.transaction { device.deletion } != null) throw RuntimeException("Device is deleted")
     }
 }
+
+data class TrailsWebappPrincipal(
+    val user: User,
+)

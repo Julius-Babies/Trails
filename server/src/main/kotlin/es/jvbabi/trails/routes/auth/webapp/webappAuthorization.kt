@@ -1,27 +1,19 @@
-package es.jvbabi.trails.routes.auth.app_authorization
+package es.jvbabi.trails.routes.auth.webapp
 
 import es.jvbabi.authentikt.core.AuthentiktInstance
 import es.jvbabi.trails.auth.Destination
 import es.jvbabi.trails.auth.TrailsAuthentiktUser
-import es.jvbabi.trails.auth.deviceManufacturerAttribute
-import es.jvbabi.trails.auth.deviceModelAttribute
 import es.jvbabi.trails.config.ApplicationConfig
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
 
-fun Route.appAuthorization() {
+fun Route.webappAuthorization() {
     get {
         val authentikt by inject<AuthentiktInstance<TrailsAuthentiktUser>>()
         val applicationConfig by inject<ApplicationConfig>()
-        val session = authentikt.createNewSession(Destination.App)
-
-        val deviceManufacturer = call.parameters["device_manufacturer"]
-        val deviceModel = call.parameters["device_model"]
-
-        session.publicAttributes[deviceManufacturerAttribute] = deviceManufacturer.orEmpty()
-        session.publicAttributes[deviceModelAttribute] = deviceModel.orEmpty()
+        val session = authentikt.createNewSession(Destination.Webapp)
 
         val destination = URLBuilder(applicationConfig.url).apply {
             appendPathSegments("auth", "authorize")
