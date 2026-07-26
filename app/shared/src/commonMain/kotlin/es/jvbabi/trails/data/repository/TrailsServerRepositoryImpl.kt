@@ -1,20 +1,21 @@
 package es.jvbabi.trails.data.repository
 
 import co.touchlab.kermit.Logger
+import es.jvbabi.trails.api.v1.share.RedeemShareResponse
 import es.jvbabi.trails.data.database.TrailsDatabase
 import es.jvbabi.trails.data.database.entity.ConnectionEvent
 import es.jvbabi.trails.data.database.entity.DbActiveShare
 import es.jvbabi.trails.data.database.entity.DbConnectionEvent
 import es.jvbabi.trails.data.database.entity.DbDevice
 import es.jvbabi.trails.data.database.entity.DbUser
+import es.jvbabi.trails.data.remote.ApiException
+import es.jvbabi.trails.data.remote.TrailsApi
 import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.model.Snapshot
 import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.shared.dto.DeviceResponse
 import es.jvbabi.trails.shared.dto.MeResponse
 import es.jvbabi.trails.shared.dto.SessionHealthResponse
-import es.jvbabi.trails.shared.dto.UseShareLinkRequest
-import es.jvbabi.trails.shared.dto.UseShareLinkResponse
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketAppMessage
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketServerMessage
 import es.jvbabi.trails.utils.NetworkRequestUnsuccessfulException
@@ -50,6 +51,7 @@ class TrailsServerRepositoryImpl(
     private val userRepository: UserRepository,
     private val fileRepository: FileRepository,
     private val notificationRepository: NotificationRepository,
+    private val trailsApi: TrailsApi,
 ) : TrailsServerRepository {
 
     val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -439,54 +441,65 @@ class TrailsServerRepositoryImpl(
     }
 
     override suspend fun useShareLink(hostname: String, id: String): UseShareLinkResult {
-        val url = URLBuilder("https://$hostname").apply {
-            appendPathSegments("api", "v1", "app", "share", "use")
-        }
+        val redeemUrl = URLBuilder("https://$hostname").apply {
+            appendPathSegments("api", "v1", "share", id, "redeem")
+        }.buildString()
 
-        val response = httpClient.post(url.buildString()) {
-            contentType(ContentType.Application.Json)
-            setBody(UseShareLinkRequest(id))
-        }
-
-        when (response.status) {
-            HttpStatusCode.NotFound -> return UseShareLinkResult.NotExisting
-            HttpStatusCode.Forbidden -> return UseShareLinkResult.Used
-        }
-
-        if (!response.status.isSuccess()) {
+        val response = httpClient.post(redeemUrl)
+        if (response.status == HttpStatusCode.NotFound) return UseShareLinkResult.NotExisting
+        if (!response.status.isSuccess() && response.status != HttpStatusCode.Forbidden) {
             Logger.e(NetworkRequestUnsuccessfulException(response)) { "Error using share link" }
             return UseShareLinkResult.Error("Error using share link: ${response.status}")
         }
 
-        val body = response.body<UseShareLinkResponse>()
-        database.userDao.upsert(DbUser(
-            id = Uuid.parse(body.user.id),
-            homeserver = hostname,
-            username = body.user.username,
-        ))
-
-        database.deviceDao.upsertDevices(listOf(
-            DbDevice(
-                id = Uuid.parse(body.device.id),
-                manufacturer = body.device.manufacturer,
-                model = body.device.model,
-                friendlyName = body.device.friendlyName,
-                displayName = body.device.displayName,
-                ownerId = Uuid.parse(body.user.id),
-            )
-        ))
-
-        val device = devicesRepository.getDeviceById(Uuid.parse(body.device.id)).first() ?: throw IllegalStateException("Device not found after using share link")
-        if (!devicesRepository.hasDeviceImage(device).first()) {
-            fetchDeviceImageForDevice(device)
+        val activeShareId = when (val body = response.body<RedeemShareResponse>()) {
+            RedeemShareResponse.ShareLocked -> return UseShareLinkResult.Used
+            is RedeemShareResponse.Success -> body.activeShareId
         }
 
-        database.activeShareDao.upsert(DbActiveShare(
-            id = Uuid.parse(body.shareId),
-            deviceId = Uuid.parse(body.device.id),
-        ))
+        return try {
+            val activeShare = trailsApi.getActiveShare(hostname, activeShareId)
+            val share = trailsApi.getShare(hostname, activeShare.shareId)
+            val device = trailsApi.getDevice(hostname, share.deviceId)
+            val owner = trailsApi.getUser(hostname, device.ownerId)
 
-        return UseShareLinkResult.Success
+            database.userDao.upsert(DbUser(
+                id = owner.id,
+                homeserver = hostname,
+                username = owner.username,
+            ))
+
+            database.deviceDao.upsertDevices(listOf(
+                DbDevice(
+                    id = device.id,
+                    manufacturer = device.manufacturer,
+                    model = device.model,
+                    friendlyName = device.friendlyName,
+                    displayName = device.displayName,
+                    ownerId = owner.id,
+                )
+            ))
+
+            val localDevice = devicesRepository.getDeviceById(device.id).first()
+                ?: throw IllegalStateException("Device not found after using share link")
+            if (!devicesRepository.hasDeviceImage(localDevice).first()) {
+                fetchDeviceImageForDevice(localDevice)
+            }
+
+            database.activeShareDao.upsert(DbActiveShare(
+                id = activeShareId,
+                deviceId = device.id,
+            ))
+
+            UseShareLinkResult.Success
+        } catch (e: ApiException) {
+            if (e.statusCode == HttpStatusCode.NotFound.value) {
+                UseShareLinkResult.NotExisting
+            } else {
+                Logger.e(e) { "Error resolving share entities" }
+                UseShareLinkResult.Error("Error using share link: ${e.statusCode}")
+            }
+        }
     }
 
     typealias ServerHost = String
