@@ -5,11 +5,8 @@ import database.DataSnapshots
 import es.jvbabi.trails.api.TRAILS_WEBAPP_REALM
 import es.jvbabi.trails.api.TrailsWebappPrincipal
 import es.jvbabi.trails.config.ApplicationConfig
-import es.jvbabi.trails.data.ActiveShareRepository
-import es.jvbabi.trails.data.DeviceId
 import es.jvbabi.trails.data.DeviceSubscriptionMessage
 import es.jvbabi.trails.data.DeviceSubscriptionRepository
-import es.jvbabi.trails.data.RequestContext
 import es.jvbabi.trails.data.ReverseGeocoding
 import es.jvbabi.trails.data.UserSubscriptionMessage
 import es.jvbabi.trails.data.UserSubscriptionRepository
@@ -42,7 +39,6 @@ fun Route.webappSocket() {
 
     val userSubscriptionRepository by inject<UserSubscriptionRepository>()
     val deviceSubscriptionRepository by inject<DeviceSubscriptionRepository>()
-    val activeShareRepository by inject<ActiveShareRepository>()
     val reverseGeocoding by inject<ReverseGeocoding>()
     val applicationConfig by inject<ApplicationConfig>()
     val db by inject<DatabaseManager>()
@@ -76,58 +72,56 @@ fun Route.webappSocket() {
                 )
             }
 
-            // Local active shares among the user's saved shares. Used only to keep
-            // live subscriptions on their devices — foreign shares don't stream here.
+            // Saved shares that live on THIS homeserver. Used to keep live
+            // subscriptions on their devices; foreign saved shares are resolved by
+            // the client directly and don't stream through this socket.
             fun resolveShares(): List<ActiveShare> =
                 UserShare.find { UserShares.user eq user.id }
+                    .filter { it.homeserver == applicationConfig.url.host }
                     .mapNotNull { userShare -> ActiveShare.findById(userShare.shareId) }
                     .filter { it.share.device.deletion == null }
 
-            // Resolve every saved share through the federation chain
-            // (active share → share → device → owner), so foreign shares resolve too.
-            // The saved active-share id doubles as the capability presented to the
-            // owning homeserver. Location/battery are attached only for local devices
-            // (they are not federated).
-            suspend fun resolveSavedShares(): List<WebAppSocketServerMessage.DevicesUpdate.Share> {
-                data class Saved(val rowId: Uuid, val activeShareId: Uuid, val homeserver: String)
-                val saved = db.transaction {
+            // Resolve the user's saved shares that live on THIS homeserver into fully
+            // populated share cards (name, device, owner, location, battery). Foreign
+            // saved shares are excluded — the client resolves those directly against
+            // their owning homeserver (see [resolveForeignShareRefs]).
+            fun resolveSavedShares(): List<WebAppSocketServerMessage.DevicesUpdate.Share> =
+                db.transaction {
                     UserShare.find { UserShares.user eq user.id }
-                        .map { Saved(it.id.value, it.shareId, it.homeserver) }
-                }
-
-                return saved.mapNotNull { s ->
-                    val federatedActiveShareId = "${s.homeserver}/a/${s.activeShareId}"
-                    val context = RequestContext(activeShareId = s.activeShareId.toString())
-
-                    val activeShare = activeShareRepository.getActiveShare(federatedActiveShareId, context).firstOrNull()
-                        ?: return@mapNotNull null
-                    val share = activeShare.getShare(context).firstOrNull() ?: return@mapNotNull null
-                    val device = share.getDevice(context).firstOrNull() ?: return@mapNotNull null
-                    val owner = device.getUser(context).firstOrNull() ?: return@mapNotNull null
-
-                    // Location/battery aren't federated — read them from the DB only
-                    // when the device is local, reusing the snapshot logic in fromDevice.
-                    val deviceId = DeviceId(device.id)
-                    val localDevice = if (deviceId.host == applicationConfig.url.host) {
-                        db.transaction {
-                            es.jvbabi.trails.database.Device.findById(deviceId.id)
-                                ?.takeIf { it.deletion == null }
-                                ?.let { WebAppSocketServerMessage.DevicesUpdate.Device.fromDevice(it) }
+                        .filter { it.homeserver == applicationConfig.url.host }
+                        .mapNotNull { userShare ->
+                            val activeShare = ActiveShare.findById(userShare.shareId) ?: return@mapNotNull null
+                            val share = activeShare.share
+                            val device = share.device
+                            if (device.deletion != null) return@mapNotNull null
+                            val deviceInfo = WebAppSocketServerMessage.DevicesUpdate.Device.fromDevice(device)
+                            WebAppSocketServerMessage.DevicesUpdate.Share(
+                                id = userShare.id.value,
+                                name = share.shareName,
+                                deviceDisplayName = device.displayName,
+                                ownerUsername = device.owner.username,
+                                manufacturer = device.manufacturer,
+                                model = device.model,
+                                battery = if (share.shareBatteryState) deviceInfo.battery else null,
+                                lastLocation = deviceInfo.lastLocation,
+                            )
                         }
-                    } else null
-
-                    WebAppSocketServerMessage.DevicesUpdate.Share(
-                        id = s.rowId,
-                        name = share.shareName,
-                        deviceDisplayName = device.displayName,
-                        ownerUsername = owner.username,
-                        manufacturer = device.manufacturer,
-                        model = device.model,
-                        battery = if (share.shareBatteryState) localDevice?.battery else null,
-                        lastLocation = localDevice?.lastLocation,
-                    )
                 }
-            }
+
+            // Saved shares that live on a FOREIGN homeserver. Only the reference
+            // (saved-share row id, active-share id, homeserver) is sent — the client
+            // fetches the share/device/owner data and live location directly from
+            // that homeserver.
+            fun resolveForeignShareRefs(): List<WebAppSocketServerMessage.DevicesUpdate.ForeignShare> =
+                UserShare.find { UserShares.user eq user.id }
+                    .filter { it.homeserver != applicationConfig.url.host }
+                    .map {
+                        WebAppSocketServerMessage.DevicesUpdate.ForeignShare(
+                            id = it.id.value,
+                            activeShareId = it.shareId,
+                            homeserver = it.homeserver,
+                        )
+                    }
 
             // Resolve the shares this user has emitted (created) themselves. A
             // share is owned via its device, so we select all shares whose device
@@ -141,20 +135,23 @@ fun Route.webappSocket() {
                 ).filter { it.device.deletion == null }
 
             suspend fun sendDevices() {
-                val (devices, emittedShares) = db.transaction {
+                val devicesEmittedForeign = db.transaction {
                     val devices = user.devices
                         .filter { it.deletion == null }
                         .map { device -> WebAppSocketServerMessage.DevicesUpdate.Device.fromDevice(device) }
                     val emittedShares = resolveEmittedShares()
                         .map { share -> WebAppSocketServerMessage.DevicesUpdate.EmittedShare.fromShare(share) }
-                    devices to emittedShares
+                    val foreignShares = resolveForeignShareRefs()
+                    Triple(devices, emittedShares, foreignShares)
                 }
+                val (devices, emittedShares, foreignShares) = devicesEmittedForeign
                 val shares = resolveSavedShares()
                 sendSerialized<WebAppSocketServerMessage>(
                     WebAppSocketServerMessage.DevicesUpdate(
                         devices = devices.map { it.copy(lastLocation = enrichLocation(it.lastLocation)) },
                         shares = shares.map { it.copy(lastLocation = enrichLocation(it.lastLocation)) },
                         emittedShares = emittedShares,
+                        foreignShares = foreignShares,
                     )
                 )
             }
@@ -219,6 +216,7 @@ sealed class WebAppSocketServerMessage {
         @SerialName("devices") val devices: List<Device>,
         @SerialName("shares") val shares: List<Share> = emptyList(),
         @SerialName("emitted_shares") val emittedShares: List<EmittedShare> = emptyList(),
+        @SerialName("foreign_shares") val foreignShares: List<ForeignShare> = emptyList(),
     ): WebAppSocketServerMessage() {
         @Serializable
         data class Device(
@@ -311,6 +309,20 @@ sealed class WebAppSocketServerMessage {
             @SerialName("model") val model: String,
             @SerialName("battery") val battery: Device.Battery?,
             @SerialName("last_location") val lastLocation: Device.LastLocation?,
+        )
+
+        /**
+         * A saved location share that lives on a FOREIGN homeserver. The server
+         * only forwards the reference; the client fetches the share/device/owner
+         * data and the live location directly from [homeserver] (REST entity reads
+         * + the app websocket's share subscription, using [activeShareId]).
+         * [id] is the local saved-share row id (stable, used as the pin/list key).
+         */
+        @Serializable
+        data class ForeignShare(
+            @SerialName("id") val id: Uuid,
+            @SerialName("active_share_id") val activeShareId: Uuid,
+            @SerialName("homeserver") val homeserver: String,
         )
 
         /**

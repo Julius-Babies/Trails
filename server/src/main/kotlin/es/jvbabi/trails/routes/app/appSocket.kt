@@ -66,6 +66,21 @@ fun Route.app() {
                 val share = db.transaction { ActiveShare.findById(shareId) } ?: return
                 val device = db.transaction { share.share.device }
 
+                // Push the current known location once, so a fresh subscriber that
+                // keeps no local cache (e.g. the webapp) sees the device immediately
+                // instead of only after its next live update.
+                val latestSnapshot = db.transaction {
+                    DataSnapshot.find { DataSnapshots.device eq device.id }
+                        .orderBy(DataSnapshots.createdAt to SortOrder.DESC)
+                        .limit(1)
+                        .firstOrNull()
+                }
+                if (latestSnapshot != null && emitRtUpdates.value) {
+                    DeviceSubscriptionMessage.Snapshot(latestSnapshot)
+                        .toAppSocketMessage(null, share)
+                        ?.let { sendSerialized<TrailsWebSocketServerMessage>(it.message) }
+                }
+
                 shareSubscriptionRtUpdaters[shareId] = launch {
                     deviceSubscriptionRepository.getFlowForDeviceSubscription(device.id.value)
                         .mapNotNull { it.toAppSocketMessage(null, share) }

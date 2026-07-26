@@ -1,4 +1,5 @@
 import {currentUser, type User} from "$lib/state/current_user";
+import {closeForeignShares, foreignShares, syncForeignShares, type ForeignShareRef} from "$lib/state/foreign_shares.svelte";
 
 export interface Battery {
     percentage: number;
@@ -69,7 +70,7 @@ export interface EmittedShare {
 }
 
 type ServerMessage =
-    | { type: "devices.update"; devices: Device[]; shares?: Share[]; emitted_shares?: EmittedShare[] };
+    | { type: "devices.update"; devices: Device[]; shares?: Share[]; emitted_shares?: EmittedShare[]; foreign_shares?: ForeignShareRef[] };
 
 let devices = $state<Device[]>([]);
 let shares = $state<Share[]>([]);
@@ -108,6 +109,7 @@ function handleMessage(message: ServerMessage) {
             devices = message.devices;
             shares = message.shares ?? [];
             emittedShares = message.emitted_shares ?? [];
+            syncForeignShares(message.foreign_shares ?? []);
             break;
         default:
             console.warn("Unknown webapp socket message", message);
@@ -159,6 +161,7 @@ function close() {
     devices = [];
     shares = [];
     emittedShares = [];
+    closeForeignShares();
     if (socket != null) {
         const ws = socket;
         socket = null;
@@ -184,8 +187,10 @@ export const webappSocket = {
     get devices() {
         return devices;
     },
+    /** Saved shares to render: those resolved server-side (local homeserver) plus
+     * foreign shares this client resolves directly from their homeserver. */
     get shares() {
-        return shares;
+        return [...shares, ...foreignShares.list];
     },
     get emittedShares() {
         return emittedShares;

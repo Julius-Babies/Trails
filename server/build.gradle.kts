@@ -28,6 +28,7 @@ dependencies {
     implementation(libs.server.ktor.server.status.pages)
     implementation(libs.server.ktor.server.sse)
     implementation(libs.server.ktor.server.default.headers)
+    implementation(libs.server.ktor.server.cors)
     implementation(libs.server.ktor.serialization.kotlinx.json)
 
     // Ktor Client
