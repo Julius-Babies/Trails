@@ -135,7 +135,8 @@
                     props: {
                         id: share.id,
                         label: share.name,
-                        imageUrl: `/api/v1/devices/image/${share.manufacturer}-${share.model}`
+                        imageUrl: `/api/v1/devices/image/${share.manufacturer}-${share.model}`,
+                        href: `/share/${share.id}`
                     }
                 })
             );

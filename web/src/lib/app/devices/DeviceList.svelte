@@ -5,10 +5,10 @@
     import EmittedShareItem from "./EmittedShareItem.svelte";
 </script>
 
-<div class="flex flex-col h-full gap-2 overflow-y-auto [scrollbar-gutter:stable_both-edges] pt-6">
-    <h1 class="text-xl font-bold mb-1 px-6">Geräte</h1>
+<div class="flex flex-col h-full gap-2 overflow-y-auto scroll-thin pt-6">
+    <h1 class="text-xl font-bold px-6">Geräte</h1>
 
-    <div class="px-2 pb-2 ">
+    <div class="px-2 pb-2">
         <div class="flex flex-col rounded-4xl bg-card overflow-hidden">
             {#each webappSocket.devices as device, index (device.id)}
                 <div class="border-gray-300" class:border-t={index > 0}>
@@ -19,7 +19,7 @@
     </div>
 
     {#if webappSocket.shares.length > 0}
-        <h2 class="text-lg font-bold mb-1 px-6 mt-4">Geteilt mit mir</h2>
+        <h1 class="text-xl font-bold mt-1 px-6">Geteilt mit mir</h1>
 
         <div class="px-2 pb-2 ">
             <div class="flex flex-col rounded-4xl bg-card overflow-hidden">
@@ -33,7 +33,7 @@
     {/if}
 
     {#if webappSocket.emittedShares.length > 0}
-        <h2 class="text-lg font-bold mb-1 px-6 mt-4">Von mir geteilt</h2>
+        <h1 class="text-xl font-bold mt-1 px-6">Von mir geteilt</h1>
 
         <div class="px-2 pb-2 ">
             <div class="flex flex-col rounded-4xl bg-card overflow-hidden">

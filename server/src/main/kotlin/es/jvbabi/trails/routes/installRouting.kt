@@ -3,6 +3,7 @@ package es.jvbabi.trails.routes
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.mapper.toApi
 import es.jvbabi.trails.routes.active_share.item.getActiveShare
+import es.jvbabi.trails.routes.active_share.shareSnapshotSocket
 import es.jvbabi.trails.routes.app.app
 import es.jvbabi.trails.routes.app.session_healthcheck.sessionHealthCheck
 import es.jvbabi.trails.routes.auth.app_authorization.appAuthorization
@@ -78,16 +79,14 @@ fun Application.installRouting() {
                     route("/ring") {
                         ringDevice()
 
+                        route("/ws") {
+                            ringSocket()
+                        }
+
                         route("/stop") {
                             stopRingDevice()
                         }
                     }
-                }
-            }
-
-            route("/ring") {
-                route("/ws") {
-                    ringSocket()
                 }
             }
 
@@ -107,6 +106,10 @@ fun Application.installRouting() {
             }
 
             route("/active-shares") {
+                route("/ws") {
+                    shareSnapshotSocket()
+                }
+
                 route("/{activeShareId}") {
                     get {
                         val activeShare = call.getActiveShare()

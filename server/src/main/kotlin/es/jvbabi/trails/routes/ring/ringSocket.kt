@@ -14,6 +14,7 @@ import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -23,10 +24,14 @@ import org.koin.ktor.ext.inject
 import kotlin.uuid.Uuid
 
 /**
- * Dedicated ring-state channel. Kept separate from the device-update socket and
- * from the command endpoints so ring state has one authoritative source: the
- * target device confirms start/stop (via the app socket), the server broadcasts
- * that through here, and every UI (app and web) reflects the confirmed state.
+ * Ring-state channel for a single device. Scoped to the `{deviceId}` under which
+ * it is mounted, so a UI only opens it while that device's detail view is on
+ * screen — there is no global ring socket.
+ *
+ * Kept separate from the device-update socket and from the command endpoints so
+ * ring state has one authoritative source: the target device confirms start/stop
+ * (via the app socket), the server broadcasts that through here, and every UI
+ * (app and web) reflects the confirmed state.
  *
  * Generic for both realms so the web (cookie) and, if ever needed, the app
  * (bearer) can consume it.
@@ -41,11 +46,21 @@ fun Route.ringSocket() {
                 ?: call.principal<TrailsWebappPrincipal>()?.user?.id?.value
                 ?: return@webSocket close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Unauthenticated"))
 
-            // Subscribe to confirmed ring-state changes first, so no update that
-            // lands while we send the initial snapshot below is missed.
+            val deviceId = call.parameters["deviceId"]?.let(Uuid::parseOrNull)
+                ?: return@webSocket close(CloseReason(CloseReason.Codes.CANNOT_ACCEPT, "Invalid device id"))
+
+            // The ring state is only meaningful for a device the caller owns.
+            val ownsDevice = db.transaction {
+                User.findById(userId)?.devices?.any { it.id.value == deviceId && it.deletion == null } == true
+            }
+            if (!ownsDevice) return@webSocket close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Forbidden"))
+
+            // Subscribe to confirmed ring-state changes for this device first, so
+            // no update that lands while we send the initial snapshot is missed.
             val streamer = launch {
                 userSubscriptionRepository.getFlowForUser(userId)
                     .filterIsInstance<UserSubscriptionMessage.RingState>()
+                    .filter { it.deviceId == deviceId }
                     .onEach { message ->
                         sendSerialized<RingSocketMessage>(
                             RingSocketMessage.RingState(
@@ -58,13 +73,9 @@ fun Route.ringSocket() {
                     .collect()
             }
 
-            // Send the current ring state of every owned device so a UI that
-            // (re)connects while a device is already ringing is up to date.
-            val ownDeviceIds = db.transaction {
-                User.findById(userId)?.devices?.filter { it.deletion == null }?.map { it.id.value } ?: emptyList()
-            }
-            ownDeviceIds.forEach { deviceId ->
-                val ringedBy = deviceRingInfo[deviceId] ?: return@forEach
+            // Send the current ring state so a UI that (re)connects while the
+            // device is already ringing is up to date.
+            deviceRingInfo[deviceId]?.let { ringedBy ->
                 sendSerialized<RingSocketMessage>(
                     RingSocketMessage.RingState(deviceId.toString(), isRinging = true, ringedBy = ringedBy)
                 )

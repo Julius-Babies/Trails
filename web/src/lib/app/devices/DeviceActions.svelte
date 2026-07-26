@@ -2,13 +2,26 @@
     import {BellRingingIcon, CheckIcon, CircleNotchIcon, PhoneCallIcon, PhoneSlashIcon, XIcon} from "phosphor-svelte";
     import {pingDevice} from "$lib/api/devices/ping_device";
     import {ringDevice, stopRingDevice} from "$lib/api/devices/ring_device";
-    import {ringSocket} from "$lib/state/ring_socket.svelte";
+    import {DeviceRingSocket} from "$lib/state/ring_socket.svelte";
 
     let {
         deviceId,
     }: {
         deviceId: string
     } = $props();
+
+    // The ring socket is per-device and only lives while this actions panel is
+    // mounted (i.e. while the device's detail view is open). No global socket.
+    let ringSocket = $state<DeviceRingSocket | null>(null);
+    $effect(() => {
+        const socket = new DeviceRingSocket(deviceId);
+        socket.open();
+        ringSocket = socket;
+        return () => {
+            socket.close();
+            ringSocket = null;
+        };
+    });
 
     type PingState = "idle" | "pending" | "delivered" | "found" | "failed";
 
@@ -20,7 +33,7 @@
     // optimistic intent that immediately drives the toggle — this guarantees the
     // "Stoppen" action is always reachable even if a start-confirmation was lost.
     // The optimistic value is dropped as soon as the confirmed state agrees.
-    let confirmedRinging = $derived(ringSocket.isRinging(deviceId));
+    let confirmedRinging = $derived(ringSocket?.isRinging ?? false);
     let optimisticRinging = $state<boolean | null>(null);
     let displayRinging = $derived(optimisticRinging ?? confirmedRinging);
     let awaitingConfirmation = $derived(optimisticRinging !== null && optimisticRinging !== confirmedRinging);
