@@ -13,6 +13,7 @@ import es.jvbabi.trails.data.repository.SnapshotRepositoryImpl
 import es.jvbabi.trails.data.repository.TrailsServerRepositoryImpl
 import es.jvbabi.trails.data.repository.UiRepositoryImpl
 import es.jvbabi.trails.data.repository.UserRepositoryImpl
+import es.jvbabi.trails.domain.extension.Settings
 import es.jvbabi.trails.domain.repository.DevicesRepository
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.LocationRepository
@@ -97,6 +98,7 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
 
         singleOf(::UiRepositoryImpl) bind UiRepository::class
         singleOf(::KeyValueRepositoryImpl) bind KeyValueRepository::class
+        singleOf(::Settings)
         singleOf(::LocationRepositoryImpl) bind LocationRepository::class
         singleOf(::DevicesRepositoryImpl) bind DevicesRepository::class
         singleOf(::UserRepositoryImpl) bind UserRepository::class

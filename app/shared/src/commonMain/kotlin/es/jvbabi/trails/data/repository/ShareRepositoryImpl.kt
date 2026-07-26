@@ -1,28 +1,23 @@
 package es.jvbabi.trails.data.repository
 
 import co.touchlab.kermit.Logger
+import es.jvbabi.trails.api.v1.share.CreateShareRequest
+import es.jvbabi.trails.api.v1.share.CreateShareResponse
 import es.jvbabi.trails.data.database.TrailsDatabase
+import es.jvbabi.trails.domain.extension.Settings
 import es.jvbabi.trails.domain.model.ActiveShare
 import es.jvbabi.trails.domain.repository.Key
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.ShareCreationResult
 import es.jvbabi.trails.domain.repository.ShareRepository
 import es.jvbabi.trails.utils.NetworkRequestUnsuccessfulException
-import io.ktor.client.HttpClient
-import io.ktor.client.call.body
-import io.ktor.client.request.bearerAuth
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
-import io.ktor.http.URLBuilder
-import io.ktor.http.appendPathSegments
-import io.ktor.http.contentType
-import io.ktor.http.isSuccess
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.request.*
+import io.ktor.http.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlin.time.Duration
 import kotlin.uuid.Uuid
 
@@ -30,6 +25,7 @@ class ShareRepositoryImpl(
     private val httpClient: HttpClient,
     private val database: TrailsDatabase,
     private val keyValueRepository: KeyValueRepository,
+    private val settings: Settings,
 ): ShareRepository {
     override suspend fun createShare(
         locationHistory: Duration,
@@ -38,16 +34,17 @@ class ShareRepositoryImpl(
         allowMultiuse: Boolean
     ): ShareCreationResult {
         val token = keyValueRepository.get(Key.Token).first() ?: return ShareCreationResult.Error("No token available")
-        val url = (keyValueRepository.get(Key.Host).first()?.let { URLBuilder("https://$it") } ?: throw IllegalStateException("No server URL available")).apply {
-            appendPathSegments("api", "v1", "app", "share")
+        val url = settings.getHomeserver().apply {
+            appendPathSegments("api", "v1", "share")
         }.build()
 
         val response = httpClient.post(url) {
             bearerAuth(token)
             contentType(ContentType.Application.Json)
-            setBody(NewShareRequest(
-                historyDurationSeconds = locationHistory.inWholeSeconds.toInt(),
-                batteryState = withBatteryState,
+            setBody(CreateShareRequest(
+                deviceId = keyValueRepository.get(Key.ThisDeviceId).first()!!,
+                locationHistorySeconds = locationHistory.inWholeSeconds.toInt(),
+                shareBattery = withBatteryState,
                 shareName = shareName,
                 allowMultiuse = allowMultiuse,
             ))
@@ -58,8 +55,10 @@ class ShareRepositoryImpl(
             return ShareCreationResult.Error("Failed to create share: ${response.status}")
         }
 
-        val shareResponse = response.body<ShareResponse>()
-        return ShareCreationResult.Success(Uuid.parse(shareResponse.shareId), homeServer = url.host)
+        return when(val shareResponse = response.body<CreateShareResponse>()) {
+            is CreateShareResponse.ShareNameAlreadyExists -> ShareCreationResult.Error("Share name already exists")
+            is CreateShareResponse.ShareCreated -> ShareCreationResult.Success(shareResponse.shareId, homeServer = url.host)
+        }
     }
 
     override fun getShares(): Flow<List<ActiveShare>> {
@@ -71,16 +70,3 @@ class ShareRepositoryImpl(
         return database.activeShareDao.getActiveShareById(id).map { it?.toModel() }
     }
 }
-
-@Serializable
-data class NewShareRequest(
-    @SerialName("history_duration_seconds") val historyDurationSeconds: Int,
-    @SerialName("battery_state") val batteryState: Boolean,
-    @SerialName("share_name") val shareName: String,
-    @SerialName("allow_multiuse") val allowMultiuse: Boolean,
-)
-
-@Serializable
-data class ShareResponse(
-    @SerialName("share_id") val shareId: String,
-)

@@ -1,20 +1,21 @@
 package es.jvbabi.trails.routes
 
+import es.jvbabi.trails.routes.app.app
 import es.jvbabi.trails.routes.app.session_healthcheck.sessionHealthCheck
 import es.jvbabi.trails.routes.app.share.newShare
 import es.jvbabi.trails.routes.app.share.useShare
 import es.jvbabi.trails.routes.auth.app_authorization.appAuthorization
-import es.jvbabi.trails.routes.devices.image.deviceImage
-import es.jvbabi.trails.routes.devices.devices
-import es.jvbabi.trails.routes.me.me
-import io.ktor.server.application.*
-import io.ktor.server.routing.*
-import es.jvbabi.trails.routes.app.app
 import es.jvbabi.trails.routes.auth.webapp.webappAuthorization
 import es.jvbabi.trails.routes.auth.webapp.webappLogout
-import es.jvbabi.trails.routes.webapp.me.webappMe
+import es.jvbabi.trails.routes.devices.devices
+import es.jvbabi.trails.routes.devices.image.deviceImage
+import es.jvbabi.trails.routes.devices.item.share.createShare
+import es.jvbabi.trails.routes.me.me
 import es.jvbabi.trails.routes.webapp.mapbox.webappMapbox
+import es.jvbabi.trails.routes.webapp.me.webappMe
 import es.jvbabi.trails.routes.webapp.webappSocket
+import io.ktor.server.application.*
+import io.ktor.server.routing.*
 
 fun Application.installRouting() {
     routing {
@@ -35,6 +36,10 @@ fun Application.installRouting() {
 
             route("/devices") {
                 devices()
+            }
+
+            route("/share") {
+                createShare()
             }
 
             route("/app") {
