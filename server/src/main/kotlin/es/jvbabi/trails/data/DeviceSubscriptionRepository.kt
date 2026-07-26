@@ -49,6 +49,7 @@ sealed class DeviceSubscriptionMessage : KoinComponent {
     data class RingStop(val device: Device) : DeviceSubscriptionMessage()
 
     private val db by inject<DatabaseManager>()
+    private val reverseGeocoding by inject<ReverseGeocoding>()
     suspend fun toAppSocketMessage(
         principal: TrailsAppUserPrincipal?,
         share: ActiveShare?,
@@ -84,6 +85,24 @@ sealed class DeviceSubscriptionMessage : KoinComponent {
                 val batteryLevel = snapshot.batteryLevel
                 val batteryCharging = snapshot.batteryCharging
 
+                // A federated viewer (share subscription) can't geocode the
+                // coordinates itself, so this homeserver — the owner of the
+                // location — resolves the address and ships it with the snapshot.
+                val address = if (share != null) {
+                    reverseGeocoding.reverseGeocode(snapshot.latitude, snapshot.longitude)?.let {
+                        TrailsWebSocketServerMessage.Snapshot.Location.Address(
+                            road = it.road,
+                            houseNumber = it.houseNumber,
+                            postcode = it.postcode,
+                            city = it.city,
+                            state = it.state,
+                            country = it.country,
+                            displayName = it.displayName,
+                            label = it.shortLabel,
+                        )
+                    }
+                } else null
+
                 return AppSocketMessage(TrailsWebSocketServerMessage.Snapshot(
                     target = if (share != null) TrailsWebSocketServerMessage.Snapshot.Target.Share(share.id.value.toString())
                     else TrailsWebSocketServerMessage.Snapshot.Target.Device(device.id.value.toString()),
@@ -94,6 +113,7 @@ sealed class DeviceSubscriptionMessage : KoinComponent {
                         bearing = snapshot.bearing.toFloat(),
                         bearingAccuracy = snapshot.bearingAccuracy?.toFloat(),
                         locationAccuracy = snapshot.locationAccuracy.toFloat(),
+                        address = address,
                     ),
                     batteryState = if (canAccessBatteryState && batteryCharging != null && batteryLevel != null) TrailsWebSocketServerMessage.Snapshot.BatteryState(
                         percentage = (batteryLevel * 100).roundToInt(),

@@ -53,7 +53,23 @@ sealed class TrailsWebSocketServerMessage {
             @SerialName("bearing") val bearing: Float,
             @SerialName("bearing_accuracy") val bearingAccuracy: Float?,
             @SerialName("location_accuracy") val locationAccuracy: Float,
-        )
+            // Reverse-geocoded by the homeserver that owns the location, so a
+            // federated viewer gets a human-readable address without geocoding
+            // the coordinates itself. Null when unavailable or not resolved.
+            @SerialName("address") val address: Address? = null,
+        ) {
+            @Serializable
+            data class Address(
+                @SerialName("road") val road: String?,
+                @SerialName("house_number") val houseNumber: String?,
+                @SerialName("postcode") val postcode: String?,
+                @SerialName("city") val city: String?,
+                @SerialName("state") val state: String?,
+                @SerialName("country") val country: String?,
+                @SerialName("display_name") val displayName: String?,
+                @SerialName("label") val label: String,
+            )
+        }
 
         @Serializable
         data class BatteryState(

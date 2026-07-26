@@ -85,7 +85,7 @@ fun Route.webappSocket() {
             // populated share cards (name, device, owner, location, battery). Foreign
             // saved shares are excluded — the client resolves those directly against
             // their owning homeserver (see [resolveForeignShareRefs]).
-            fun resolveSavedShares(): List<WebAppSocketServerMessage.DevicesUpdate.Share> =
+            suspend fun resolveSavedShares(): List<WebAppSocketServerMessage.DevicesUpdate.Share> =
                 db.transaction {
                     UserShare.find { UserShares.user eq user.id }
                         .filter { it.homeserver == applicationConfig.url.host }

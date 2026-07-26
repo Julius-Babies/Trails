@@ -1,4 +1,4 @@
-import type {Battery, LastLocation, Share} from "$lib/state/webapp_socket.svelte";
+import type {Address, Battery, LastLocation, Share} from "$lib/state/webapp_socket.svelte";
 
 /**
  * A saved share that lives on a foreign homeserver, forwarded by our own server
@@ -36,7 +36,7 @@ interface SnapshotMessage {
     type: "share.snapshot";
     target: { type: string; id: string };
     timestamp: number; // epoch SECONDS
-    location: { latitude: number; longitude: number };
+    location: { latitude: number; longitude: number; address: Address | null };
     battery_state: { percentage: number; is_charging: boolean } | null;
 }
 
@@ -190,7 +190,8 @@ class HostConnection {
                 longitude: message.location.longitude,
                 // The app socket reports seconds; the rest of the app uses millis.
                 found_at: message.timestamp * 1000,
-                address: null,
+                // Reverse-geocoded by the owning homeserver and shipped with the snapshot.
+                address: message.location.address ?? null,
             },
             battery: message.battery_state
                 ? {percentage: message.battery_state.percentage, is_charging: message.battery_state.is_charging}
