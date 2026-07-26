@@ -11,6 +11,10 @@ import es.jvbabi.trails.routes.auth.webapp.webappLogout
 import es.jvbabi.trails.routes.devices.devices
 import es.jvbabi.trails.routes.devices.image.deviceImage
 import es.jvbabi.trails.routes.devices.item.getDevice
+import es.jvbabi.trails.routes.devices.item.pingDevice
+import es.jvbabi.trails.routes.devices.item.ringDevice
+import es.jvbabi.trails.routes.devices.item.stopRingDevice
+import es.jvbabi.trails.routes.ring.ringSocket
 import es.jvbabi.trails.routes.me.emitted_shares.getEmittedShares
 import es.jvbabi.trails.routes.me.me
 import es.jvbabi.trails.routes.me.shares.getUserShares
@@ -19,9 +23,6 @@ import es.jvbabi.trails.routes.share.createShare
 import es.jvbabi.trails.routes.share.item.getShare
 import es.jvbabi.trails.routes.share.item.redeem.redeemShare
 import es.jvbabi.trails.routes.user.item.getUser
-import es.jvbabi.trails.routes.webapp.devices.webappPingDevice
-import es.jvbabi.trails.routes.webapp.devices.webappRingDevice
-import es.jvbabi.trails.routes.webapp.devices.webappStopRingDevice
 import es.jvbabi.trails.routes.webapp.mapbox.webappMapbox
 import es.jvbabi.trails.routes.webapp.me.webappMe
 import es.jvbabi.trails.routes.webapp.webappSocket
@@ -69,6 +70,24 @@ fun Application.installRouting() {
                         val device = call.getDevice()
                         call.respond(db.transaction { device.toApi() })
                     }
+
+                    route("/ping") {
+                        pingDevice()
+                    }
+
+                    route("/ring") {
+                        ringDevice()
+
+                        route("/stop") {
+                            stopRingDevice()
+                        }
+                    }
+                }
+            }
+
+            route("/ring") {
+                route("/ws") {
+                    ringSocket()
                 }
             }
 
@@ -125,22 +144,6 @@ fun Application.installRouting() {
 
                 route("/mapbox") {
                     webappMapbox()
-                }
-
-                route("/devices") {
-                    route("/{deviceId}") {
-                        route("/ping") {
-                            webappPingDevice()
-                        }
-
-                        route("/ring") {
-                            webappRingDevice()
-
-                            route("/stop") {
-                                webappStopRingDevice()
-                            }
-                        }
-                    }
                 }
 
                 route("/auth") {

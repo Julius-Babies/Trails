@@ -17,6 +17,7 @@ import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.shared.dto.DeviceResponse
 import es.jvbabi.trails.shared.dto.MeResponse
 import es.jvbabi.trails.shared.dto.SessionHealthResponse
+import es.jvbabi.trails.shared.dto.websocket.PingSource
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketAppMessage
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketServerMessage
 import es.jvbabi.trails.utils.NetworkRequestUnsuccessfulException
@@ -757,10 +758,14 @@ private abstract class WebSocketClientBase(
                     }
 
                     is TrailsWebSocketServerMessage.Ping -> {
+                        val body = when (message.pingedBySource) {
+                            PingSource.BROWSER -> "Ein Browser hat dieses Gerät gefunden!"
+                            PingSource.DEVICE -> "Dein ${message.pingedByDeviceName} hat dieses Gerät gefunden!"
+                        }
                         val notificationSent = notificationRepository.sendNotification(
                             channelId = NotificationRepository.PING_CHANNEL_ID,
                             title = "Gerät gefunden",
-                            body = "Dein ${message.pingedByDeviceName} hat dieses Gerät gefunden!",
+                            body = body,
                             notificationId = message.pingedByDeviceName.hashCode()
                         )
                         session.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.Pong(notificationSent))

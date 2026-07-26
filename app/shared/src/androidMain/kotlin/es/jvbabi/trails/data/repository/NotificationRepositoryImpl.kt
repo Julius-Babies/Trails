@@ -32,7 +32,8 @@ class NotificationRepositoryImpl(
         channelName: String,
         description: String,
         importance: NotificationRepository.Importance,
-        bypassDnd: Boolean
+        bypassDnd: Boolean,
+        playSound: Boolean,
     ) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val importance = when (importance) {
@@ -48,10 +49,23 @@ class NotificationRepositoryImpl(
                 this@apply.description = description
                 enableLights(true)
                 setBypassDnd(bypassDnd)
+                if (!playSound) {
+                    // The ring channel must be high-importance (so its full-screen
+                    // intent can launch), but its audio is the looping ringtone from
+                    // RingService — so silence the channel's own notification sound.
+                    setSound(null, null)
+                }
             }
 
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    override fun deleteChannel(channelId: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.deleteNotificationChannel(channelId)
         }
     }
 

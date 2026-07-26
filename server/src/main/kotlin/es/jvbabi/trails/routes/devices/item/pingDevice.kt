@@ -1,7 +1,7 @@
-package es.jvbabi.trails.routes.webapp.devices
+package es.jvbabi.trails.routes.devices.item
 
+import es.jvbabi.trails.api.TRAILS_USER_REALM
 import es.jvbabi.trails.api.TRAILS_WEBAPP_REALM
-import es.jvbabi.trails.api.TrailsWebappPrincipal
 import es.jvbabi.trails.data.DeviceSubscriptionMessage
 import es.jvbabi.trails.data.DeviceSubscriptionRepository
 import es.jvbabi.trails.database.DatabaseManager
@@ -20,33 +20,32 @@ import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
 /**
- * Triggers a "find my device" ping on one of the current user's own devices and
- * waits up to five seconds for the device to acknowledge it.
- *
- * This mirrors the app socket's `device.ping.request` handling but is exposed as
- * a standalone webapp request so the ping/ring feature is not multiplexed onto
- * the device-update socket. It reuses the shared [pendingPings] registry, so a
- * ping issued from the web is acknowledged the same way as one from the app.
+ * Triggers a "find my device" ping on one of the caller's own devices and waits
+ * up to five seconds for the device to acknowledge it. This is a generic REST
+ * endpoint usable by both the app and the web (see [deviceActor]); it reuses the
+ * shared [pendingPings] registry so a ping is acknowledged the same way
+ * regardless of where it came from.
  */
-fun Route.webappPingDevice() {
+fun Route.pingDevice() {
     val db by inject<DatabaseManager>()
     val deviceSubscriptionRepository by inject<DeviceSubscriptionRepository>()
 
-    authenticate(TRAILS_WEBAPP_REALM) {
+    authenticate(TRAILS_USER_REALM, TRAILS_WEBAPP_REALM) {
         post {
-            val user = call.principal<TrailsWebappPrincipal>()!!.user
+            val actor = call.deviceActor(db)
+                ?: return@post call.respond<PingDeviceResponse>(PingDeviceResponse.Forbidden)
             val deviceId = call.parameters["deviceId"]?.let(Uuid::parseOrNull)
                 ?: return@post call.respond<PingDeviceResponse>(PingDeviceResponse.Forbidden)
 
             val device = db.transaction { Device.findById(deviceId) }
-            if (device == null || db.transaction { device.owner.id.value != user.id.value }) {
+            if (device == null || db.transaction { device.owner.id.value != actor.userId }) {
                 return@post call.respond<PingDeviceResponse>(PingDeviceResponse.Forbidden)
             }
 
             val deferred = CompletableDeferred<PingResult>()
             pendingPings[deviceId] = deferred
             deviceSubscriptionRepository.getFlowForDeviceSubscription(deviceId)
-                .emit(DeviceSubscriptionMessage.Ping(device, pingedByDeviceName = user.username))
+                .emit(DeviceSubscriptionMessage.Ping(device, pingedByDeviceName = actor.sourceName, pingedBySource = actor.source))
 
             val result = withTimeoutOrNull(5.seconds) { deferred.await() }
             pendingPings.remove(deviceId)

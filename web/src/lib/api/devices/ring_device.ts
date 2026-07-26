@@ -9,7 +9,7 @@ export type RingDeviceResult =
 async function postRing(deviceId: string, path: string): Promise<RingDeviceResult> {
     let response: Response;
     try {
-        response = await fetch(`/api/v1/webapp/devices/${deviceId}/${path}`, { method: "POST" });
+        response = await fetch(`/api/v1/devices/${deviceId}/${path}`, { method: "POST" });
     } catch (e) {
         return { type: "error", message: e instanceof Error ? e.message : "Network error" };
     }

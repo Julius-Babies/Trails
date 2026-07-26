@@ -2,6 +2,7 @@
     import {BellRingingIcon, CheckIcon, CircleNotchIcon, PhoneCallIcon, PhoneSlashIcon, XIcon} from "phosphor-svelte";
     import {pingDevice} from "$lib/api/devices/ping_device";
     import {ringDevice, stopRingDevice} from "$lib/api/devices/ring_device";
+    import {ringSocket} from "$lib/state/ring_socket.svelte";
 
     let {
         deviceId,
@@ -14,10 +15,24 @@
     let pingState = $state<PingState>("idle");
     let pingResetTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // Ring is a local toggle: HTTP has no live push, so we optimistically track
-    // whether we started a ring and offer to stop it again.
-    let ringing = $state(false);
-    let ringPending = $state(false);
+    // The device is the source of truth for whether it rings (via the ring
+    // socket). But confirmation is async and can be delayed/missed, so we keep an
+    // optimistic intent that immediately drives the toggle — this guarantees the
+    // "Stoppen" action is always reachable even if a start-confirmation was lost.
+    // The optimistic value is dropped as soon as the confirmed state agrees.
+    let confirmedRinging = $derived(ringSocket.isRinging(deviceId));
+    let optimisticRinging = $state<boolean | null>(null);
+    let displayRinging = $derived(optimisticRinging ?? confirmedRinging);
+    let awaitingConfirmation = $derived(optimisticRinging !== null && optimisticRinging !== confirmedRinging);
+    let ringFailed = $state(false);
+    let ringErrorTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Once the device confirms what we asked for, stop overriding with intent.
+    $effect(() => {
+        if (optimisticRinging !== null && confirmedRinging === optimisticRinging) {
+            optimisticRinging = null;
+        }
+    });
 
     const pingLabel: Record<PingState, string> = {
         idle: "Pingen",
@@ -47,14 +62,17 @@
     }
 
     async function handleRing() {
-        if (ringPending) return;
-        const shouldRing = !ringing;
-        ringPending = true;
+        const target = !displayRinging;
+        optimisticRinging = target;
+        ringFailed = false;
 
-        const result = shouldRing ? await ringDevice(deviceId) : await stopRingDevice(deviceId);
-        ringPending = false;
-        if (result.type === "success") {
-            ringing = shouldRing;
+        const result = target ? await ringDevice(deviceId) : await stopRingDevice(deviceId);
+        if (result.type !== "success") {
+            // The command itself was rejected — revert the optimistic intent.
+            optimisticRinging = null;
+            ringFailed = true;
+            if (ringErrorTimer != null) clearTimeout(ringErrorTimer);
+            ringErrorTimer = setTimeout(() => (ringFailed = false), 2500);
         }
     }
 </script>
@@ -87,24 +105,33 @@
     <button
             type="button"
             onclick={handleRing}
-            disabled={ringPending}
-            aria-pressed={ringing}
-            class="group relative flex min-w-0 flex-1 cursor-pointer items-center justify-center p-4 disabled:cursor-default"
+            aria-pressed={displayRinging}
+            class="group relative flex min-w-0 flex-1 cursor-pointer items-center justify-center p-4"
     >
         <div
-                class="absolute inset-0 transition-colors group-hover:bg-muted group-disabled:bg-transparent"
-                class:bg-muted={ringing}
+                class="absolute inset-0 transition-colors group-hover:bg-muted"
+                class:bg-muted={displayRinging}
         ></div>
 
         <div class="relative flex flex-col items-center justify-center gap-1.5 transition-transform group-active:scale-95">
-            {#if ringPending}
+            {#if ringFailed}
+                <XIcon class="size-6 text-destructive" />
+            {:else if awaitingConfirmation}
                 <CircleNotchIcon class="size-6 animate-spin" />
-            {:else if ringing}
+            {:else if displayRinging}
                 <PhoneSlashIcon class="size-6 text-primary" />
             {:else}
                 <PhoneCallIcon class="size-6" />
             {/if}
-            <span class="text-xs font-medium">{ringing ? "Stoppen" : "Anklingeln"}</span>
+            <span class="text-xs font-medium">
+                {#if ringFailed}
+                    Fehlgeschlagen
+                {:else if displayRinging}
+                    Stoppen
+                {:else}
+                    Anklingeln
+                {/if}
+            </span>
         </div>
     </button>
 </div>

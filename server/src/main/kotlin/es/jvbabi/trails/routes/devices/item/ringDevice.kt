@@ -1,7 +1,7 @@
-package es.jvbabi.trails.routes.webapp.devices
+package es.jvbabi.trails.routes.devices.item
 
+import es.jvbabi.trails.api.TRAILS_USER_REALM
 import es.jvbabi.trails.api.TRAILS_WEBAPP_REALM
-import es.jvbabi.trails.api.TrailsWebappPrincipal
 import es.jvbabi.trails.data.DeviceSubscriptionMessage
 import es.jvbabi.trails.data.DeviceSubscriptionRepository
 import es.jvbabi.trails.database.DatabaseManager
@@ -16,24 +16,24 @@ import org.koin.ktor.ext.inject
 import kotlin.uuid.Uuid
 
 /**
- * Starts ringing one of the current user's own devices. Like [webappPingDevice]
- * this is a standalone webapp request rather than a socket message, and reuses
- * the same device-subscription flow the app uses so the target device rings
- * regardless of whether the request came from the app or the web.
+ * Starts ringing one of the caller's own devices. Generic REST endpoint (app or
+ * web). The ring is only reflected in the UIs once the target device explicitly
+ * confirms it (see the ring-state socket) — this endpoint merely triggers it.
  */
-fun Route.webappRingDevice() {
+fun Route.ringDevice() {
     val db by inject<DatabaseManager>()
     val deviceSubscriptionRepository by inject<DeviceSubscriptionRepository>()
 
-    authenticate(TRAILS_WEBAPP_REALM) {
+    authenticate(TRAILS_USER_REALM, TRAILS_WEBAPP_REALM) {
         post {
-            val user = call.principal<TrailsWebappPrincipal>()!!.user
-            val device = call.ownDeviceOrNull(db, user.id.value)
+            val actor = call.deviceActor(db)
+                ?: return@post call.respond<RingDeviceResponse>(RingDeviceResponse.Forbidden)
+            val device = call.ownDevice(db, actor.userId)
                 ?: return@post call.respond<RingDeviceResponse>(RingDeviceResponse.Forbidden)
 
-            deviceRingInfo[device.id.value] = user.username
+            deviceRingInfo[device.id.value] = actor.sourceName
             deviceSubscriptionRepository.getFlowForDeviceSubscription(device.id.value)
-                .emit(DeviceSubscriptionMessage.Ring(device, pingedByDeviceName = user.username))
+                .emit(DeviceSubscriptionMessage.Ring(device, pingedByDeviceName = actor.sourceName))
 
             call.respond<RingDeviceResponse>(RingDeviceResponse.Success(hasRingingStarted = true))
         }
@@ -41,16 +41,17 @@ fun Route.webappRingDevice() {
 }
 
 /**
- * Stops a ring previously started on one of the current user's own devices.
+ * Requests a ring previously started on one of the caller's own devices to stop.
  */
-fun Route.webappStopRingDevice() {
+fun Route.stopRingDevice() {
     val db by inject<DatabaseManager>()
     val deviceSubscriptionRepository by inject<DeviceSubscriptionRepository>()
 
-    authenticate(TRAILS_WEBAPP_REALM) {
+    authenticate(TRAILS_USER_REALM, TRAILS_WEBAPP_REALM) {
         post {
-            val user = call.principal<TrailsWebappPrincipal>()!!.user
-            val device = call.ownDeviceOrNull(db, user.id.value)
+            val actor = call.deviceActor(db)
+                ?: return@post call.respond<RingDeviceResponse>(RingDeviceResponse.Forbidden)
+            val device = call.ownDevice(db, actor.userId)
                 ?: return@post call.respond<RingDeviceResponse>(RingDeviceResponse.Forbidden)
 
             deviceRingInfo.remove(device.id.value)
@@ -66,7 +67,7 @@ fun Route.webappStopRingDevice() {
  * Resolves the `{deviceId}` path parameter to a device owned by [userId], or
  * `null` if the id is missing/invalid or the device is not owned by the user.
  */
-private suspend fun ApplicationCall.ownDeviceOrNull(db: DatabaseManager, userId: Uuid): Device? {
+private suspend fun ApplicationCall.ownDevice(db: DatabaseManager, userId: Uuid): Device? {
     val deviceId = parameters["deviceId"]?.let(Uuid::parseOrNull) ?: return null
     val device = db.transaction { Device.findById(deviceId) } ?: return null
     return if (db.transaction { device.owner.id.value == userId }) device else null

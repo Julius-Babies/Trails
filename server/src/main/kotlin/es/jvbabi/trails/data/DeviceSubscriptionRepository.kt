@@ -6,6 +6,7 @@ import es.jvbabi.trails.database.ActiveShare
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.Device
 import es.jvbabi.trails.database.DeviceDeletion
+import es.jvbabi.trails.shared.dto.websocket.PingSource
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketServerMessage
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,7 +45,11 @@ class DeviceSubscriptionRepository : KoinComponent {
 sealed class DeviceSubscriptionMessage : KoinComponent {
     data class Deleted(val deletion: DeviceDeletion) : DeviceSubscriptionMessage()
     data class Snapshot(val snapshot: DataSnapshot) : DeviceSubscriptionMessage()
-    data class Ping(val device: Device, val pingedByDeviceName: String) : DeviceSubscriptionMessage()
+    data class Ping(
+        val device: Device,
+        val pingedByDeviceName: String,
+        val pingedBySource: PingSource = PingSource.DEVICE,
+    ) : DeviceSubscriptionMessage()
     data class Ring(val device: Device, val pingedByDeviceName: String) : DeviceSubscriptionMessage()
     data class RingStop(val device: Device) : DeviceSubscriptionMessage()
 
@@ -105,7 +110,8 @@ sealed class DeviceSubscriptionMessage : KoinComponent {
             is Ping -> {
                 if (principal?.device?.id?.value != this.device.id.value) return null
                 return AppSocketMessage(TrailsWebSocketServerMessage.Ping(
-                    pingedByDeviceName = this.pingedByDeviceName
+                    pingedByDeviceName = this.pingedByDeviceName,
+                    pingedBySource = this.pingedBySource,
                 ))
             }
 

@@ -14,7 +14,7 @@ export type PingDeviceResult =
 export async function pingDevice(deviceId: string): Promise<PingDeviceResult> {
     let response: Response;
     try {
-        response = await fetch(`/api/v1/webapp/devices/${deviceId}/ping`, { method: "POST" });
+        response = await fetch(`/api/v1/devices/${deviceId}/ping`, { method: "POST" });
     } catch (e) {
         return { type: "error", message: e instanceof Error ? e.message : "Network error" };
     }

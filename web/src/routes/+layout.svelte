@@ -6,6 +6,7 @@
     import {onMount} from "svelte";
     import UserIcon from "$lib/app/shell/UserIcon.svelte";
     import {startWebappSocket} from "$lib/state/webapp_socket.svelte";
+    import {startRingSocket} from "$lib/state/ring_socket.svelte";
     import {mapFocus, toggleMapFocus, setContentRect} from "$lib/state/map_focus.svelte";
     import {FrameCornersIcon} from "phosphor-svelte";
     import {page} from "$app/state";
@@ -70,6 +71,7 @@
 
     onMount(() => {
         startWebappSocket();
+        startRingSocket();
         updateUser();
 
         const mq = window.matchMedia("(prefers-reduced-motion: reduce)");

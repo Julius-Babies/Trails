@@ -4,6 +4,17 @@ import es.jvbabi.trails.shared.dto.DeviceResponse
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/**
+ * Where a device ping originated. Lets the receiving device render an
+ * appropriate notification text — a named device versus an anonymous browser
+ * session (which has no device identity).
+ */
+@Serializable
+enum class PingSource {
+    @SerialName("device") DEVICE,
+    @SerialName("browser") BROWSER,
+}
+
 @Serializable
 sealed class TrailsWebSocketServerMessage {
     @Serializable
@@ -66,6 +77,7 @@ sealed class TrailsWebSocketServerMessage {
     @SerialName("device.ping")
     data class Ping(
         @SerialName("pinged_by_device_name") val pingedByDeviceName: String,
+        @SerialName("pinged_by_source") val pingedBySource: PingSource = PingSource.DEVICE,
     ): TrailsWebSocketServerMessage()
 
     @Serializable
