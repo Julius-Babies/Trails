@@ -112,6 +112,11 @@ files over inventing new ones.
 - Add KDoc / Javadoc-style documentation comments where they add value
   (public APIs, non-obvious behaviour, invariants). Don't document the obvious.
 
+### Web tooling
+
+- Always use **bun** for the Svelte/`web` project (`bun install`, `bun run …`,
+  `bunx …`). Never use `npm`, `pnpm` or `yarn`.
+
 ## Notes
 
 - The repo's top-level `README.md` is the default Kotlin Multiplatform template
