@@ -19,7 +19,7 @@ class Device(id: EntityID<Uuid>) : UuidEntity(id) {
     var friendlyName by Devices.friendlyName
     var displayName by Devices.displayName
     var type by Devices.type
-    var owner by User referencedOn Devices.owner
+    var owner by DbUser referencedOn Devices.owner
     var createdAt by Devices.createdAt
     var deletion by DeviceDeletion optionalReferencedOn Devices.deletion
 

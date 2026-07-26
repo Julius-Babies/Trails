@@ -8,7 +8,7 @@ import es.jvbabi.trails.database.Device
 import es.jvbabi.trails.database.Devices
 import es.jvbabi.trails.database.Session
 import es.jvbabi.trails.database.Sessions
-import es.jvbabi.trails.database.User
+import es.jvbabi.trails.database.DbUser
 import io.ktor.http.HttpHeaders
 import io.ktor.http.auth.*
 import io.ktor.server.application.*
@@ -96,7 +96,7 @@ fun Application.installAuthentication() {
             validate { credential ->
                 val userId = Uuid.parse(credential.payload.getClaim("user_id").asString())
                 db.transaction {
-                    User.findById(userId)
+                    DbUser.findById(userId)
                 }?.let {
                     TrailsWebappPrincipal(it)
                 }
@@ -106,7 +106,7 @@ fun Application.installAuthentication() {
 }
 
 data class TrailsAppUserPrincipal(
-    val user: User,
+    val user: DbUser,
     val device: Device,
     val session: Session,
 ): KoinComponent {
@@ -118,5 +118,5 @@ data class TrailsAppUserPrincipal(
 }
 
 data class TrailsWebappPrincipal(
-    val user: User,
+    val user: DbUser,
 )

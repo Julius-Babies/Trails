@@ -17,7 +17,7 @@ import kotlin.uuid.Uuid
 class UserShare(id: EntityID<Uuid>) : UuidEntity(id) {
     companion object : UuidEntityClass<UserShare>(UserShares)
 
-    var user by User referencedOn UserShares.user
+    var user by DbUser referencedOn UserShares.user
     var shareId by UserShares.shareId
     var homeserver by UserShares.homeserver
     var createdAt by UserShares.createdAt

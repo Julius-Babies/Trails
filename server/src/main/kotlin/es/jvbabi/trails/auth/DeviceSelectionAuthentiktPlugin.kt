@@ -9,7 +9,7 @@ import es.jvbabi.authentikt.core.step.plugins.BasePlugin
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.Device
 import es.jvbabi.trails.database.Devices
-import es.jvbabi.trails.database.User
+import es.jvbabi.trails.database.DbUser
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -42,12 +42,12 @@ class DeviceSelectionAuthentiktState(
     }
 }
 
-class DeviceSelectionAuthentiktPlugin: BasePlugin<User, DeviceSelectionAuthentiktState>(namespace = "trails/device-selection"), KoinComponent {
+class DeviceSelectionAuthentiktPlugin: BasePlugin<DbUser, DeviceSelectionAuthentiktState>(namespace = "trails/device-selection"), KoinComponent {
 
     private val db by inject<DatabaseManager>()
 
     override suspend fun createState(session: Session<*>): DeviceSelectionAuthentiktState {
-        val user = session.identifiedUser!!.user as User
+        val user = session.identifiedUser!!.user as DbUser
 
         val deviceModel = session.publicAttributes[deviceModelAttribute]!!
         val deviceManufacturer = session.publicAttributes[deviceManufacturerAttribute]!!
@@ -74,13 +74,13 @@ class DeviceSelectionAuthentiktPlugin: BasePlugin<User, DeviceSelectionAuthentik
 
     override fun installRoutes(
         inRoute: Route,
-        authentiktInstance: AuthentiktInstance<User>
+        authentiktInstance: AuthentiktInstance<DbUser>
     ) {
         with(inRoute) {
             post("/select") {
                 val request = call.receive<DeviceSelectionRequest>()
                 val session = call.attributes[SessionKey]
-                val user = session.identifiedUser!!.user as User
+                val user = session.identifiedUser!!.user as DbUser
                 val device = db.transaction { Device.findById(Uuid.parse(request.deviceId))!! }
                 if (db.transaction { device.owner.id } != user.id) throw Exception("Device does not belong to user")
                 if (db.transaction { device.deletion } != null) throw Exception("Device is deleted")
@@ -96,7 +96,7 @@ class DeviceSelectionAuthentiktPlugin: BasePlugin<User, DeviceSelectionAuthentik
             post("/new-device") {
                 val request = call.receive<NewDeviceSelectionRequest>()
                 val session = call.attributes[SessionKey]
-                val user = session.identifiedUser!!.user as User
+                val user = session.identifiedUser!!.user as DbUser
 
                 val existingDeviceWithSameNameAndOwner = db.transaction {
                     Device.find { (Devices.owner eq user.id) and (Devices.displayName eq request.name) }.firstOrNull()

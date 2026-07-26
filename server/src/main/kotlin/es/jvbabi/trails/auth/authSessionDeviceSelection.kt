@@ -9,7 +9,7 @@ import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.Device
 import es.jvbabi.trails.database.DeviceType
 import es.jvbabi.trails.database.Devices
-import es.jvbabi.trails.database.User
+import es.jvbabi.trails.database.DbUser
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.koin.core.context.GlobalContext
@@ -22,7 +22,7 @@ import kotlin.uuid.Uuid
  *
  * @return The next authentication step we would want to go to get more device information or just null if we're done.
  */
-suspend fun authSessionDeviceSelection(session: Session<User>, user: User): BasePlugin<User, *>? {
+suspend fun authSessionDeviceSelection(session: Session<DbUser>, user: DbUser): BasePlugin<DbUser, *>? {
     val db = GlobalContext.get().get<DatabaseManager>()
     val deviceSelectionAuthentiktPlugin = GlobalContext.get().get<DeviceSelectionAuthentiktPlugin>()
     val deviceInformationRepository = GlobalContext.get().get<DeviceInformationRepository>()

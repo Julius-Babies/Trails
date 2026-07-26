@@ -2,8 +2,8 @@ package es.jvbabi.trails.database.mapper
 
 import es.jvbabi.trails.database.ActiveShare
 import es.jvbabi.trails.database.Device
-import es.jvbabi.trails.database.Share
-import es.jvbabi.trails.database.User
+import es.jvbabi.trails.database.DbShare
+import es.jvbabi.trails.database.DbUser
 import es.jvbabi.trails.api.v1.entity.ActiveShare as ActiveShareEntity
 import es.jvbabi.trails.api.v1.entity.Device as DeviceEntity
 import es.jvbabi.trails.api.v1.entity.Share as ShareEntity
@@ -23,12 +23,12 @@ fun Device.toApi() = DeviceEntity(
     ownerId = owner.id.value,
 )
 
-fun User.toApi() = UserEntity(
+fun DbUser.toApi() = UserEntity(
     id = id.value,
     username = username,
 )
 
-fun Share.toApi() = ShareEntity(
+fun DbShare.toApi() = ShareEntity(
     id = id.value,
     deviceId = device.id.value,
     shareName = shareName,

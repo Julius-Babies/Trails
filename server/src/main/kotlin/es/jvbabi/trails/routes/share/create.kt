@@ -6,7 +6,7 @@ import es.jvbabi.trails.api.v1.share.CreateShareRequest
 import es.jvbabi.trails.api.v1.share.CreateShareResponse
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.Devices
-import es.jvbabi.trails.database.Share
+import es.jvbabi.trails.database.DbShare
 import es.jvbabi.trails.database.Shares
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
@@ -47,8 +47,8 @@ fun Route.createShare() {
                 return@post
             }
 
-            val createdShareId = db.transaction {
-                Share.new {
+            val createdDbShareId = db.transaction {
+                DbShare.new {
                     this.device = principal.device
                     this.shareName = request.shareName
                     this.locationHistorySeconds = request.locationHistorySeconds
@@ -59,7 +59,7 @@ fun Route.createShare() {
             }
 
             call.respond<CreateShareResponse>(
-                message = CreateShareResponse.ShareCreated(createdShareId),
+                message = CreateShareResponse.ShareCreated(createdDbShareId),
                 status = HttpStatusCode.Created
             )
         }

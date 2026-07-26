@@ -9,8 +9,8 @@ import org.jetbrains.exposed.v1.datetime.CurrentTimestamp
 import org.jetbrains.exposed.v1.datetime.timestamp
 import kotlin.uuid.Uuid
 
-class Share(id: EntityID<Uuid>) : UuidEntity(id) {
-    companion object : UuidEntityClass<Share>(Shares)
+class DbShare(id: EntityID<Uuid>) : UuidEntity(id) {
+    companion object : UuidEntityClass<DbShare>(Shares)
 
     var device by Device referencedOn Shares.device
     var locationHistorySeconds by Shares.locationHistorySeconds

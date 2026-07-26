@@ -35,7 +35,7 @@ val deviceModelAttribute = AttributeKey<String>("device_model")
 val deviceManufacturerAttribute = AttributeKey<String>("device_manufacturer")
 val authSessionSelectedDeviceIdAttribute = AttributeKey<Uuid>("auth_session_selected_device_id")
 
-class TrailsAuthentiktUser(dbUser: User): AuthentiktUser<User>(dbUser) {
+class TrailsAuthentiktUser(dbUser: DbUser): AuthentiktUser<DbUser>(dbUser) {
     override suspend fun getEmail(): String = user.email
     override suspend fun getUsername(): String = user.username
     override suspend fun getDisplayName(): String = user.username
@@ -55,15 +55,15 @@ fun Application.installAuthentikt() {
             appendPathSegments("auth", "authorize")
         }.buildString()
 
-        var emailPlugin: EmailUserSelectionPlugin<User>? = null
-        var passwordPlugin: PasswordPlugin<User>? = null
-        var totpPlugin: TotpPlugin<User>? = null
-        var oauthPlugin: OIDCPlugin<User>? = null
+        var emailPlugin: EmailUserSelectionPlugin<DbUser>? = null
+        var passwordPlugin: PasswordPlugin<DbUser>? = null
+        var totpPlugin: TotpPlugin<DbUser>? = null
+        var oauthPlugin: OIDCPlugin<DbUser>? = null
 
         if (applicationConfig.config.auth?.oauth == null) {
             emailPlugin = EmailUserSelectionPlugin {
                 findUserByEmail { email ->
-                    val user = db.transaction { User.find { (Users.email eq email) or (Users.username eq email) }.firstOrNull() }
+                    val user = db.transaction { DbUser.find { (Users.email eq email) or (Users.username eq email) }.firstOrNull() }
                     user?.let { TrailsAuthentiktUser(it) }
                 }
 
@@ -93,7 +93,7 @@ fun Application.installAuthentikt() {
 
                 onUserInfo { response, _ ->
                     val map = response.body<Map<String, String>>()
-                    val user = db.transaction { User.find { Users.email eq map["email"]!! }.firstOrNull() }
+                    val user = db.transaction { DbUser.find { Users.email eq map["email"]!! }.firstOrNull() }
                     if (user == null) return@onUserInfo UserInfo.Result.Failure("user not found")
                     return@onUserInfo UserInfo.Result.Success(TrailsAuthentiktUser(user))
                 }
@@ -101,7 +101,7 @@ fun Application.installAuthentikt() {
             install(oauthPlugin)
         }
 
-        val donePlugin = DonePlugin<User> {
+        val donePlugin = DonePlugin<DbUser> {
             onSuccess { session, user ->
 
                 when (session.destination) {

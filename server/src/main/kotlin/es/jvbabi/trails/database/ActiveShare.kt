@@ -12,7 +12,7 @@ import kotlin.uuid.Uuid
 class ActiveShare(id: EntityID<Uuid>): UuidEntity(id) {
     companion object : UuidEntityClass<ActiveShare>(ActiveShares)
 
-    var share by Share referencedOn ActiveShares.share
+    var share by DbShare referencedOn ActiveShares.share
     var createdAt by ActiveShares.createdAt
 }
 

@@ -13,14 +13,13 @@ import es.jvbabi.trails.database.ActiveShare
 import es.jvbabi.trails.database.ActiveShares
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.Devices
-import es.jvbabi.trails.database.Share as ShareEntity
+import es.jvbabi.trails.database.DbShare as ShareEntity
 import es.jvbabi.trails.database.Shares
 import es.jvbabi.trails.database.UserShare
 import es.jvbabi.trails.database.UserShares
 import io.ktor.server.auth.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
-import io.ktor.websocket.*
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.filter
@@ -295,7 +294,7 @@ sealed class WebAppSocketServerMessage {
             @SerialName("redemption_count") val redemptionCount: Long,
         ) {
             companion object {
-                fun fromShare(share: es.jvbabi.trails.database.Share): EmittedShare {
+                fun fromShare(share: es.jvbabi.trails.database.DbShare): EmittedShare {
                     val device = share.device
                     return EmittedShare(
                         id = share.id.value,

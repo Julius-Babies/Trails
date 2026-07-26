@@ -32,7 +32,7 @@ Shared root package for all Kotlin code: `es.jvbabi.trails`.
 - `auth/` — Authentikt integration and session/device-selection auth.
 - `config/` — application configuration model.
 - `data/` — repositories and external services (e.g. Nominatim reverse geocoding).
-- `database/` — persistence entities (`Device`, `User`, `Share`, `ActiveShare`, …),
+- `database/` — persistence entities (`Device`, `DbUser`, `DbShare`, `ActiveShare`, …),
   `DatabaseManager`, and `mapper/` that maps DB entities to shared DTOs.
 - `di/` — Koin module setup (`installKoin`).
 - `routes/` — HTTP/WebSocket route handlers. See coding rules below.
@@ -88,6 +88,12 @@ files over inventing new ones.
   define the endpoint logic as extension functions (`get`/`post`/`webSocket`/…
   or plain `suspend fun ApplicationCall`), and are *wired in* from
   `installRouting.kt`. Do not add `route(...)` blocks inside handler files.
+- **API logic must never live in `installRouting.kt`.** That file contains
+  *only* the routing tree (`route(...)` nesting) plus one-line calls to the
+  wired-in handler functions. No handler bodies (`get { … }`/`post { … }` with
+  logic), no entity resolution, no `db.transaction`, no `call.respond`, no
+  `toApi()` mapping there — extract every such block into a `fun Route.…()` in
+  the endpoint's own handler file and just call it from `installRouting.kt`.
 
 ### Serialization
 

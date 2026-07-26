@@ -7,7 +7,7 @@ import es.jvbabi.trails.database.ActiveShare
 import es.jvbabi.trails.database.ActiveShares
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.Devices
-import es.jvbabi.trails.database.Share
+import es.jvbabi.trails.database.DbShare
 import es.jvbabi.trails.database.Shares
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
@@ -27,7 +27,7 @@ fun Route.getEmittedShares() {
             principal.requireValidSession()
 
             val shares = db.transaction {
-                Share.wrapRows(
+                DbShare.wrapRows(
                     Shares
                         .innerJoin(Devices)
                         .select(Shares.columns)
