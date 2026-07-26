@@ -34,10 +34,23 @@ export interface Device {
     last_location: LastLocation | null;
 }
 
+/** A location share saved by the current user. Has its own name (not a
+ * device's manufacturer/model naming); manufacturer/model are only for the
+ * device image. `id` is the active-share id. */
+export interface Share {
+    id: string;
+    name: string;
+    manufacturer: string;
+    model: string;
+    battery: Battery | null;
+    last_location: LastLocation | null;
+}
+
 type ServerMessage =
-    | { type: "devices.update"; devices: Device[] };
+    | { type: "devices.update"; devices: Device[]; shares?: Share[] };
 
 let devices = $state<Device[]>([]);
+let shares = $state<Share[]>([]);
 let connected = $state(false);
 
 let socket: WebSocket | null = null;
@@ -70,6 +83,7 @@ function handleMessage(message: ServerMessage) {
     switch (message.type) {
         case "devices.update":
             devices = message.devices;
+            shares = message.shares ?? [];
             break;
         default:
             console.warn("Unknown webapp socket message", message);
@@ -119,6 +133,7 @@ function close() {
     reconnectAttempts = 0;
     connected = false;
     devices = [];
+    shares = [];
     if (socket != null) {
         const ws = socket;
         socket = null;
@@ -143,6 +158,9 @@ export function startWebappSocket() {
 export const webappSocket = {
     get devices() {
         return devices;
+    },
+    get shares() {
+        return shares;
     },
     get connected() {
         return connected;

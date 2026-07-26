@@ -1,11 +1,17 @@
 <script lang="ts">
-    import type {Device} from "$lib/state/webapp_socket.svelte";
     import {DeviceMobileIcon} from "phosphor-svelte";
 
     let {
-        device,
+        id,
+        label,
+        imageUrl,
+        href = null,
     }: {
-        device: Device
+        id: string;
+        label: string;
+        imageUrl: string;
+        // When set the pin links somewhere; otherwise it is a plain marker.
+        href?: string | null;
     } = $props();
 
     let imageAvailable = $state(true);
@@ -15,16 +21,10 @@
     }
 
     // Unique per pin so the clip paths of different markers don't collide.
-    const clipId = `device-pin-${device.id}`;
-
-    const imageUrl = `/api/v1/devices/image/${device.manufacturer}-${device.model}`;
+    const clipId = `map-pin-${id}`;
 </script>
 
-<a
-        href={`/devices/${device.id}`}
-        aria-label={device.display_name}
-        class="group block cursor-pointer"
->
+{#snippet pin()}
     <div class="relative transition-transform group-hover:scale-110">
         <svg
                 width="60"
@@ -72,4 +72,14 @@
             />
         {/if}
     </div>
-</a>
+{/snippet}
+
+{#if href != null}
+    <a {href} aria-label={label} class="group block cursor-pointer">
+        {@render pin()}
+    </a>
+{:else}
+    <div aria-label={label} class="group block">
+        {@render pin()}
+    </div>
+{/if}
