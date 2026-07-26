@@ -13,7 +13,7 @@ interface User {
 
 class UserId(from: String) {
     val host = from.substringBefore("/")
-    val id = from.substringAfter("/").let(Uuid::parse)
+    val id = from.substringAfterLast("/").let(Uuid::parse)
 
     init {
         require(from.matches(Regex(".+/u/.+"))) { "Invalid user id format" }
@@ -25,7 +25,7 @@ class LocalUser(
 ): User, KoinComponent {
     private val applicationConfig by inject<ApplicationConfig>()
 
-    override val id: String = "${applicationConfig.url.host}/u/${dbUser.id.value.toHexString()}"
+    override val id: String = "${applicationConfig.url.host}/u/${dbUser.id.value}"
     override val username: String = dbUser.username
 }
 

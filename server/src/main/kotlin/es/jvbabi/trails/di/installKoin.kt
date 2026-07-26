@@ -6,8 +6,18 @@ import es.jvbabi.trails.data.DeviceInformationRepository
 import es.jvbabi.trails.data.DeviceSubscriptionRepository
 import es.jvbabi.trails.data.LocalUserRepository
 import es.jvbabi.trails.data.NominatimService
+import es.jvbabi.trails.data.ActiveShareRepository
+import es.jvbabi.trails.data.ActiveShareRepositoryProxy
+import es.jvbabi.trails.data.DeviceRepository
+import es.jvbabi.trails.data.DeviceRepositoryProxy
+import es.jvbabi.trails.data.FederationAuthService
+import es.jvbabi.trails.data.LocalActiveShareRepository
+import es.jvbabi.trails.data.LocalDeviceRepository
+import es.jvbabi.trails.data.LocalShareRepository
 import es.jvbabi.trails.data.RemoteRepositoryStore
 import es.jvbabi.trails.data.ReverseGeocoding
+import es.jvbabi.trails.data.ShareRepository
+import es.jvbabi.trails.data.ShareRepositoryProxy
 import es.jvbabi.trails.data.UserRepository
 import es.jvbabi.trails.data.UserRepositoryProxy
 import es.jvbabi.trails.data.UserSubscriptionRepository
@@ -24,6 +34,13 @@ private val coreModule = module {
     single { RemoteRepositoryStore() }
     single { LocalUserRepository() }
     singleOf(::UserRepositoryProxy) bind UserRepository::class
+    single { LocalShareRepository() }
+    singleOf(::ShareRepositoryProxy) bind ShareRepository::class
+    single { LocalDeviceRepository() }
+    singleOf(::DeviceRepositoryProxy) bind DeviceRepository::class
+    single { LocalActiveShareRepository() }
+    singleOf(::ActiveShareRepositoryProxy) bind ActiveShareRepository::class
+    single { FederationAuthService() }
     single { DeviceInformationRepository() }
     single { DeviceSubscriptionRepository() }
     single { UserSubscriptionRepository() }

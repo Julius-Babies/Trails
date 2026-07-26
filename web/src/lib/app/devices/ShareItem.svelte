@@ -54,6 +54,9 @@
     <div class="flex flex-col flex-1 min-w-0">
         <span class="font-lg">{share.name}</span>
         <span class="text-xs font-light text-muted-foreground truncate">
+            {share.device_display_name} · {share.owner_username}
+        </span>
+        <span class="text-xs font-light text-muted-foreground truncate">
             {locationText}
         </span>
     </div>

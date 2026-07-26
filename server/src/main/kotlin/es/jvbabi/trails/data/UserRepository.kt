@@ -14,7 +14,7 @@ import org.koin.core.component.inject
 import kotlin.uuid.Uuid
 
 interface UserRepository {
-    fun getUser(id: String): Flow<User?>
+    fun getUser(id: String, context: RequestContext = RequestContext.LOCAL): Flow<User?>
 }
 
 class UserRepositoryProxy: UserRepository, KoinComponent {
@@ -22,13 +22,14 @@ class UserRepositoryProxy: UserRepository, KoinComponent {
     private val remoteRepositoryStore by inject<RemoteRepositoryStore>()
     private val applicationConfig by inject<ApplicationConfig>()
 
-    override fun getUser(id: String): Flow<User?> {
+    override fun getUser(id: String, context: RequestContext): Flow<User?> {
         val id = UserId(id)
         if (id.host == applicationConfig.url.host) {
+            // Local lookups own the data and ignore the request context.
             return localUserRepository.getUser(id.id)
         }
 
-        return RemoteUserRepository(remoteRepositoryStore.get(id.host)).getUser(id.id)
+        return RemoteUserRepository(remoteRepositoryStore.get(id.host)).getUser(id.id, context)
     }
 }
 
@@ -49,9 +50,11 @@ class LocalUserRepository: KoinComponent {
 class RemoteUserRepository(
     private val remoteRepository: RemoteRepository,
 ) {
-    fun getUser(id: Uuid): Flow<RemoteUser?> {
+    fun getUser(id: Uuid, context: RequestContext): Flow<RemoteUser?> {
         return flow {
-            val response = remoteRepository.httpClient.get("/api/v1/users/$id")
+            val response = remoteRepository.httpClient.get("/api/v1/users/$id") {
+                context.applyTo(this)
+            }
             if (response.status == HttpStatusCode.NotFound) {
                 emit(null)
                 return@flow

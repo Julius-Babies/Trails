@@ -34,12 +34,16 @@ export interface Device {
     last_location: LastLocation | null;
 }
 
-/** A location share saved by the current user. Has its own name (not a
- * device's manufacturer/model naming); manufacturer/model are only for the
- * device image. `id` is the active-share id. */
+/** A location share saved by the current user, resolved through federation so it
+ * works for shares on a foreign homeserver too. Has its own name plus the resolved
+ * device display name and owner username; manufacturer/model are only for the
+ * device image. Battery/location are only present for shares on this server.
+ * `id` is the local saved-share row id. */
 export interface Share {
     id: string;
     name: string;
+    device_display_name: string;
+    owner_username: string;
     manufacturer: string;
     model: string;
     battery: Battery | null;
