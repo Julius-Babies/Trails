@@ -23,7 +23,7 @@
     // width to each side (and nothing below). Used to pad fitBounds so the whole
     // pin stays visible, not just its anchor point.
     const PIN_WIDTH = 60;
-    const PIN_HEIGHT = 68;
+    const PIN_HEIGHT = 67;
 
     function removePin(id: string) {
         const entry = pins.get(id);
@@ -192,10 +192,12 @@
     }
 
     // While focus mode is on, keep every device inside the visible map area —
-    // re-running on location updates and card resizes.
+    // re-running on location updates and card resizes. Steps aside while a
+    // single device is focused (its own effect drives the camera then).
     $effect(() => {
         const currentMap = map;
         if (currentMap == null || !mapFocus.active) return;
+        if (mapFocus.focusedDeviceId != null) return;
 
         const coords: [number, number][] = [];
         for (const device of [...webappSocket.devices, ...webappSocket.shares]) {
@@ -214,6 +216,56 @@
             maxZoom: 16,
             duration: 800
         });
+    });
+
+    // The camera to fall back to when a single-device focus is cleared.
+    let prevFocusId: string | null = null;
+    let preFocusCamera: {
+        center: mapboxgl.LngLat;
+        zoom: number;
+        bearing: number;
+        pitch: number;
+    } | null = null;
+
+    // Zoom onto a single device while its detail page is open, then restore the
+    // previous camera when the focus is cleared (e.g. navigating back).
+    $effect(() => {
+        const currentMap = map;
+        if (currentMap == null) return;
+
+        const id = mapFocus.focusedDeviceId;
+
+        if (id != null) {
+            // Remember where we were the moment focus begins (once, not on the
+            // re-runs triggered by later location/card updates).
+            if (prevFocusId == null) {
+                preFocusCamera = {
+                    center: currentMap.getCenter(),
+                    zoom: currentMap.getZoom(),
+                    bearing: currentMap.getBearing(),
+                    pitch: currentMap.getPitch()
+                };
+            }
+
+            const location = webappSocket.devices.find((d) => d.id === id)?.last_location;
+            if (location != null) {
+                currentMap.flyTo({
+                    center: [location.longitude, location.latitude],
+                    zoom: 16,
+                    padding: focusPadding(currentMap),
+                    duration: 800
+                });
+            }
+        } else if (prevFocusId != null) {
+            // Leaving focus: when "keep all devices in view" is on the other
+            // effect refits everything; otherwise fly back to where we started.
+            if (!mapFocus.active && preFocusCamera != null) {
+                currentMap.flyTo({ ...preFocusCamera, duration: 800 });
+            }
+            preFocusCamera = null;
+        }
+
+        prevFocusId = id;
     });
 </script>
 

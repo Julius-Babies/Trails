@@ -8,7 +8,7 @@ sealed class PingDeviceResponse {
     @Serializable
     @SerialName("success")
     data class Success(
-        val hasDeliveredNotification: Boolean,
+        @SerialName("has_delivered_notification") val hasDeliveredNotification: Boolean,
     ): PingDeviceResponse()
 
     @Serializable

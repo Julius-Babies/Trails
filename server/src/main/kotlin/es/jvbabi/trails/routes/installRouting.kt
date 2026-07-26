@@ -19,6 +19,9 @@ import es.jvbabi.trails.routes.share.createShare
 import es.jvbabi.trails.routes.share.item.getShare
 import es.jvbabi.trails.routes.share.item.redeem.redeemShare
 import es.jvbabi.trails.routes.user.item.getUser
+import es.jvbabi.trails.routes.webapp.devices.webappPingDevice
+import es.jvbabi.trails.routes.webapp.devices.webappRingDevice
+import es.jvbabi.trails.routes.webapp.devices.webappStopRingDevice
 import es.jvbabi.trails.routes.webapp.mapbox.webappMapbox
 import es.jvbabi.trails.routes.webapp.me.webappMe
 import es.jvbabi.trails.routes.webapp.webappSocket
@@ -122,6 +125,22 @@ fun Application.installRouting() {
 
                 route("/mapbox") {
                     webappMapbox()
+                }
+
+                route("/devices") {
+                    route("/{deviceId}") {
+                        route("/ping") {
+                            webappPingDevice()
+                        }
+
+                        route("/ring") {
+                            webappRingDevice()
+
+                            route("/stop") {
+                                webappStopRingDevice()
+                            }
+                        }
+                    }
                 }
 
                 route("/auth") {

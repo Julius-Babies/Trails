@@ -8,7 +8,7 @@ sealed class RingDeviceResponse {
     @Serializable
     @SerialName("success")
     data class Success(
-        val hasRingingStarted: Boolean,
+        @SerialName("has_ringing_started") val hasRingingStarted: Boolean,
     ): RingDeviceResponse()
 
     @Serializable

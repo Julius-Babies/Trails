@@ -8,14 +8,75 @@
     import {startWebappSocket} from "$lib/state/webapp_socket.svelte";
     import {mapFocus, toggleMapFocus, setContentRect} from "$lib/state/map_focus.svelte";
     import {FrameCornersIcon} from "phosphor-svelte";
+    import {page} from "$app/state";
+    import {beforeNavigate} from "$app/navigation";
+    import {cubicOut} from "svelte/easing";
 
     let { children } = $props();
 
     let cardEl: HTMLDivElement | null = $state(null);
 
+    // Direction of the last client-side navigation, used to drive the
+    // iOS-style push/pop slide: deeper routes push forward, shallower pop back.
+    let direction: "forward" | "back" = $state("forward");
+    let reducedMotion = $state(false);
+
+    const routeDepth = (pathname: string) => pathname.split("/").filter(Boolean).length;
+
+    beforeNavigate((nav) => {
+        if (!nav.from || !nav.to) return;
+        direction = routeDepth(nav.to.url.pathname) < routeDepth(nav.from.url.pathname)
+            ? "back"
+            : "forward";
+    });
+
+    // iOS-style stack slide. The page on top gets the full slide; the one
+    // underneath gets a subtle parallax. Two things make it feel like a real
+    // stack instead of two transparent sheets sliding past each other:
+    //   1. z-index is driven here so the top page always covers the underneath
+    //      one — DOM order alone would wrongly float the incoming page above the
+    //      outgoing one when popping.
+    //   2. the underneath page is clipped to exactly the region the top page
+    //      does NOT cover, so its content never shows through the (translucent)
+    //      top page. Both transitions run in lockstep (same duration/easing/
+    //      start), so at progress `t` the top page's leading edge sits at
+    //      `t * 100%` — which is all the underneath page needs to clip itself.
+    const PARALLAX = 30;
+
+    const stack = (node: HTMLElement, edge: "enter" | "leave") => {
+        const onTop = direction === "forward" ? edge === "enter" : edge === "leave";
+        node.style.zIndex = onTop ? "2" : "1";
+
+        const base = getComputedStyle(node).transform;
+        const transform = base === "none" ? "" : base;
+        const duration = reducedMotion ? 0 : 320;
+
+        if (onTop) {
+            return {
+                duration,
+                easing: cubicOut,
+                css: (t: number) => `transform: ${transform} translateX(${(1 - t) * 100}%);`,
+            };
+        }
+
+        return {
+            duration,
+            easing: cubicOut,
+            css: (t: number) =>
+                `transform: ${transform} translateX(${(1 - t) * -PARALLAX}%);` +
+                `clip-path: inset(0 ${(100 - PARALLAX) * (1 - t)}% 0 0);`,
+        };
+    };
+
     onMount(() => {
         startWebappSocket();
         updateUser();
+
+        const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+        reducedMotion = mq.matches;
+        const onChange = () => (reducedMotion = mq.matches);
+        mq.addEventListener("change", onChange);
+        return () => mq.removeEventListener("change", onChange);
     })
 
     // Keep the store in sync with the card's position/size so the map can inset
@@ -54,14 +115,22 @@
 <main class="pointer-events-none relative z-10 flex h-full w-full flex-col p-4">
     <div
             bind:this={cardEl}
-            class="xl-card pointer-events-auto h-full w-full max-w-100 overflow-y-auto rounded-3xl border border-border bg-accent/65 backdrop-blur-lg text-card-foreground shadow-2xl
+            class="xl-card pointer-events-auto relative h-full w-full max-w-100 overflow-hidden rounded-3xl border border-border bg-accent/65 text-card-foreground shadow-2xl backdrop-blur-lg
                md:w-1/2
                lg:w-1/3
                xl:mt-auto
                xl:h-[66.666dvh]
                xl:w-100"
     >
-        {@render children()}
+        {#key page.url.pathname}
+            <div
+                    class="absolute inset-0 overflow-hidden"
+                    in:stack={"enter"}
+                    out:stack={"leave"}
+            >
+                {@render children()}
+            </div>
+        {/key}
     </div>
 </main>
 
