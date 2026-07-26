@@ -272,7 +272,13 @@
                 };
             }
 
-            const location = webappSocket.devices.find((d) => d.id === id)?.last_location;
+            // The focused id may be an own device, a same-server share, or a
+            // foreign share — look it up across all three.
+            const location =
+                webappSocket.devices.find((d) => d.id === id)?.last_location
+                ?? webappSocket.shares.find((s) => s.id === id)?.last_location
+                ?? foreignShares.entries.find((e) => e.activeShareId === id)?.subscription.snapshot?.last_location
+                ?? null;
             if (location != null) {
                 currentMap.flyTo({
                     center: [location.longitude, location.latitude],
