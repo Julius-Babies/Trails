@@ -8,8 +8,18 @@ export interface User {
 
 export const currentUser = writable<User | null>(null);
 
+/**
+ * Whether the initial auth check (getMe) has completed. Until it flips true,
+ * `currentUser` being null is indistinguishable from "not signed in", so the UI
+ * should show a loading state rather than the logged-out view.
+ */
+export const authInitialized = writable(false);
+
 export async function updateUser() {
-    const currentUserResult = await getMe();
-    if (currentUserResult == null) currentUser.set(null);
-    else currentUser.set(currentUserResult);
+    try {
+        const currentUserResult = await getMe();
+        currentUser.set(currentUserResult ?? null);
+    } finally {
+        authInitialized.set(true);
+    }
 }

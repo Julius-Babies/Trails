@@ -2,13 +2,13 @@
     import './layout.css';
     import favicon from '$lib/assets/favicon.svg';
     import MapComponent from "$lib/app/shell/map/MapComponent.svelte";
-    import {currentUser, updateUser} from "$lib/state/current_user";
+    import {currentUser, authInitialized, updateUser} from "$lib/state/current_user";
     import {onMount} from "svelte";
     import UserIcon from "$lib/app/shell/UserIcon.svelte";
     import {startWebappSocket} from "$lib/state/webapp_socket.svelte";
     import {startRingSocket} from "$lib/state/ring_socket.svelte";
     import {mapFocus, toggleMapFocus, setContentRect} from "$lib/state/map_focus.svelte";
-    import {FrameCornersIcon} from "phosphor-svelte";
+    import {FrameCornersIcon, CircleNotchIcon} from "phosphor-svelte";
     import {page} from "$app/state";
     import {beforeNavigate} from "$app/navigation";
     import {cubicOut} from "svelte/easing";
@@ -124,15 +124,21 @@
                xl:h-[66.666dvh]
                xl:w-100"
     >
-        {#key page.url.pathname}
-            <div
-                    class="absolute inset-0 overflow-hidden"
-                    in:stack={"enter"}
-                    out:stack={"leave"}
-            >
-                {@render children()}
+        {#if !$authInitialized}
+            <div class="absolute inset-0 flex items-center justify-center">
+                <CircleNotchIcon class="size-8 animate-spin text-muted-foreground" />
             </div>
-        {/key}
+        {:else}
+            {#key page.url.pathname}
+                <div
+                        class="absolute inset-0 overflow-hidden"
+                        in:stack={"enter"}
+                        out:stack={"leave"}
+                >
+                    {@render children()}
+                </div>
+            {/key}
+        {/if}
     </div>
 </main>
 
