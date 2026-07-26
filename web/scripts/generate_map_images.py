@@ -33,9 +33,9 @@ from PIL import Image
 # --------------------------------------------------------------------------- #
 # CONFIG - edit these defaults, or override any of them via CLI flags.
 # --------------------------------------------------------------------------- #
-CENTER_LAT = 51.0504
-CENTER_LON = 13.7373
-ZOOM = 11              # geographic zoom level. Bump this for bigger content.
+CENTER_LAT = 51.1657
+CENTER_LON = 10.4515
+ZOOM = 5               # geographic zoom level. Bump this for bigger content.
 SCALE = 2             # 1 = normal, 2 = @2x retina (bigger, sharper text)
 WIDTH = 3840          # final image width  in px (matches 4K; used as a CSS
 HEIGHT = 2160         # final image height in px  object-cover placeholder)

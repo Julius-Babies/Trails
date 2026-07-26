@@ -52,8 +52,8 @@
                 container: mapContainer!,
                 style,
                 projection: "globe",
-                center: [13.7373, 51.0504],
-                zoom: 11
+                center: [10.4515, 51.1657],
+                zoom: 5
             });
 
             // Any manual camera interaction cancels focus mode. Programmatic
