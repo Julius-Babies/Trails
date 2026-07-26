@@ -9,7 +9,7 @@ import es.jvbabi.trails.routes.auth.webapp.webappAuthorization
 import es.jvbabi.trails.routes.auth.webapp.webappLogout
 import es.jvbabi.trails.routes.devices.devices
 import es.jvbabi.trails.routes.devices.image.deviceImage
-import es.jvbabi.trails.routes.devices.item.share.createShare
+import es.jvbabi.trails.routes.share.createShare
 import es.jvbabi.trails.routes.me.me
 import es.jvbabi.trails.routes.webapp.mapbox.webappMapbox
 import es.jvbabi.trails.routes.webapp.me.webappMe

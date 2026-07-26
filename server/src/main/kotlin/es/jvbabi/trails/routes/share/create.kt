@@ -1,4 +1,4 @@
-package es.jvbabi.trails.routes.devices.item.share
+package es.jvbabi.trails.routes.share
 
 import es.jvbabi.trails.api.TRAILS_USER_REALM
 import es.jvbabi.trails.api.TrailsAppUserPrincipal
