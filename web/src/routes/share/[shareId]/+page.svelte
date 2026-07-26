@@ -1,5 +1,6 @@
 <script lang="ts">
     import {page} from "$app/state";
+    import {webappSocket} from "$lib/state/webapp_socket.svelte";
     import {focusDevice} from "$lib/state/map_focus.svelte";
     import {ArrowLeftIcon} from "phosphor-svelte";
     import DeviceDetails from "$lib/app/devices/DeviceDetails.svelte";
@@ -8,10 +9,14 @@
     let shareId = $derived(page.params.shareId);
     // The share's origin homeserver. Absent for same-server shares → current origin.
     let homeserver = $derived(page.url.searchParams.get("homeserver") ?? "");
+    let isForeign = $derived(homeserver !== "");
 
-    // Live snapshot via the shared per-host socket; open while this page is shown.
+    // Foreign shares have no webapp socket on this origin, so subscribe to their
+    // host's (persistent, per-host) share socket. Same-server shares are NOT
+    // handled here — they already ride the always-on webapp socket below.
     let subscription = $state<ShareSubscription | null>(null);
     $effect(() => {
+        if (!isForeign) return;
         const sub = new ShareSubscription(homeserver, shareId);
         sub.open();
         subscription = sub;
@@ -21,7 +26,30 @@
         };
     });
 
-    let snapshot = $derived(subscription?.snapshot);
+    // Unified view of the share regardless of origin. `undefined` = still loading,
+    // `null` = not found. Same-server data comes from the persistent webapp socket
+    // (already warm from the start page → no per-view socket, no loading flash).
+    let share = $derived.by(() => {
+        if (isForeign) {
+            const snapshot = subscription?.snapshot;
+            if (snapshot == null) return snapshot; // undefined (loading) or null (gone)
+            return { ...snapshot, base: shareOriginBase(homeserver) };
+        }
+
+        const local = webappSocket.shares.find((s) => s.id === shareId);
+        if (local != null) {
+            return {
+                name: local.name,
+                manufacturer: local.manufacturer,
+                model: local.model,
+                last_location: local.last_location,
+                battery: local.battery,
+                base: "",
+            };
+        }
+        // Absent from a connected socket → genuinely gone; otherwise still loading.
+        return webappSocket.connected ? null : undefined;
+    });
 
     // Highlight the pin (present for same-server shares) while the page is open.
     $effect(() => {
@@ -30,27 +58,29 @@
     });
 
     let imageUrl = $derived(
-        snapshot ? `${shareOriginBase(homeserver)}/api/v1/devices/image/${snapshot.manufacturer}-${snapshot.model}` : null
+        share ? `${share.base}/api/v1/devices/image/${share.manufacturer}-${share.model}` : null
     );
 </script>
 
-<div class="flex flex-col h-full gap-2 overflow-y-auto scroll-thin pt-6">
+<div class="flex flex-col h-full gap-2 overflow-y-auto scroll-thin pt-8">
     <a
             href="/"
-            class="flex flex-row items-center gap-1.5 px-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            class="flex flex-row items-center gap-1.5 px-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
     >
         <ArrowLeftIcon class="size-4" />
         Geräte
     </a>
 
-    {#if snapshot}
-        <DeviceDetails
-                imageUrl={imageUrl}
-                title={snapshot.name}
-                lastLocation={snapshot.last_location}
-                battery={snapshot.battery}
-        />
-    {:else if snapshot === null}
+    {#if share}
+        <div class="flex flex-col gap-2 px-4">
+            <DeviceDetails
+                    imageUrl={imageUrl}
+                    title={share.name}
+                    lastLocation={share.last_location}
+                    battery={share.battery}
+            />
+        </div>
+    {:else if share === null}
         <p class="px-2 mt-4 text-sm text-muted-foreground">Freigabe nicht gefunden.</p>
     {:else}
         <p class="px-2 mt-4 text-sm text-muted-foreground">Wird geladen …</p>

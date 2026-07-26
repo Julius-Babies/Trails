@@ -1,14 +1,24 @@
 <script lang="ts">
     import type {Share} from "$lib/state/webapp_socket.svelte";
+    import {shareOriginBase} from "$lib/state/share_socket.svelte";
     import {DeviceMobileIcon} from "phosphor-svelte";
     import BatteryIcon from "$lib/components/BatteryIcon.svelte";
     import dayjs from "$lib/dayjs";
 
     let {
         share,
+        homeserver = "",
     }: {
-        share: Share
+        share: Share;
+        // Origin of a foreign share; empty for same-server. Drives the image
+        // origin and the detail link's ?homeserver= param.
+        homeserver?: string;
     } = $props();
+
+    let base = $derived(shareOriginBase(homeserver));
+    let href = $derived(
+        homeserver ? `/share/${share.id}?homeserver=${encodeURIComponent(homeserver)}` : `/share/${share.id}`
+    );
 
     let imageAvailable = $state(true);
 
@@ -40,11 +50,11 @@
 <!-- Links to the share detail page, keyed by the active-share id (the only
      identifier the client has for a share). -->
 <a class="flex flex-row gap-3 items-center transition-colors duration-100 hover:bg-foreground/10 cursor-pointer py-3 pl-2 pr-4 rounded-2xl"
-   href={`/share/${share.id}`}>
+   href={href}>
     <div class="size-10 bg-accent rounded-full flex items-center justify-center">
         {#if imageAvailable}
             <img
-                    src={`/api/v1/devices/image/${share.manufacturer}-${share.model}`}
+                    src={`${base}/api/v1/devices/image/${share.manufacturer}-${share.model}`}
                     alt={share.name}
                     onerror={handleImageError}
                     class="object-contain p-2.5"

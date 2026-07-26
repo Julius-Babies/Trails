@@ -27,27 +27,29 @@
     );
 </script>
 
-<div class="flex flex-col h-full gap-2 overflow-y-auto scroll-thin pt-6">
+<div class="flex flex-col h-full gap-2 overflow-y-auto scroll-thin pt-8">
     <a
             href="/"
-            class="flex flex-row items-center gap-1.5 px-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            class="flex flex-row items-center gap-1.5 px-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
     >
         <ArrowLeftIcon class="size-4" />
         Geräte
     </a>
 
     {#if device}
-        <DeviceDetails
-                imageUrl={imageUrl}
-                title={hasCustomDisplayName ? device.display_name : `${device.manufacturer} ${device.friendly_name}`}
-                subtitle={hasCustomDisplayName ? `${device.manufacturer} ${device.friendly_name}` : null}
-                lastLocation={device.last_location}
-                battery={device.battery}
-        />
+        <div class="flex flex-col gap-2 px-4">
+            <DeviceDetails
+                    imageUrl={imageUrl}
+                    title={hasCustomDisplayName ? device.display_name : `${device.manufacturer} ${device.friendly_name}`}
+                    subtitle={hasCustomDisplayName ? `${device.manufacturer} ${device.friendly_name}` : null}
+                    lastLocation={device.last_location}
+                    battery={device.battery}
+            />
 
-        {#if isOwnDevice}
-            <DeviceActions deviceId={device.id} />
-        {/if}
+            {#if isOwnDevice}
+                <DeviceActions deviceId={device.id} />
+            {/if}
+        </div>
     {:else}
         <p class="px-2 mt-4 text-sm text-muted-foreground">Gerät nicht gefunden.</p>
     {/if}

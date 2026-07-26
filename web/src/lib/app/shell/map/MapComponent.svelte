@@ -5,6 +5,7 @@
     import "mapbox-gl/dist/mapbox-gl.css";
     import { getMapboxToken } from "$lib/api/mapbox/get_mapbox_token";
     import { webappSocket } from "$lib/state/webapp_socket.svelte";
+    import { foreignShares, shareOriginBase } from "$lib/state/share_socket.svelte";
     import { mapFocus, disableMapFocus } from "$lib/state/map_focus.svelte";
     import MapPin from "./MapPin.svelte";
     import mapDark from "$lib/assets/map-dark.png";
@@ -142,6 +143,25 @@
             );
         }
 
+        for (const entry of foreignShares.entries) {
+            const snapshot = entry.subscription.snapshot;
+            const location = snapshot?.last_location;
+            if (snapshot == null || location == null) continue;
+            seen.add(entry.activeShareId);
+            const base = shareOriginBase(entry.homeserver);
+            upsertPin(currentMap, entry.activeShareId, location, (target) =>
+                mount(MapPin, {
+                    target,
+                    props: {
+                        id: entry.activeShareId,
+                        label: snapshot.name,
+                        imageUrl: `${base}/api/v1/devices/image/${snapshot.manufacturer}-${snapshot.model}`,
+                        href: `/share/${entry.activeShareId}?homeserver=${encodeURIComponent(entry.homeserver)}`
+                    }
+                })
+            );
+        }
+
         // Drop pins for entities that vanished or lost their location.
         for (const id of [...pins.keys()]) {
             if (!seen.has(id)) removePin(id);
@@ -203,6 +223,10 @@
         const coords: [number, number][] = [];
         for (const device of [...webappSocket.devices, ...webappSocket.shares]) {
             const location = device.last_location;
+            if (location != null) coords.push([location.longitude, location.latitude]);
+        }
+        for (const entry of foreignShares.entries) {
+            const location = entry.subscription.snapshot?.last_location;
             if (location != null) coords.push([location.longitude, location.latitude]);
         }
         if (coords.length === 0) return;

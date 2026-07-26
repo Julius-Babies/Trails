@@ -64,12 +64,27 @@ export interface EmittedShare {
     redemption_count: number;
 }
 
+/** A saved share that lives on another homeserver — only its capability
+ * (active-share id) and origin are known here; the data is fetched from the
+ * origin over a per-host share socket. */
+export interface ForeignShareRef {
+    active_share_id: string;
+    homeserver: string;
+}
+
 type ServerMessage =
-    | { type: "devices.update"; devices: Device[]; shares?: Share[]; emitted_shares?: EmittedShare[] };
+    | {
+          type: "devices.update";
+          devices: Device[];
+          shares?: Share[];
+          emitted_shares?: EmittedShare[];
+          foreign_shares?: ForeignShareRef[];
+      };
 
 let devices = $state<Device[]>([]);
 let shares = $state<Share[]>([]);
 let emittedShares = $state<EmittedShare[]>([]);
+let foreignShares = $state<ForeignShareRef[]>([]);
 let connected = $state(false);
 
 let socket: WebSocket | null = null;
@@ -104,6 +119,7 @@ function handleMessage(message: ServerMessage) {
             devices = message.devices;
             shares = message.shares ?? [];
             emittedShares = message.emitted_shares ?? [];
+            foreignShares = message.foreign_shares ?? [];
             break;
         default:
             console.warn("Unknown webapp socket message", message);
@@ -155,6 +171,7 @@ function close() {
     devices = [];
     shares = [];
     emittedShares = [];
+    foreignShares = [];
     if (socket != null) {
         const ws = socket;
         socket = null;
@@ -185,6 +202,9 @@ export const webappSocket = {
     },
     get emittedShares() {
         return emittedShares;
+    },
+    get foreignShares() {
+        return foreignShares;
     },
     get connected() {
         return connected;

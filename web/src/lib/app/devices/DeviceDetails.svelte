@@ -53,7 +53,7 @@
     });
 </script>
 
-<div class="flex flex-row items-center gap-4 px-2 mt-4">
+<div class="flex flex-row items-center gap-4 mt-4">
     <div class="size-20 shrink-0 flex items-center justify-center">
         {#if imageAvailable && imageUrl}
             <img

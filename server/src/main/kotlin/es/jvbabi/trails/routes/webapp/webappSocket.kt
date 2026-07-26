@@ -78,6 +78,17 @@ fun Route.webappSocket() {
                     .mapNotNull { userShare -> ActiveShare.findById(userShare.shareId) }
                     .filter { it.share.device.deletion == null }
 
+            // Refs to saved shares that do NOT live on this server. They can't be
+            // resolved locally, so the client is handed the active-share id +
+            // homeserver and fetches those directly from the origin (over its own
+            // per-host share socket). Anything that resolved locally is excluded.
+            fun resolveForeignShares(): List<WebAppSocketServerMessage.DevicesUpdate.ForeignShare> {
+                val localShareIds = resolveShares().map { it.id.value }.toSet()
+                return UserShare.find { UserShares.user eq user.id }
+                    .filter { it.shareId !in localShareIds }
+                    .map { WebAppSocketServerMessage.DevicesUpdate.ForeignShare(activeShareId = it.shareId, homeserver = it.homeserver) }
+            }
+
             // Resolve the shares this user has emitted (created) themselves. A
             // share is owned via its device, so we select all shares whose device
             // belongs to the current user and whose device is not deleted.
@@ -100,11 +111,13 @@ fun Route.webappSocket() {
                         .map { share -> WebAppSocketServerMessage.DevicesUpdate.EmittedShare.fromShare(share) }
                     Triple(devices, shares, emittedShares)
                 }
+                val foreignShares = db.transaction { resolveForeignShares() }
                 sendSerialized<WebAppSocketServerMessage>(
                     WebAppSocketServerMessage.DevicesUpdate(
                         devices = devices.map { it.copy(lastLocation = enrichLocation(it.lastLocation)) },
                         shares = shares.map { it.copy(lastLocation = enrichLocation(it.lastLocation)) },
                         emittedShares = emittedShares,
+                        foreignShares = foreignShares,
                     )
                 )
             }
@@ -169,7 +182,19 @@ sealed class WebAppSocketServerMessage {
         @SerialName("devices") val devices: List<Device>,
         @SerialName("shares") val shares: List<Share> = emptyList(),
         @SerialName("emitted_shares") val emittedShares: List<EmittedShare> = emptyList(),
+        @SerialName("foreign_shares") val foreignShares: List<ForeignShare> = emptyList(),
     ): WebAppSocketServerMessage() {
+        /**
+         * A saved share living on another homeserver. Only the capability
+         * (active-share id) and its origin are sent; the client fetches the data
+         * directly from that homeserver over its per-host share socket.
+         */
+        @Serializable
+        data class ForeignShare(
+            @SerialName("active_share_id") val activeShareId: Uuid,
+            @SerialName("homeserver") val homeserver: String,
+        )
+
         @Serializable
         data class Device(
             @SerialName("id") val id: Uuid,
