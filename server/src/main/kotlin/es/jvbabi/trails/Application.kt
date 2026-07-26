@@ -5,6 +5,7 @@ import es.jvbabi.trails.api.installCallLogging
 import es.jvbabi.trails.api.installContentNegotiation
 import es.jvbabi.trails.api.installDefaultHeaders
 import es.jvbabi.trails.api.installSse
+import es.jvbabi.trails.api.installStatusPages
 import es.jvbabi.trails.api.installWebsocket
 import es.jvbabi.trails.auth.installAuthentikt
 import es.jvbabi.trails.di.installKoin
@@ -27,5 +28,6 @@ fun Application.rootModule(
     installContentNegotiation()
     installAuthentication()
     installAuthentikt()
+    installStatusPages()
     installRouting()
 }

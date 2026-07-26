@@ -16,6 +16,7 @@ class LoginUseCase(
 
         trailsServerRepository.getMeData()
         trailsServerRepository.updateUserDevices()
+        trailsServerRepository.syncAccountShares()
         backgroundServiceRepository.startService()
     }
 }

@@ -25,6 +25,7 @@ dependencies {
     implementation(libs.server.ktor.server.content.negotiation)
     implementation(libs.server.ktor.server.auth.jwt)
     implementation(libs.server.ktor.server.call.logging)
+    implementation(libs.server.ktor.server.status.pages)
     implementation(libs.server.ktor.server.sse)
     implementation(libs.server.ktor.server.default.headers)
     implementation(libs.server.ktor.serialization.kotlinx.json)

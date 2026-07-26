@@ -10,8 +10,8 @@ import es.jvbabi.trails.api.v1.entity.Share as ShareEntity
 import es.jvbabi.trails.api.v1.entity.User as UserEntity
 
 /**
- * Wire-Entity-Mapper. Alle greifen auf Relationen zu (owner/device/share) und
- * müssen daher innerhalb einer [es.jvbabi.trails.database.DatabaseManager.transaction] aufgerufen werden.
+ * Wire-entity mappers. All of them access relations (owner/device/share) and must
+ * therefore be called inside a [es.jvbabi.trails.database.DatabaseManager.transaction].
  */
 
 fun Device.toApi() = DeviceEntity(

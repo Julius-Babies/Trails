@@ -1,0 +1,12 @@
+package es.jvbabi.trails.api.v1.me
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlin.uuid.Uuid
+
+@Serializable
+data class UserShareResponse(
+    @SerialName("share_id") val shareId: Uuid,
+    @SerialName("homeserver") val homeserver: String,
+    @SerialName("created_at") val createdAt: Long,
+)

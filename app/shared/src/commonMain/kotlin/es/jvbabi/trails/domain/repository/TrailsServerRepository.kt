@@ -36,6 +36,12 @@ interface TrailsServerRepository {
 
     suspend fun useShareLink(hostname: String, id: String): UseShareLinkResult
 
+    /**
+     * Downloads the shares saved to the account from the homeserver and restores them
+     * locally. No-op if there is no homeserver login.
+     */
+    suspend fun syncAccountShares()
+
     fun getConnectionEvents(server: String): Flow<List<ConnectionEvent>>
 
     suspend fun deleteDevice(device: Device): Result<Unit>

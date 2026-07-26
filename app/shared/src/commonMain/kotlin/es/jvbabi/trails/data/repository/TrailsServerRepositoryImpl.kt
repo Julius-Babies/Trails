@@ -1,6 +1,7 @@
 package es.jvbabi.trails.data.repository
 
 import co.touchlab.kermit.Logger
+import es.jvbabi.trails.api.v1.me.RegisterUserShareRequest
 import es.jvbabi.trails.api.v1.share.RedeemShareResponse
 import es.jvbabi.trails.data.database.TrailsDatabase
 import es.jvbabi.trails.data.database.entity.ConnectionEvent
@@ -458,39 +459,9 @@ class TrailsServerRepositoryImpl(
         }
 
         return try {
-            val activeShare = trailsApi.getActiveShare(hostname, activeShareId)
-            val share = trailsApi.getShare(hostname, activeShare.shareId)
-            val device = trailsApi.getDevice(hostname, share.deviceId)
-            val owner = trailsApi.getUser(hostname, device.ownerId)
-
-            database.userDao.upsert(DbUser(
-                id = owner.id,
-                homeserver = hostname,
-                username = owner.username,
-            ))
-
-            database.deviceDao.upsertDevices(listOf(
-                DbDevice(
-                    id = device.id,
-                    manufacturer = device.manufacturer,
-                    model = device.model,
-                    friendlyName = device.friendlyName,
-                    displayName = device.displayName,
-                    ownerId = owner.id,
-                )
-            ))
-
-            val localDevice = devicesRepository.getDeviceById(device.id).first()
-                ?: throw IllegalStateException("Device not found after using share link")
-            if (!devicesRepository.hasDeviceImage(localDevice).first()) {
-                fetchDeviceImageForDevice(localDevice)
-            }
-
-            database.activeShareDao.upsert(DbActiveShare(
-                id = activeShareId,
-                deviceId = device.id,
-            ))
-
+            resolveAndStoreActiveShare(hostname, activeShareId)
+            // Back up the share to our own account if we are signed in.
+            registerActiveShareWithAccount(originHomeserver = hostname, activeShareId = activeShareId)
             UseShareLinkResult.Success
         } catch (e: ApiException) {
             if (e.statusCode == HttpStatusCode.NotFound.value) {
@@ -499,6 +470,78 @@ class TrailsServerRepositoryImpl(
                 Logger.e(e) { "Error resolving share entities" }
                 UseShareLinkResult.Error("Error using share link: ${e.statusCode}")
             }
+        }
+    }
+
+    /**
+     * Resolves an active share on [hostname] via the chain ActiveShare -> Share -> Device ->
+     * Owner and stores the user, device and active share locally.
+     */
+    private suspend fun resolveAndStoreActiveShare(hostname: String, activeShareId: Uuid) {
+        val activeShare = trailsApi.getActiveShare(hostname, activeShareId)
+        val share = trailsApi.getShare(hostname, activeShare.shareId)
+        val device = trailsApi.getDevice(hostname, share.deviceId)
+        val owner = trailsApi.getUser(hostname, device.ownerId)
+
+        database.userDao.upsert(DbUser(
+            id = owner.id,
+            homeserver = hostname,
+            username = owner.username,
+        ))
+
+        database.deviceDao.upsertDevices(listOf(
+            DbDevice(
+                id = device.id,
+                manufacturer = device.manufacturer,
+                model = device.model,
+                friendlyName = device.friendlyName,
+                displayName = device.displayName,
+                ownerId = owner.id,
+            )
+        ))
+
+        val localDevice = devicesRepository.getDeviceById(device.id).first()
+            ?: throw IllegalStateException("Device not found after using share link")
+        if (!devicesRepository.hasDeviceImage(localDevice).first()) {
+            fetchDeviceImageForDevice(localDevice)
+        }
+
+        database.activeShareDao.upsert(DbActiveShare(
+            id = activeShareId,
+            deviceId = device.id,
+        ))
+    }
+
+    /**
+     * Registers a redeemed active share with the account on our homeserver so it can be
+     * restored on app start. Best-effort: if it fails (or we are not signed in), the local
+     * redeem still remains valid.
+     */
+    private suspend fun registerActiveShareWithAccount(originHomeserver: String, activeShareId: Uuid) {
+        val token = getToken().first() ?: return
+        val accountHost = getBaseUrl().first()?.host ?: return
+        runCatching {
+            trailsApi.registerUserShare(
+                host = accountHost,
+                token = token,
+                request = RegisterUserShareRequest(shareId = activeShareId, homeserver = originHomeserver),
+            )
+        }.onFailure { Logger.w(it) { "Failed to register share with account" } }
+    }
+
+    override suspend fun syncAccountShares() {
+        val token = getToken().first() ?: return
+        val accountHost = getBaseUrl().first()?.host ?: return
+
+        val shares = runCatching { trailsApi.getUserShares(accountHost, token) }
+            .getOrElse {
+                Logger.w(it) { "Failed to download account shares" }
+                return
+            }
+
+        shares.forEach { entry ->
+            runCatching { resolveAndStoreActiveShare(entry.homeserver, entry.shareId) }
+                .onFailure { Logger.w(it) { "Failed to restore share ${entry.shareId}" } }
         }
     }
 

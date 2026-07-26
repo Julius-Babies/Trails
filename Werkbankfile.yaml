@@ -44,5 +44,5 @@ http:
     target_service: frontend
 
 dependencies:
-  androiddns: true
-  keycloak: true
+  androiddns: false
+  keycloak: false

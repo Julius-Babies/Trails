@@ -55,6 +55,7 @@ class HomeViewModel(
 
             trailsServerRepository.getMeData()
             trailsServerRepository.updateUserDevices()
+            trailsServerRepository.syncAccountShares()
             backgroundServiceRepository.startService()
         }
 
