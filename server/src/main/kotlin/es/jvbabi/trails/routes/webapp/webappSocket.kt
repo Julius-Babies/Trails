@@ -10,7 +10,11 @@ import es.jvbabi.trails.data.ReverseGeocoding
 import es.jvbabi.trails.data.UserSubscriptionMessage
 import es.jvbabi.trails.data.UserSubscriptionRepository
 import es.jvbabi.trails.database.ActiveShare
+import es.jvbabi.trails.database.ActiveShares
 import es.jvbabi.trails.database.DatabaseManager
+import es.jvbabi.trails.database.Devices
+import es.jvbabi.trails.database.Share as ShareEntity
+import es.jvbabi.trails.database.Shares
 import es.jvbabi.trails.database.UserShare
 import es.jvbabi.trails.database.UserShares
 import io.ktor.server.auth.*
@@ -26,6 +30,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.select
 import org.koin.ktor.ext.inject
 import kotlin.uuid.Uuid
 
@@ -73,19 +78,33 @@ fun Route.webappSocket() {
                     .mapNotNull { userShare -> ActiveShare.findById(userShare.shareId) }
                     .filter { it.share.device.deletion == null }
 
+            // Resolve the shares this user has emitted (created) themselves. A
+            // share is owned via its device, so we select all shares whose device
+            // belongs to the current user and whose device is not deleted.
+            fun resolveEmittedShares(): List<ShareEntity> =
+                ShareEntity.wrapRows(
+                    Shares
+                        .innerJoin(Devices)
+                        .select(Shares.columns)
+                        .where { Devices.owner eq user.id }
+                ).filter { it.device.deletion == null }
+
             suspend fun sendDevices() {
-                val (devices, shares) = db.transaction {
+                val (devices, shares, emittedShares) = db.transaction {
                     val devices = user.devices
                         .filter { it.deletion == null }
                         .map { device -> WebAppSocketServerMessage.DevicesUpdate.Device.fromDevice(device) }
                     val shares = resolveShares()
                         .map { activeShare -> WebAppSocketServerMessage.DevicesUpdate.Share.fromActiveShare(activeShare) }
-                    devices to shares
+                    val emittedShares = resolveEmittedShares()
+                        .map { share -> WebAppSocketServerMessage.DevicesUpdate.EmittedShare.fromShare(share) }
+                    Triple(devices, shares, emittedShares)
                 }
                 sendSerialized<WebAppSocketServerMessage>(
                     WebAppSocketServerMessage.DevicesUpdate(
                         devices = devices.map { it.copy(lastLocation = enrichLocation(it.lastLocation)) },
                         shares = shares.map { it.copy(lastLocation = enrichLocation(it.lastLocation)) },
+                        emittedShares = emittedShares,
                     )
                 )
             }
@@ -149,6 +168,7 @@ sealed class WebAppSocketServerMessage {
     data class DevicesUpdate(
         @SerialName("devices") val devices: List<Device>,
         @SerialName("shares") val shares: List<Share> = emptyList(),
+        @SerialName("emitted_shares") val emittedShares: List<EmittedShare> = emptyList(),
     ): WebAppSocketServerMessage() {
         @Serializable
         data class Device(
@@ -248,6 +268,48 @@ sealed class WebAppSocketServerMessage {
                         model = device.model,
                         battery = if (share.shareBatteryState) device.battery else null,
                         lastLocation = device.lastLocation,
+                    )
+                }
+            }
+        }
+
+        /**
+         * A location share this user has emitted (created) themselves. Carries
+         * the share settings and how often it has been redeemed (one active-share
+         * row per redemption). Manufacturer/model are only carried for the device
+         * image on the frontend.
+         */
+        @Serializable
+        data class EmittedShare(
+            @SerialName("id") val id: Uuid,
+            @SerialName("name") val name: String,
+            @SerialName("device_id") val deviceId: Uuid,
+            @SerialName("device_display_name") val deviceDisplayName: String,
+            @SerialName("manufacturer") val manufacturer: String,
+            @SerialName("model") val model: String,
+            @SerialName("location_history_seconds") val locationHistorySeconds: Int,
+            @SerialName("share_battery_state") val shareBatteryState: Boolean,
+            @SerialName("allow_multiuse") val allowMultiuse: Boolean,
+            @SerialName("is_locked") val isLocked: Boolean,
+            @SerialName("created_at") val createdAt: Long,
+            @SerialName("redemption_count") val redemptionCount: Long,
+        ) {
+            companion object {
+                fun fromShare(share: es.jvbabi.trails.database.Share): EmittedShare {
+                    val device = share.device
+                    return EmittedShare(
+                        id = share.id.value,
+                        name = share.shareName,
+                        deviceId = device.id.value,
+                        deviceDisplayName = device.displayName,
+                        manufacturer = device.manufacturer,
+                        model = device.model,
+                        locationHistorySeconds = share.locationHistorySeconds,
+                        shareBatteryState = share.shareBatteryState,
+                        allowMultiuse = share.allowMultiuse,
+                        isLocked = share.isLocked,
+                        createdAt = share.createdAt.toEpochMilliseconds(),
+                        redemptionCount = ActiveShare.count(ActiveShares.share eq share.id),
                     )
                 }
             }

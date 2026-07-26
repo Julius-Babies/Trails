@@ -11,6 +11,7 @@ import es.jvbabi.trails.routes.auth.webapp.webappLogout
 import es.jvbabi.trails.routes.devices.devices
 import es.jvbabi.trails.routes.devices.image.deviceImage
 import es.jvbabi.trails.routes.devices.item.getDevice
+import es.jvbabi.trails.routes.me.emitted_shares.getEmittedShares
 import es.jvbabi.trails.routes.me.me
 import es.jvbabi.trails.routes.me.shares.getUserShares
 import es.jvbabi.trails.routes.me.shares.registerUserShare
@@ -50,6 +51,10 @@ fun Application.installRouting() {
                     route("/register") {
                         registerUserShare()
                     }
+                }
+
+                route("/emitted-shares") {
+                    getEmittedShares()
                 }
             }
 

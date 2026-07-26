@@ -46,11 +46,30 @@ export interface Share {
     last_location: LastLocation | null;
 }
 
+/** A location share the current user has emitted (created) themselves. Carries
+ * the share settings and how often it has been redeemed. Manufacturer/model are
+ * only for the device image. */
+export interface EmittedShare {
+    id: string;
+    name: string;
+    device_id: string;
+    device_display_name: string;
+    manufacturer: string;
+    model: string;
+    location_history_seconds: number;
+    share_battery_state: boolean;
+    allow_multiuse: boolean;
+    is_locked: boolean;
+    created_at: number;
+    redemption_count: number;
+}
+
 type ServerMessage =
-    | { type: "devices.update"; devices: Device[]; shares?: Share[] };
+    | { type: "devices.update"; devices: Device[]; shares?: Share[]; emitted_shares?: EmittedShare[] };
 
 let devices = $state<Device[]>([]);
 let shares = $state<Share[]>([]);
+let emittedShares = $state<EmittedShare[]>([]);
 let connected = $state(false);
 
 let socket: WebSocket | null = null;
@@ -84,6 +103,7 @@ function handleMessage(message: ServerMessage) {
         case "devices.update":
             devices = message.devices;
             shares = message.shares ?? [];
+            emittedShares = message.emitted_shares ?? [];
             break;
         default:
             console.warn("Unknown webapp socket message", message);
@@ -134,6 +154,7 @@ function close() {
     connected = false;
     devices = [];
     shares = [];
+    emittedShares = [];
     if (socket != null) {
         const ws = socket;
         socket = null;
@@ -161,6 +182,9 @@ export const webappSocket = {
     },
     get shares() {
         return shares;
+    },
+    get emittedShares() {
+        return emittedShares;
     },
     get connected() {
         return connected;
