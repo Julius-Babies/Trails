@@ -102,8 +102,8 @@
             {/if}
         </div>
 
-        <div class="flex flex-col min-w-0 gap-0.5">
-            <span class="text-lg font-semibold truncate">{resolvedTitle}</span>
+        <div class="flex flex-col min-w-0">
+            <span class="text-lg font-semibold truncate leading-tight">{resolvedTitle}</span>
 
             {#if resolvedSubtitle}
                 <span class="text-sm font-light text-muted-foreground truncate">{resolvedSubtitle}</span>

@@ -2,9 +2,9 @@
     import {page} from "$app/state";
     import {webappSocket} from "$lib/state/webapp_socket.svelte";
     import {focusDevice} from "$lib/state/map_focus.svelte";
-    import {ArrowLeftIcon} from "phosphor-svelte";
     import DeviceActions from "$lib/app/devices/DeviceActions.svelte";
     import DeviceDetails from "$lib/app/devices/DeviceDetails.svelte";
+    import DeviceHeader from "$lib/app/devices/DeviceHeader.svelte";
 
     let deviceId = $derived(page.params.deviceId);
     let device = $derived(webappSocket.devices.find((d) => d.id === deviceId) ?? null);
@@ -21,30 +21,26 @@
     });
 
     let imageUrl = $derived(device ? `/api/v1/devices/image/${device.manufacturer}-${device.model}` : null);
-
-    let hasCustomDisplayName = $derived.by(() =>
-        device != null && device.display_name !== `${device.manufacturer} ${device.friendly_name}`
-    );
 </script>
 
 <div class="flex flex-col h-full gap-2 overflow-y-auto scroll-thin pt-8">
-    <a
-            href="/"
-            class="flex flex-row items-center gap-1.5 px-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
-    >
-        <ArrowLeftIcon class="size-4" />
-        Geräte
-    </a>
+    {#if device}
+        <DeviceHeader
+                device={device}
+        />
+    {/if}
 
     {#if device}
         {#snippet deviceActions()}
-            <DeviceActions deviceId={device.id} />
+            <div class="mt-1">
+                <DeviceActions deviceId={device.id} />
+            </div>
         {/snippet}
         <div class="flex flex-col gap-2 px-4">
             <DeviceDetails
                     imageUrl={imageUrl}
-                    title={hasCustomDisplayName ? device.display_name : `${device.manufacturer} ${device.friendly_name}`}
-                    subtitle={hasCustomDisplayName ? `${device.manufacturer} ${device.friendly_name}` : null}
+                    title={device.name}
+                    subtitle={device.hasCustomName ? device.modelName : null}
                     lastLocation={device.last_location}
                     battery={device.battery}
                     actions={isOwnDevice ? deviceActions : undefined}

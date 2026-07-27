@@ -1,0 +1,73 @@
+<script lang="ts">
+    import {
+        Dialog,
+        DialogContent,
+        DialogDescription,
+        DialogFooter,
+        DialogHeader,
+        DialogTitle
+    } from "$lib/components/ui/dialog";
+    import {Button} from "$lib/components/ui/button";
+    import {Input} from "$lib/components/ui/input";
+    import {CircleNotchIcon} from "phosphor-svelte";
+    import {DeviceRepository} from "$lib/api/devices/device_repository";
+
+    let {
+        open = $bindable(),
+        deviceId,
+        currentDeviceName,
+    }: {
+        open: boolean,
+        deviceId: string,
+        currentDeviceName: string,
+    } = $props();
+
+    let name = $state("");
+    $effect(() => {
+        if (open) name = currentDeviceName;
+    })
+
+    let inputElement = $state<HTMLInputElement | null>(null);
+
+    $effect(() => {
+        if (open && inputElement) inputElement.focus();
+    })
+
+    let saving = $state(false);
+
+    async function save() {
+        if (saving) return;
+        saving = true;
+        // An empty name clears the custom name (server falls back to the model name).
+        const ok = await DeviceRepository.rename(deviceId, name.trim());
+        saving = false;
+        if (ok) open = false;
+    }
+</script>
+
+<Dialog bind:open={open}>
+    <DialogContent>
+        <DialogHeader>
+            <DialogTitle>Gerät umbenennen</DialogTitle>
+            <DialogDescription>Gib deinem Gerät einen erkennbaren Namen. Wenn du dein Gerät teilst, ist er möglicherweise für andere Personen sichtbar.</DialogDescription>
+        </DialogHeader>
+
+        <Input
+                bind:value={name}
+                bind:ref={inputElement}
+                type="text"
+                placeholder="z.B. iPhone von Ella"
+                onkeydown={(e) => { if (e.key === "Enter") save(); }}
+        />
+
+        <DialogFooter>
+            <Button variant="secondary" onclick={() => open = false} disabled={saving}>Abbrechen</Button>
+            <Button onclick={save} disabled={saving}>
+                {#if saving}
+                    <CircleNotchIcon class="size-4 animate-spin" />
+                {/if}
+                Speichern
+            </Button>
+        </DialogFooter>
+    </DialogContent>
+</Dialog>

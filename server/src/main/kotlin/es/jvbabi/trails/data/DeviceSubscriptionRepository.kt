@@ -72,7 +72,7 @@ sealed class DeviceSubscriptionMessage : KoinComponent {
                     val deviceId = db.transaction { deletion.device.id.value.toString() }
                     AppSocketMessage(
                         TrailsWebSocketServerMessage.DeviceDeleted(
-                            deletedByDeviceName = db.transaction { deletion.deletedBy.device.displayName },
+                            deletedByDeviceName = db.transaction { deletion.deletedBy?.device?.displayName ?: "Browser" },
                             deviceId = deviceId
                         ),
                         closeConnectionAfterSending = db.transaction { principal!!.device.id.value == deletion.device.id.value }

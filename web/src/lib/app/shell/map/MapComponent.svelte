@@ -118,7 +118,7 @@
                     target,
                     props: {
                         id: device.id,
-                        label: device.display_name,
+                        label: device.name,
                         imageUrl: `/api/v1/devices/image/${device.manufacturer}-${device.model}`,
                         href: `/devices/${device.id}`
                     }

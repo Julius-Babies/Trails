@@ -59,7 +59,7 @@ sealed class UserSubscriptionMessage: KoinComponent {
             is DeviceDeleted -> {
                 if (db.transaction { principal.user.id.value != deletion.device.owner.id.value }) return null
                 return AppSocketMessage(TrailsWebSocketServerMessage.DeviceDeleted(
-                    deletedByDeviceName = db.transaction { deletion.deletedBy.device.displayName },
+                    deletedByDeviceName = db.transaction { deletion.deletedBy?.device?.displayName ?: "Browser" },
                     deviceId = db.transaction { deletion.device.id.value.toString() },
                 ))
             }

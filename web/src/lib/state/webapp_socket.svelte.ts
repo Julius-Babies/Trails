@@ -23,8 +23,10 @@ export interface LastLocation {
     address: Address | null;
 }
 
-export interface Device {
-    [x: string]: any;
+/** Raw device shape as sent by the server over the socket. Kept separate from
+ * the domain {@link Device} so wire concerns (snake_case, the display/friendly
+ * name split) don't leak into the app. Map it with {@link toDevice}. */
+interface ApiDevice {
     id: string;
     manufacturer: string;
     model: string;
@@ -32,6 +34,39 @@ export interface Device {
     friendly_name: string;
     battery: Battery | null;
     last_location: LastLocation | null;
+}
+
+/** A device as the app uses it: the name has already been resolved, so consumers
+ * render `name`/`modelName` directly instead of re-deriving them. */
+export interface Device {
+    id: string;
+    manufacturer: string;
+    model: string;
+    /** Primary label — the user's custom name, or {@link modelName} as fallback. */
+    name: string;
+    /** The model-derived "<manufacturer> <friendly name>". Shown as a secondary
+     * line only when the user gave the device a custom name. */
+    modelName: string;
+    /** Whether the user set a custom name (i.e. `name !== modelName`). */
+    hasCustomName: boolean;
+    battery: Battery | null;
+    last_location: LastLocation | null;
+}
+
+/** Resolves the server's display/friendly name split into a single `name`. */
+function toDevice(api: ApiDevice): Device {
+    const modelName = `${api.manufacturer} ${api.friendly_name}`;
+    const hasCustomName = api.display_name !== modelName;
+    return {
+        id: api.id,
+        manufacturer: api.manufacturer,
+        model: api.model,
+        name: hasCustomName ? api.display_name : modelName,
+        modelName,
+        hasCustomName,
+        battery: api.battery,
+        last_location: api.last_location,
+    };
 }
 
 /** A location share saved by the current user. Has its own name (not a
@@ -83,7 +118,7 @@ export interface ForeignShareRef {
 type ServerMessage =
     | {
           type: "devices.update";
-          devices: Device[];
+          devices: ApiDevice[];
           shares?: Share[];
           emitted_shares?: EmittedShare[];
           foreign_shares?: ForeignShareRef[];
@@ -124,7 +159,7 @@ function scheduleReconnect() {
 function handleMessage(message: ServerMessage) {
     switch (message.type) {
         case "devices.update":
-            devices = message.devices;
+            devices = message.devices.map(toDevice);
             shares = message.shares ?? [];
             emittedShares = message.emitted_shares ?? [];
             foreignShares = message.foreign_shares ?? [];

@@ -11,10 +11,12 @@ import es.jvbabi.trails.routes.auth.webapp.webappAuthorization
 import es.jvbabi.trails.routes.auth.webapp.webappLogout
 import es.jvbabi.trails.routes.devices.devices
 import es.jvbabi.trails.routes.devices.image.deviceImage
+import es.jvbabi.trails.routes.devices.item.deleteDevice
 import es.jvbabi.trails.routes.devices.item.getDevice
 import es.jvbabi.trails.routes.devices.item.pingDevice
 import es.jvbabi.trails.routes.devices.item.ringDevice
 import es.jvbabi.trails.routes.devices.item.stopRingDevice
+import es.jvbabi.trails.routes.devices.item.updateDevice
 import es.jvbabi.trails.routes.ring.ringSocket
 import es.jvbabi.trails.routes.me.emitted_shares.getEmittedShares
 import es.jvbabi.trails.routes.me.me
@@ -71,6 +73,10 @@ fun Application.installRouting() {
                         val device = call.getDevice()
                         call.respond(db.transaction { device.toApi() })
                     }
+
+                    updateDevice()
+
+                    deleteDevice()
 
                     route("/ping") {
                         pingDevice()

@@ -16,10 +16,6 @@
         imageAvailable = false;
     }
 
-    let hasCustomDisplayName = $derived.by(() => {
-        return device.display_name !== `${device.manufacturer} ${device.friendly_name}`;
-    });
-
     const TWO_MINUTES_MS = 2 * 60 * 1000;
 
     let locationText = $derived.by(() => {
@@ -47,7 +43,7 @@
         {#if imageAvailable}
             <img
                     src={`/api/v1/devices/image/${device.manufacturer}-${device.model}`}
-                    alt={device.display_name}
+                    alt={device.name}
                     onerror={handleImageError}
                     class="object-contain p-2.5"
             />
@@ -57,16 +53,10 @@
     </div>
 
     <div class="flex flex-col flex-1 min-w-0">
-        <span class="font-lg">
-            {#if hasCustomDisplayName}
-                {device.display_name}
-            {:else}
-                {device.manufacturer} {device.friendly_name}
-            {/if}
-        </span>
-        {#if hasCustomDisplayName}
+        <span class="font-lg">{device.name}</span>
+        {#if device.hasCustomName}
             <span class="text-xs font-light text-muted-foreground">
-                {device.manufacturer} {device.friendly_name}
+                {device.modelName}
             </span>
         {/if}
         <span class="text-xs font-light text-muted-foreground truncate">

@@ -2,8 +2,8 @@
     import {page} from "$app/state";
     import {webappSocket} from "$lib/state/webapp_socket.svelte";
     import {focusDevice} from "$lib/state/map_focus.svelte";
-    import {ArrowLeftIcon} from "phosphor-svelte";
     import DeviceDetails from "$lib/app/devices/DeviceDetails.svelte";
+    import DeviceHeader from "$lib/app/devices/DeviceHeader.svelte";
     import {ShareSubscription, shareOriginBase} from "$lib/state/share_socket.svelte";
 
     let shareId = $derived(page.params.shareId);
@@ -16,7 +16,7 @@
     // handled here — they already ride the always-on webapp socket below.
     let subscription = $state<ShareSubscription | null>(null);
     $effect(() => {
-        if (!isForeign) return;
+        if (!isForeign ||!shareId) return;
         const sub = new ShareSubscription(homeserver, shareId);
         sub.open();
         subscription = sub;
@@ -62,13 +62,7 @@
 </script>
 
 <div class="flex flex-col h-full gap-2 overflow-y-auto scroll-thin pt-8">
-    <a
-            href="/"
-            class="flex flex-row items-center gap-1.5 px-4 text-sm text-muted-foreground transition-colors hover:text-foreground"
-    >
-        <ArrowLeftIcon class="size-4" />
-        Geräte
-    </a>
+    <DeviceHeader />
 
     {#if share}
         <div class="flex flex-col gap-2 px-4">

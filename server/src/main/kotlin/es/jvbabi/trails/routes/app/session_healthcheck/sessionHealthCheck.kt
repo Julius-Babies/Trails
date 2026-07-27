@@ -23,7 +23,7 @@ fun Route.sessionHealthCheck() {
             val deviceDeletion = db.transaction { device.deletion }
             if (deviceDeletion != null) {
                 call.respond<SessionHealthResponse>(SessionHealthResponse.DeviceDeleted(
-                    deletedByDeviceName = db.transaction { deviceDeletion.deletedBy.device.displayName }
+                    deletedByDeviceName = db.transaction { deviceDeletion.deletedBy?.device?.displayName ?: "Browser" }
                 ))
                 return@get
             }

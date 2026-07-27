@@ -12,13 +12,15 @@ import kotlin.uuid.Uuid
 class DeviceDeletion(id: EntityID<Uuid>) : UuidEntity(id) {
     companion object : UuidEntityClass<DeviceDeletion>(DeviceDeletions)
 
-    var deletedBy by Session referencedOn DeviceDeletions.deletedBy
+    // Null when the deletion was triggered from the webapp (a browser session),
+    // which has no device session to attribute it to.
+    var deletedBy by Session optionalReferencedOn DeviceDeletions.deletedBy
     var device by Device referencedOn DeviceDeletions.deviceId
     var deletedAt by DeviceDeletions.deletedAt
 }
 
 object DeviceDeletions: UuidTable("device_deletion") {
-    val deletedBy = reference("session", Sessions, onDelete = ReferenceOption.CASCADE)
+    val deletedBy = reference("session", Sessions, onDelete = ReferenceOption.CASCADE).nullable()
     val deviceId = reference("device", Devices, onDelete = ReferenceOption.CASCADE)
     val deletedAt = timestamp("deleted_at").defaultExpression(CurrentTimestamp)
 }
