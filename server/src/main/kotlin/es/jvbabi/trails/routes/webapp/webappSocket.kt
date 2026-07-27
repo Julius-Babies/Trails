@@ -279,18 +279,23 @@ sealed class WebAppSocketServerMessage {
             @SerialName("name") val name: String,
             @SerialName("manufacturer") val manufacturer: String,
             @SerialName("model") val model: String,
+            @SerialName("device_friendly_name") val deviceFriendlyName: String,
+            @SerialName("owner_username") val ownerUsername: String,
             @SerialName("battery") val battery: Device.Battery?,
             @SerialName("last_location") val lastLocation: Device.LastLocation?,
         ) {
             companion object {
                 fun fromActiveShare(activeShare: ActiveShare): Share {
                     val share = activeShare.share
-                    val device = Device.fromDevice(share.device)
+                    val sourceDevice = share.device
+                    val device = Device.fromDevice(sourceDevice)
                     return Share(
                         id = activeShare.id.value,
                         name = share.shareName,
                         manufacturer = device.manufacturer,
                         model = device.model,
+                        deviceFriendlyName = sourceDevice.friendlyName,
+                        ownerUsername = sourceDevice.owner.username,
                         battery = if (share.shareBatteryState) device.battery else null,
                         lastLocation = device.lastLocation,
                     )

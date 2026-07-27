@@ -21,6 +21,8 @@ data class ShareSnapshotResponse(
     @SerialName("name") val name: String,
     @SerialName("manufacturer") val manufacturer: String,
     @SerialName("model") val model: String,
+    @SerialName("device_friendly_name") val deviceFriendlyName: String,
+    @SerialName("owner_username") val ownerUsername: String,
     @SerialName("last_location") val lastLocation: LastLocation?,
     @SerialName("battery") val battery: Battery?,
 ) {
@@ -85,6 +87,8 @@ suspend fun buildShareSnapshot(
             name = share.shareName,
             manufacturer = device.manufacturer,
             model = device.model,
+            deviceFriendlyName = device.friendlyName,
+            ownerUsername = device.owner.username,
             lastLocation = latestSnapshot?.let {
                 ShareSnapshotResponse.LastLocation(
                     latitude = it.latitude,

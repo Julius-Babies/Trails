@@ -4,7 +4,7 @@
     import mapboxgl from "mapbox-gl";
     import "mapbox-gl/dist/mapbox-gl.css";
     import { getMapboxToken } from "$lib/api/mapbox/get_mapbox_token";
-    import { webappSocket } from "$lib/state/webapp_socket.svelte";
+    import { webappSocket, shareMainText } from "$lib/state/webapp_socket.svelte";
     import { foreignShares, shareOriginBase } from "$lib/state/share_socket.svelte";
     import { mapFocus, disableMapFocus } from "$lib/state/map_focus.svelte";
     import MapPin from "./MapPin.svelte";
@@ -135,7 +135,7 @@
                     target,
                     props: {
                         id: share.id,
-                        label: share.name,
+                        label: shareMainText(share),
                         imageUrl: `/api/v1/devices/image/${share.manufacturer}-${share.model}`,
                         href: `/share/${share.id}`
                     }
@@ -154,7 +154,7 @@
                     target,
                     props: {
                         id: entry.activeShareId,
-                        label: snapshot.name,
+                        label: shareMainText(snapshot),
                         imageUrl: `${base}/api/v1/devices/image/${snapshot.manufacturer}-${snapshot.model}`,
                         href: `/share/${entry.activeShareId}?homeserver=${encodeURIComponent(entry.homeserver)}`
                     }

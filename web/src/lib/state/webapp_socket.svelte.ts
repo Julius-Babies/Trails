@@ -42,8 +42,16 @@ export interface Share {
     name: string;
     manufacturer: string;
     model: string;
+    device_friendly_name: string;
+    owner_username: string;
     battery: Battery | null;
     last_location: LastLocation | null;
+}
+
+/** The main label shown for a shared device: the device's friendly name plus
+ * whose device it is, e.g. "iPhone 15 von julius". */
+export function shareMainText(share: { device_friendly_name: string; owner_username: string }): string {
+    return `${share.device_friendly_name} von ${share.owner_username}`;
 }
 
 /** A location share the current user has emitted (created) themselves. Carries

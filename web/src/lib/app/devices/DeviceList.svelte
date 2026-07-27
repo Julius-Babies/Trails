@@ -20,6 +20,8 @@
                     name: snapshot.name,
                     manufacturer: snapshot.manufacturer,
                     model: snapshot.model,
+                    device_friendly_name: snapshot.device_friendly_name,
+                    owner_username: snapshot.owner_username,
                     battery: snapshot.battery,
                     last_location: snapshot.last_location,
                 },

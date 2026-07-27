@@ -1,23 +1,54 @@
 <script lang="ts">
-    import {DeviceMobileIcon} from "phosphor-svelte";
+    import type {Snippet} from "svelte";
+    import {ClockIcon, DeviceMobileIcon, MapPinIcon} from "phosphor-svelte";
     import BatteryIcon from "$lib/components/BatteryIcon.svelte";
     import type {Battery, LastLocation} from "$lib/state/webapp_socket.svelte";
     import dayjs from "$lib/dayjs";
 
+    // A shared device, as assembled by the share detail page. Carries everything
+    // needed to render the header, so callers hand over the object rather than
+    // crafting a title/subtitle themselves.
+    interface Share {
+        manufacturer: string;
+        model: string;
+        device_friendly_name: string;
+        owner_username: string;
+        last_location: LastLocation | null;
+        battery: Battery | null;
+        // URL base of the share's origin homeserver ("" = current origin).
+        base: string;
+    }
+
     let {
+        share,
         imageUrl,
         title,
         subtitle = null,
         lastLocation,
         battery = null,
+        actions,
     }: {
-        imageUrl: string | null;
-        title: string;
+        // When given, drives the whole header (title = friendly name, subtitle =
+        // "von <owner>") and takes precedence over the explicit props below.
+        share?: Share;
+        imageUrl?: string | null;
+        title?: string;
         // Optional secondary line under the title (e.g. manufacturer + model).
         subtitle?: string | null;
-        lastLocation: LastLocation | null;
+        lastLocation?: LastLocation | null;
         battery?: Battery | null;
+        // Optional content placed beside the image, below the title/subtitle
+        // (e.g. the ping/ring actions for the user's own devices).
+        actions?: Snippet;
     } = $props();
+
+    let resolvedImageUrl = $derived(
+        share ? `${share.base}/api/v1/devices/image/${share.manufacturer}-${share.model}` : imageUrl ?? null
+    );
+    let resolvedTitle = $derived(share ? share.device_friendly_name : title ?? "");
+    let resolvedSubtitle = $derived(share ? `von ${share.owner_username}` : subtitle);
+    let resolvedLastLocation = $derived(share ? share.last_location : lastLocation ?? null);
+    let resolvedBattery = $derived(share ? share.battery : battery);
 
     let imageAvailable = $state(true);
 
@@ -28,65 +59,86 @@
     // Reset the image fallback when the source changes (e.g. navigating between
     // two detail views that reuse this component).
     $effect(() => {
-        imageUrl;
+        resolvedImageUrl;
         imageAvailable = true;
     });
 
     const TWO_MINUTES_MS = 2 * 60 * 1000;
 
-    let locationText = $derived.by(() => {
-        const location = lastLocation;
+    let placeText = $derived.by(() => {
+        const location = resolvedLastLocation;
         if (location == null) return "Noch nie gesehen";
 
         const address = location.address;
-        const place = address != null
+        return address != null
             ? [
                 [address.road, address.house_number].filter(Boolean).join(" "),
                 address.city,
                 address.country,
             ].filter(Boolean).join(", ") || address.label
             : `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`;
+    });
 
-        if (Date.now() - location.found_at < TWO_MINUTES_MS) return `${place} · gerade eben`;
-
-        return `${place} · ${dayjs(location.found_at).fromNow()}`;
+    let timeText = $derived.by(() => {
+        const location = resolvedLastLocation;
+        if (location == null) return null;
+        if (Date.now() - location.found_at < TWO_MINUTES_MS) return "gerade eben";
+        return dayjs(location.found_at).fromNow();
     });
 </script>
 
-<div class="flex flex-row items-center gap-4 mt-4">
-    <div class="size-20 shrink-0 flex items-center justify-center">
-        {#if imageAvailable && imageUrl}
-            <img
-                    src={imageUrl}
-                    alt={title}
-                    class="object-contain w-full h-full"
-                    onerror={handleImageError}
-            />
-        {:else}
-            <DeviceMobileIcon class="size-10 text-muted-foreground" />
-        {/if}
+<div class="flex flex-col gap-2">
+    <div class="flex flex-row items-center gap-4 mt-4">
+        <div class="size-20 shrink-0 flex items-center justify-center">
+            {#if imageAvailable && resolvedImageUrl}
+                <img
+                        src={resolvedImageUrl}
+                        alt={resolvedTitle}
+                        class="object-contain w-full h-full"
+                        onerror={handleImageError}
+                />
+            {:else}
+                <DeviceMobileIcon class="size-10 text-muted-foreground" />
+            {/if}
+        </div>
+
+        <div class="flex flex-col min-w-0 gap-0.5">
+            <span class="text-lg font-semibold truncate">{resolvedTitle}</span>
+
+            {#if resolvedSubtitle}
+                <span class="text-sm font-light text-muted-foreground truncate">{resolvedSubtitle}</span>
+            {/if}
+
+            {#if actions}
+                {@render actions()}
+            {/if}
+        </div>
     </div>
 
-    <div class="flex flex-col min-w-0 gap-0.5">
-        <span class="text-lg font-semibold truncate">{title}</span>
-
-        {#if subtitle}
-            <span class="text-sm font-light text-muted-foreground truncate">{subtitle}</span>
+    <div class="grid grid-cols-2 items-center gap-1 px-1 mt-2">
+        {#if timeText}
+            <div class="flex flex-row items-center gap-1.5 text-sm">
+                <ClockIcon class="w-lh h-lh" />
+                <span class="font-medium text-muted-foreground truncate">{timeText}</span>
+            </div>
         {/if}
 
-        <span class="text-sm font-light text-muted-foreground truncate">{locationText}</span>
-
-        {#if battery}
-            <span class="flex flex-row items-center gap-1.5 text-sm font-light text-muted-foreground">
+        {#if resolvedBattery}
+            <div class="flex flex-row items-center gap-1.5 text-sm">
                 <BatteryIcon
                         height={16}
                         width={10}
-                        isCharging={battery.is_charging}
-                        percentage={battery.percentage}
+                        isCharging={resolvedBattery.is_charging}
+                        percentage={resolvedBattery.percentage}
                         emptyColor="color-mix(in oklab, var(--color-foreground) 18%, transparent)"
                 />
-                {battery.percentage}%{battery.is_charging ? " · lädt" : ""}
-            </span>
+                <span class="font-medium text-muted-foreground truncate">{resolvedBattery.percentage}%{resolvedBattery.is_charging ? " · lädt" : ""}</span>
+            </div>
         {/if}
+
+        <div class="flex flex-row items-center gap-1.5 text-sm col-span-2">
+            <MapPinIcon class="w-lh h-lh" />
+            <span class="font-medium text-muted-foreground truncate">{placeText}</span>
+        </div>
     </div>
 </div>

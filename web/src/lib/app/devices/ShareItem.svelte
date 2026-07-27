@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type {Share} from "$lib/state/webapp_socket.svelte";
+    import {type Share, shareMainText} from "$lib/state/webapp_socket.svelte";
     import {shareOriginBase} from "$lib/state/share_socket.svelte";
     import {DeviceMobileIcon} from "phosphor-svelte";
     import BatteryIcon from "$lib/components/BatteryIcon.svelte";
@@ -65,7 +65,7 @@
     </div>
 
     <div class="flex flex-col flex-1 min-w-0">
-        <span class="font-lg">{share.name}</span>
+        <span class="font-lg">{shareMainText(share)}</span>
         <span class="text-xs font-light text-muted-foreground truncate">
             {locationText}
         </span>

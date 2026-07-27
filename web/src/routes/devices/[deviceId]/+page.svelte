@@ -37,6 +37,9 @@
     </a>
 
     {#if device}
+        {#snippet deviceActions()}
+            <DeviceActions deviceId={device.id} />
+        {/snippet}
         <div class="flex flex-col gap-2 px-4">
             <DeviceDetails
                     imageUrl={imageUrl}
@@ -44,11 +47,8 @@
                     subtitle={hasCustomDisplayName ? `${device.manufacturer} ${device.friendly_name}` : null}
                     lastLocation={device.last_location}
                     battery={device.battery}
+                    actions={isOwnDevice ? deviceActions : undefined}
             />
-
-            {#if isOwnDevice}
-                <DeviceActions deviceId={device.id} />
-            {/if}
         </div>
     {:else}
         <p class="px-2 mt-4 text-sm text-muted-foreground">Gerät nicht gefunden.</p>

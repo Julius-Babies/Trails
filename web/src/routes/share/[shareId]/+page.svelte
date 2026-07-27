@@ -42,6 +42,8 @@
                 name: local.name,
                 manufacturer: local.manufacturer,
                 model: local.model,
+                device_friendly_name: local.device_friendly_name,
+                owner_username: local.owner_username,
                 last_location: local.last_location,
                 battery: local.battery,
                 base: "",
@@ -57,9 +59,6 @@
         return () => focusDevice(null);
     });
 
-    let imageUrl = $derived(
-        share ? `${share.base}/api/v1/devices/image/${share.manufacturer}-${share.model}` : null
-    );
 </script>
 
 <div class="flex flex-col h-full gap-2 overflow-y-auto scroll-thin pt-8">
@@ -73,12 +72,7 @@
 
     {#if share}
         <div class="flex flex-col gap-2 px-4">
-            <DeviceDetails
-                    imageUrl={imageUrl}
-                    title={share.name}
-                    lastLocation={share.last_location}
-                    battery={share.battery}
-            />
+            <DeviceDetails share={share} />
         </div>
     {:else if share === null}
         <p class="px-2 mt-4 text-sm text-muted-foreground">Freigabe nicht gefunden.</p>

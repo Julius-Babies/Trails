@@ -47,14 +47,6 @@
         }
     });
 
-    const pingLabel: Record<PingState, string> = {
-        idle: "Pingen",
-        pending: "Pingen …",
-        delivered: "Benachrichtigt",
-        found: "Gefunden",
-        failed: "Fehlgeschlagen",
-    };
-
     function flashPing(state: Exclude<PingState, "idle" | "pending">) {
         pingState = state;
         if (pingResetTimer != null) clearTimeout(pingResetTimer);
@@ -90,26 +82,25 @@
     }
 </script>
 
-<div class="mt-6 flex w-full overflow-hidden rounded-xl bg-card">
+<div class="flex w-full overflow-hidden rounded-xl bg-card">
     <button
             type="button"
             onclick={handlePing}
             disabled={pingState === "pending"}
-            class="group relative flex min-w-0 flex-1 cursor-pointer items-center justify-center p-4 disabled:cursor-default"
+            class="group relative flex min-w-0 flex-1 cursor-pointer items-center justify-center p-3"
     >
         <div class="absolute inset-0 transition-colors group-hover:bg-muted group-disabled:bg-transparent"></div>
 
         <div class="relative flex flex-col items-center justify-center gap-1.5 transition-transform group-active:scale-95">
             {#if pingState === "pending"}
-                <CircleNotchIcon class="size-6 animate-spin" />
+                <CircleNotchIcon class="size-5 animate-spin" />
             {:else if pingState === "delivered" || pingState === "found"}
-                <CheckIcon class="size-6 text-primary" />
+                <CheckIcon class="size-5 text-primary" />
             {:else if pingState === "failed"}
-                <XIcon class="size-6 text-destructive" />
+                <XIcon class="size-5 text-destructive" />
             {:else}
-                <BellRingingIcon class="size-6" />
+                <BellRingingIcon class="size-5" />
             {/if}
-            <span class="text-xs font-medium">{pingLabel[pingState]}</span>
         </div>
     </button>
 
@@ -119,7 +110,7 @@
             type="button"
             onclick={handleRing}
             aria-pressed={displayRinging}
-            class="group relative flex min-w-0 flex-1 cursor-pointer items-center justify-center p-4"
+            class="group relative flex min-w-0 flex-1 cursor-pointer items-center justify-center p-3"
     >
         <div
                 class="absolute inset-0 transition-colors group-hover:bg-muted"
@@ -128,23 +119,14 @@
 
         <div class="relative flex flex-col items-center justify-center gap-1.5 transition-transform group-active:scale-95">
             {#if ringFailed}
-                <XIcon class="size-6 text-destructive" />
+                <XIcon class="size-5 text-destructive" />
             {:else if awaitingConfirmation}
-                <CircleNotchIcon class="size-6 animate-spin" />
+                <CircleNotchIcon class="size-5 animate-spin" />
             {:else if displayRinging}
-                <PhoneSlashIcon class="size-6 text-primary" />
+                <PhoneSlashIcon class="size-5 text-primary" />
             {:else}
-                <PhoneCallIcon class="size-6" />
+                <PhoneCallIcon class="size-5" />
             {/if}
-            <span class="text-xs font-medium">
-                {#if ringFailed}
-                    Fehlgeschlagen
-                {:else if displayRinging}
-                    Stoppen
-                {:else}
-                    Anklingeln
-                {/if}
-            </span>
         </div>
     </button>
 </div>
