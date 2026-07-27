@@ -32,6 +32,10 @@ class UserSubscriptionRepository: KoinComponent {
 sealed class UserSubscriptionMessage: KoinComponent {
     data class DeviceUpdated(val device: Device): UserSubscriptionMessage()
     data class DeviceDeleted(val deletion: DeviceDeletion): UserSubscriptionMessage()
+    /** One of the user's saved shares was removed from the account (e.g. returned).
+     * [shareId] is the active-share id. The webapp re-sends its list; the app is
+     * told to drop the local share via a [TrailsWebSocketServerMessage.ShareDeleted]. */
+    data class SharesChanged(val shareId: Uuid): UserSubscriptionMessage()
     data class RingState(
         val deviceId: Uuid,
         val isRinging: Boolean,
@@ -63,6 +67,12 @@ sealed class UserSubscriptionMessage: KoinComponent {
                     deviceId = db.transaction { deletion.device.id.value.toString() },
                 ))
             }
+            is SharesChanged -> return AppSocketMessage(
+                TrailsWebSocketServerMessage.ShareDeleted(
+                    wasDeviceRemoved = false,
+                    shareId = shareId.toString(),
+                )
+            )
             is RingState -> {
                 return AppSocketMessage(TrailsWebSocketServerMessage.RingState(
                     deviceId = this.deviceId.toString(),

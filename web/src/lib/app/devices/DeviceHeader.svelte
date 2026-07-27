@@ -10,14 +10,21 @@
     import {Button} from "$lib/components/ui/button";
     import RenameDeviceDialog from "$lib/app/devices/RenameDeviceDialog.svelte";
     import DeleteDeviceDialog from "$lib/app/devices/DeleteDeviceDialog.svelte";
+    import ReturnShareDialog from "$lib/app/devices/ReturnShareDialog.svelte";
     import type {Device} from "$lib/state/webapp_socket.svelte";
 
     let {
         device,
+        shareId,
+        homeserver = "",
     }: {
         // The device this header belongs to, or undefined for a shared device
         // (which can't be renamed or deleted, only returned).
         device?: Device;
+        // For a shared device: the active-share id and its origin homeserver
+        // (empty for a same-server share), needed to return the share.
+        shareId?: string;
+        homeserver?: string;
     } = $props();
 
     // Only own devices carry a Device; shared ones don't.
@@ -25,6 +32,7 @@
 
     let showRenameDialog = $state(false);
     let showDeleteDialog = $state(false);
+    let showReturnDialog = $state(false);
 </script>
 
 <div class="flex flex-row items-center gap-2 justify-between px-4">
@@ -46,7 +54,7 @@
         <DropdownMenuContent>
             <DropdownMenuGroup>
                 {#if !isOwnDevice}
-                    <DropdownMenuItem>Freigabe zurückgeben</DropdownMenuItem>
+                    <DropdownMenuItem onclick={() => showReturnDialog = true}>Freigabe zurückgeben</DropdownMenuItem>
                 {:else}
                     <DropdownMenuItem class="text-destructive" onclick={() => showDeleteDialog = true}>
                         <TrashIcon/>
@@ -74,5 +82,11 @@
             deviceId={device.id}
             deviceName={device.name}
             bind:open={showDeleteDialog}
+    />
+{:else if shareId}
+    <ReturnShareDialog
+            shareId={shareId}
+            homeserver={homeserver}
+            bind:open={showReturnDialog}
     />
 {/if}

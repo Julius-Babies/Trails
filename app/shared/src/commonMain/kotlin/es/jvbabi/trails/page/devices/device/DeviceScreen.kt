@@ -25,8 +25,11 @@ import dev.chrisbanes.haze.blur.blurEffect
 import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
+import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.page.devices.Screen
 import es.jvbabi.trails.ui.components.ConfigureTopBar
+import es.jvbabi.trails.ui.components.TopBarAction
+import es.jvbabi.trails.ui.components.TopBarActionDisplay
 import es.jvbabi.trails.ui.components.DeviceImage
 import es.jvbabi.trails.ui.components.LocalHazeState
 import es.jvbabi.trails.utils.PaddingValues
@@ -77,6 +80,9 @@ fun DeviceContent(
     if (state.device == null) return
 
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
+    var showRenameDialog by rememberSaveable { mutableStateOf(false) }
+
+    val isOwner = state.currentUser != null && state.currentUser.id == state.device.device.owner.id
 
     val hazeStyle = HazeMaterials.thin()
 
@@ -103,27 +109,33 @@ fun DeviceContent(
                 )
             }
         } },
-        actions = {
-            if (state.currentUser != null && state.currentUser.id == state.device.device.owner.id) IconButton(
+        actions = if (isOwner) listOf(
+            TopBarAction(
+                title = "Umbenennen",
+                icon = Res.drawable.pencil,
+                display = TopBarActionDisplay.ALWAYS,
+                onClick = { showRenameDialog = true },
+            ),
+            TopBarAction(
+                title = "Löschen",
+                icon = Res.drawable.trash_2,
+                destructive = true,
                 onClick = { showDeleteDialog = true },
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .hazeEffect(LocalHazeState.current) {
-                        blurEffect {
-                            blurRadius = 8.dp
-                            style = hazeStyle
-                        }
-                    }
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .4f))
-            ) {
-                Icon(
-                    painter = painterResource(Res.drawable.trash_2),
-                    contentDescription = "Löschen",
-                    modifier = Modifier.size(24.dp),
-                )
-            }
-        }
+            ),
+        ) else emptyList(),
     )
+
+    if (showRenameDialog) RenameDeviceDialog(
+        device = state.device.device,
+        renameState = state.renameState,
+        onDismiss = { showRenameDialog = false },
+        onConfirm = { onEvent(DeviceEvent.Rename(it)) },
+    )
+
+    // Close the rename dialog once the server confirms the change.
+    LaunchedEffect(state.renameState) {
+        if (state.renameState is DeviceState.RenameState.Success) showRenameDialog = false
+    }
 
     if (showDeleteDialog) AlertDialog(
         onDismissRequest = { showDeleteDialog = false },
@@ -298,4 +310,90 @@ fun DeviceContent(
             }
         }
     }
+}
+
+@Composable
+private fun RenameDeviceDialog(
+    device: Device,
+    renameState: DeviceState.RenameState?,
+    onDismiss: () -> Unit,
+    onConfirm: (customName: String?) -> Unit,
+) {
+    val defaultName = "${device.manufacturer} ${device.friendlyName}"
+    val hasCustomName = device.displayName != defaultName
+    // An empty field clears the custom name; the server then reverts to the
+    // model name, so we seed it empty when no custom name is set.
+    var name by rememberSaveable(device.id) {
+        mutableStateOf(if (hasCustomName) device.displayName else "")
+    }
+    val isLoading = renameState is DeviceState.RenameState.Loading
+
+    AlertDialog(
+        onDismissRequest = { if (!isLoading) onDismiss() },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(name.trim().ifEmpty { null }) },
+                enabled = !isLoading,
+            ) {
+                Text("Speichern")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isLoading,
+            ) {
+                Text("Abbrechen")
+            }
+        },
+        icon = {
+            AnimatedContent(targetState = isLoading) { loading ->
+                if (loading) LoadingIndicator(Modifier.size(24.dp))
+                else Icon(
+                    painter = painterResource(Res.drawable.pencil),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        },
+        title = {
+            Text("Gerät umbenennen")
+        },
+        text = {
+            Column {
+                Text("Gib deinem Gerät einen erkennbaren Namen. Wenn du dein Gerät teilst, ist er möglicherweise für andere Personen sichtbar.")
+
+                Spacer(Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    singleLine = true,
+                    enabled = !isLoading,
+                    placeholder = { Text(defaultName) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                var errorMessage by remember { mutableStateOf<String?>(null) }
+
+                LaunchedEffect(renameState) {
+                    if (renameState is DeviceState.RenameState.Error) {
+                        errorMessage = renameState.message
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = renameState is DeviceState.RenameState.Error,
+                    enter = expandVertically(expandFrom = Alignment.CenterVertically),
+                    exit = shrinkVertically(shrinkTowards = Alignment.CenterVertically)
+                ) {
+                    Text(
+                        text = "An error occurred: ${errorMessage.orEmpty()}",
+                        color = MaterialTheme.colorScheme.error,
+                        maxLines = 6,
+                    )
+                }
+            }
+        }
+    )
 }

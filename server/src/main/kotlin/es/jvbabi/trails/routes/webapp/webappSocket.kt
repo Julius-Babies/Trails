@@ -150,7 +150,7 @@ fun Route.webappSocket() {
             // added, changed or removed, and keep the device subscriptions in sync.
             launch {
                 userSubscriptionRepository.getFlowForUser(user.id.value)
-                    .filter { it is UserSubscriptionMessage.DeviceUpdated || it is UserSubscriptionMessage.DeviceDeleted }
+                    .filter { it is UserSubscriptionMessage.DeviceUpdated || it is UserSubscriptionMessage.DeviceDeleted || it is UserSubscriptionMessage.SharesChanged }
                     .onEach { message ->
                         when (message) {
                             is UserSubscriptionMessage.DeviceUpdated ->

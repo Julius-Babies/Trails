@@ -4,6 +4,8 @@ import es.jvbabi.trails.api.v1.entity.ActiveShare
 import es.jvbabi.trails.api.v1.entity.Device
 import es.jvbabi.trails.api.v1.entity.Share
 import es.jvbabi.trails.api.v1.entity.User
+import es.jvbabi.trails.api.v1.active_shares.BulkCheckActiveSharesRequest
+import es.jvbabi.trails.api.v1.active_shares.BulkCheckActiveSharesResponse
 import es.jvbabi.trails.api.v1.me.RegisterUserShareRequest
 import es.jvbabi.trails.api.v1.me.UserShareResponse
 import io.ktor.client.HttpClient
@@ -47,6 +49,19 @@ class TrailsApi(
             setBody(request)
         }
         response.requireSuccess()
+    }
+
+    /**
+     * Returns which of [activeShareIds] still exist on [host]. Capability-based, so
+     * no auth. Used at start to prune saved shares whose redemption was returned.
+     */
+    suspend fun bulkCheckActiveShares(host: String, activeShareIds: List<Uuid>): List<Uuid> {
+        val response = httpClient.post(urlFor(host, "app", "active-shares", "bulk-check")) {
+            contentType(ContentType.Application.Json)
+            setBody(BulkCheckActiveSharesRequest(activeShareIds = activeShareIds))
+        }
+        response.requireSuccess()
+        return response.body<BulkCheckActiveSharesResponse>().existingActiveShareIds
     }
 
     private suspend inline fun <reified T> get(host: String, vararg path: String, token: String? = null): T {

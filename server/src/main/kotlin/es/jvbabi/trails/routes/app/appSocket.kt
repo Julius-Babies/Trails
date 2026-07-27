@@ -124,6 +124,7 @@ fun Route.app() {
                                 ownDeviceSubscriptionRtUpdaters.remove(deviceId)
                             }
                             is UserSubscriptionMessage.RingState -> { }
+                            is UserSubscriptionMessage.SharesChanged -> { }
                         }
                     }
                     .mapNotNull { it.toAppSocketMessage(principal) }

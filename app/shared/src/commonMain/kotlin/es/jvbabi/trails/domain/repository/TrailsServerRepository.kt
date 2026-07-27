@@ -42,9 +42,23 @@ interface TrailsServerRepository {
      */
     suspend fun syncAccountShares()
 
+    /**
+     * Removes saved shares whose active share no longer exists on its origin
+     * homeserver (returned/removed). Checks each origin directly, grouped per
+     * homeserver, so it also covers shares that live only locally and never had an
+     * account reference. A homeserver that can't be reached is left untouched.
+     */
+    suspend fun pruneRemovedShares()
+
     fun getConnectionEvents(server: String): Flow<List<ConnectionEvent>>
 
     suspend fun deleteDevice(device: Device): Result<Unit>
+
+    /**
+     * Renames [device]. A blank/`null` [customName] clears the custom name and
+     * the server falls back to the model name.
+     */
+    suspend fun renameDevice(device: Device, customName: String?): Result<Unit>
 
     val ringStates: StateFlow<Map<Uuid, RingDeviceState>>
 }

@@ -123,3 +123,7 @@ files over inventing new ones.
   and does not reflect the current module layout — trust this file instead.
 - Server runtime data (SQLite DB, JWT secret, config) lives under
   `server/data/` and is environment-specific — do not commit changes to it.
+
+# App
+## Design
+We use Lucide icons for the app. They need to be converted to android vector drawables and placed in the composeResources folder.

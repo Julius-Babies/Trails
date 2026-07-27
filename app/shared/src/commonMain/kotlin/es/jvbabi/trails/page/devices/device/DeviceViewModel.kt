@@ -53,6 +53,7 @@ class DeviceViewModel(
                     state.update { it.copy(
                         device = device,
                         deletionState = null,
+                        renameState = if (it.device?.device?.id != device.device.id) null else it.renameState,
                         image = if (it.device?.device?.id != device.device.id) null else it.image,
                         pingState = if (it.device?.device?.id != device.device.id) null else it.pingState,
                         ringState = if (it.device?.device?.id != device.device.id) null else it.ringState,
@@ -118,6 +119,19 @@ class DeviceViewModel(
 
     fun onEvent(event: DeviceEvent) {
         when (event) {
+            is DeviceEvent.Rename -> viewModelScope.launch {
+                if (state.value.device == null) return@launch
+                if (state.value.renameState is DeviceState.RenameState.Loading) return@launch
+                state.update { it.copy(renameState = DeviceState.RenameState.Loading) }
+                try {
+                    val result = trailsServerRepository.renameDevice(state.value.device!!.device, event.customName)
+                    if (result.isSuccess) state.update { it.copy(renameState = DeviceState.RenameState.Success) }
+                    else state.update { it.copy(renameState = DeviceState.RenameState.Error(result.exceptionOrNull()?.message ?: "Unknown error")) }
+                } catch (e: Exception) {
+                    state.update { it.copy(renameState = DeviceState.RenameState.Error(e.message ?: "Unknown error")) }
+                }
+            }
+
             is DeviceEvent.Delete -> viewModelScope.launch {
                 if (state.value.device == null) return@launch
                 if (state.value.deletionState is DeviceState.DeletionState.Loading) return@launch
@@ -181,12 +195,19 @@ data class DeviceState(
     val ringState: RingState? = null,
 
     val deletionState: DeletionState? = null,
+    val renameState: RenameState? = null,
     val image: ByteArray? = null,
 ) {
     sealed class DeletionState {
         data object Loading: DeletionState()
         data object Success: DeletionState()
         data class Error(val message: String): DeletionState()
+    }
+
+    sealed class RenameState {
+        data object Loading: RenameState()
+        data object Success: RenameState()
+        data class Error(val message: String): RenameState()
     }
 
     sealed class PingState {
@@ -204,6 +225,7 @@ data class DeviceState(
 }
 
 sealed class DeviceEvent {
+    data class Rename(val customName: String?): DeviceEvent()
     data object Delete: DeviceEvent()
     data object Ping: DeviceEvent()
     data object Ring: DeviceEvent()

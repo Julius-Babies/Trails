@@ -32,6 +32,8 @@ import io.ktor.utils.io.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
@@ -546,6 +548,32 @@ class TrailsServerRepositoryImpl(
         }
     }
 
+    override suspend fun pruneRemovedShares() {
+        val localShares = database.activeShareDao.getActiveShares().first()
+        if (localShares.isEmpty()) return
+
+        localShares
+            .groupBy { it.device.owner.homeserver }
+            .forEach { (homeserver, shares) ->
+                val host = homeserver.ifBlank { getBaseUrl().first()?.host } ?: return@forEach
+                val ids = shares.map { it.share.id }
+
+                // A homeserver we can't reach is skipped, so a transient failure
+                // never deletes shares that may still be valid.
+                val existing = runCatching { trailsApi.bulkCheckActiveShares(host, ids) }
+                    .getOrElse {
+                        Logger.w(it) { "Failed to check shares on $host" }
+                        return@forEach
+                    }
+                    .toSet()
+
+                (ids - existing).forEach { goneId ->
+                    Logger.i { "Pruning returned share $goneId (gone from $host)" }
+                    database.activeShareDao.deleteById(goneId)
+                }
+            }
+    }
+
     typealias ServerHost = String
     private val activeExternalSessions = mutableMapOf<ServerHost, DefaultClientWebSocketSession>()
 
@@ -686,7 +714,33 @@ class TrailsServerRepositoryImpl(
 
         return Result.failure(IllegalStateException("Error deleting device: ${response.status} ${response.bodyAsText()}"))
     }
+
+    override suspend fun renameDevice(device: Device, customName: String?): Result<Unit> {
+        val url = URLBuilder("https://${device.owner.homeserver}").apply {
+            appendPathSegments("api", "v1", "devices", device.id.toString())
+        }
+        val token = getToken().first() ?: throw IllegalStateException("Token not set")
+
+        // Blank names clear the custom name; the server then falls back to the
+        // model name and broadcasts the change back to us via DeviceUpdated.
+        val newName = customName?.trim()?.takeIf { it.isNotEmpty() }
+
+        val response = httpClient.patch(url.buildString()) {
+            bearerAuth(token)
+            contentType(ContentType.Application.Json)
+            setBody(UpdateDeviceRequest(customName = newName))
+        }
+
+        if (response.status.isSuccess()) return Result.success(Unit)
+
+        return Result.failure(IllegalStateException("Error renaming device: ${response.status} ${response.bodyAsText()}"))
+    }
 }
+
+@Serializable
+private data class UpdateDeviceRequest(
+    @SerialName("custom_name") val customName: String?,
+)
 
 private abstract class WebSocketClientBase(
     protected val scope: CoroutineScope,

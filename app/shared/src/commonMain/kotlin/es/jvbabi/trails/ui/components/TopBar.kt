@@ -5,10 +5,15 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewWrapper
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.max
@@ -28,9 +34,11 @@ import dev.chrisbanes.haze.blur.blurEffect
 import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import dev.chrisbanes.haze.hazeEffect
 import es.jvbabi.trails.ThemeWrapper
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import trails.app.shared.generated.resources.Res
 import trails.app.shared.generated.resources.arrow_left
+import trails.app.shared.generated.resources.ellipsis_vertical
 
 @Composable
 fun TopBar(
@@ -39,10 +47,20 @@ fun TopBar(
 ) {
     val localDensity = LocalDensity.current
     var actionsWidth by remember { mutableStateOf(0.dp) }
-    Box(modifier = modifier
+    BoxWithConstraints(modifier = modifier
         .fillMaxWidth()
         .defaultMinSize(minHeight = 56.dp)
     ) {
+        // How much room the actions may take before collapsing into the overflow
+        // menu. The title is centered with symmetric padding, so keeping it
+        // legible caps the actions at half of the width left beside it.
+        val actionsBudget = if (state.config.title.isNotEmpty()) {
+            ((maxWidth - MinCenteredTitleWidth) * 0.5f).coerceAtLeast(0.dp)
+        } else {
+            val navWidth = if (state.config.navigationIcon != null) 48.dp else 0.dp
+            (maxWidth - navWidth).coerceAtLeast(0.dp)
+        }
+
         AnimatedContent(
             targetState = state.config.navigationIcon,
             transitionSpec = { fadeIn() + scaleIn() togetherWith fadeOut() + scaleOut() },
@@ -116,7 +134,9 @@ fun TopBar(
                     }
                 }
             ) {
-                state.config.actions(this)
+                CompositionLocalProvider(LocalTopBarActionsMaxWidth provides actionsBudget) {
+                    state.config.actions(this@Row)
+                }
             }
         }
     }
@@ -128,6 +148,162 @@ data class TopBarConfig(
     val navigationIcon: (@Composable () -> Unit)? = null,
     val actions: @Composable RowScope.() -> Unit = {},
 )
+
+/** How a [TopBarAction] competes for a spot in the bar versus the overflow menu. */
+enum class TopBarActionDisplay {
+    /** Always a dedicated icon button, even when space is tight. */
+    ALWAYS,
+
+    /** An icon button when it fits; otherwise it collapses into the overflow menu. */
+    IF_ROOM,
+
+    /** Always in the three-dot overflow menu. */
+    NEVER,
+}
+
+/**
+ * A single top-bar action. Callers describe a flat list; the bar measures the
+ * available width and renders as many [IF_ROOM][TopBarActionDisplay.IF_ROOM]
+ * actions as fit, moving the rest into the three-dot overflow menu.
+ */
+data class TopBarAction(
+    val title: String,
+    val icon: DrawableResource,
+    val onClick: () -> Unit,
+    val display: TopBarActionDisplay = TopBarActionDisplay.IF_ROOM,
+    val destructive: Boolean = false,
+)
+
+/** Layout footprint of a single action icon button, used to measure the fit. */
+private val TopBarActionSize = 48.dp
+private val TopBarActionSpacing = 8.dp
+/** Space kept for the centered title before actions start collapsing. */
+private val MinCenteredTitleWidth = 96.dp
+
+/**
+ * Max width the actions may occupy in the current bar, provided by [TopBar]
+ * after measuring. Defaults to unbounded so actions render even without a bar.
+ */
+val LocalTopBarActionsMaxWidth = compositionLocalOf { Dp.Infinity }
+
+/** The circular, blurred background shared by the navigation icon and actions. */
+@Composable
+private fun topBarActionBackground(): Modifier {
+    val hazeState = LocalHazeState.current
+    val hazeStyle = HazeMaterials.thin()
+    return Modifier
+        .clip(CircleShape)
+        .hazeEffect(hazeState) {
+            blurEffect {
+                blurRadius = 8.dp
+                style = hazeStyle
+            }
+        }
+        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = .4f))
+}
+
+/** Width needed to lay out [count] action buttons with spacing between them. */
+private fun actionsRowWidth(count: Int): Dp =
+    if (count <= 0) 0.dp else TopBarActionSize * count + TopBarActionSpacing * (count - 1)
+
+/**
+ * Renders [actions] as icon buttons plus a three-dot overflow menu. The split is
+ * measured against [LocalTopBarActionsMaxWidth]: pinned ([ALWAYS][TopBarActionDisplay.ALWAYS])
+ * actions always show, [IF_ROOM][TopBarActionDisplay.IF_ROOM] ones fill the
+ * remaining space in order, and whatever is left overflows into the menu.
+ */
+@Composable
+fun TopBarActions(actions: List<TopBarAction>) {
+    val available = LocalTopBarActionsMaxWidth.current
+
+    val always = actions.filter { it.display == TopBarActionDisplay.ALWAYS }
+    val ifRoom = actions.filter { it.display == TopBarActionDisplay.IF_ROOM }
+    val never = actions.filter { it.display == TopBarActionDisplay.NEVER }
+
+    // Everything can be a button only when nothing is forced into the menu and
+    // the whole row fits.
+    val fitsWithoutMenu = never.isEmpty() &&
+            actionsRowWidth(always.size + ifRoom.size) <= available
+
+    val barActions: List<TopBarAction>
+    val menuActions: List<TopBarAction>
+    if (fitsWithoutMenu) {
+        barActions = always + ifRoom
+        menuActions = emptyList()
+    } else {
+        // The overflow button will be shown, so reserve a slot for it (the +1)
+        // and fit as many IF_ROOM actions as the remaining width allows.
+        var visible = 0
+        while (
+            visible < ifRoom.size &&
+            actionsRowWidth(always.size + (visible + 1) + 1) <= available
+        ) {
+            visible++
+        }
+        barActions = always + ifRoom.take(visible)
+        menuActions = ifRoom.drop(visible) + never
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(TopBarActionSpacing),
+    ) {
+        barActions.forEach { action ->
+            IconButton(
+                onClick = action.onClick,
+                modifier = topBarActionBackground().size(TopBarActionSize),
+            ) {
+                Icon(
+                    painter = painterResource(action.icon),
+                    contentDescription = action.title,
+                    tint = if (action.destructive) MaterialTheme.colorScheme.error else LocalContentColor.current,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        }
+
+        if (menuActions.isNotEmpty()) {
+            var expanded by remember { mutableStateOf(false) }
+            Box {
+                IconButton(
+                    onClick = { expanded = true },
+                    modifier = topBarActionBackground().size(TopBarActionSize),
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.ellipsis_vertical),
+                        contentDescription = "Weitere Aktionen",
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                ) {
+                    menuActions.forEach { action ->
+                        DropdownMenuItem(
+                            text = { Text(action.title) },
+                            onClick = {
+                                expanded = false
+                                action.onClick()
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    painter = painterResource(action.icon),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            },
+                            colors = if (action.destructive) MenuDefaults.itemColors(
+                                textColor = MaterialTheme.colorScheme.error,
+                                leadingIconColor = MaterialTheme.colorScheme.error,
+                            ) else MenuDefaults.itemColors(),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Stable
 class TopBarState {
@@ -174,6 +350,25 @@ fun ConfigureTopBar(
     DisposableEffect(Unit) {
         onDispose { topBar.pop(key) }
     }
+}
+
+/**
+ * Declarative variant of [ConfigureTopBar]: pass a flat list of [TopBarAction]s
+ * and the bar renders icon buttons plus a three-dot overflow menu for you.
+ */
+@Composable
+fun ConfigureTopBar(
+    title: String,
+    subtitle: String? = null,
+    navigationIcon: (@Composable () -> Unit)? = null,
+    actions: List<TopBarAction>,
+) {
+    ConfigureTopBar(
+        title = title,
+        subtitle = subtitle,
+        navigationIcon = navigationIcon,
+        actions = { TopBarActions(actions) },
+    )
 }
 
 @Preview

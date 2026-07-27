@@ -62,7 +62,7 @@
 </script>
 
 <div class="flex flex-col h-full gap-2 overflow-y-auto scroll-thin pt-8">
-    <DeviceHeader />
+    <DeviceHeader shareId={shareId} homeserver={homeserver} />
 
     {#if share}
         <div class="flex flex-col gap-2 px-4">

@@ -3,8 +3,10 @@ package es.jvbabi.trails.routes
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.mapper.toApi
 import es.jvbabi.trails.routes.active_share.item.getActiveShare
+import es.jvbabi.trails.routes.active_share.item.returnActiveShare
 import es.jvbabi.trails.routes.active_share.shareSnapshotSocket
 import es.jvbabi.trails.routes.app.app
+import es.jvbabi.trails.routes.app.bulkCheckActiveShares
 import es.jvbabi.trails.routes.app.session_healthcheck.sessionHealthCheck
 import es.jvbabi.trails.routes.auth.app_authorization.appAuthorization
 import es.jvbabi.trails.routes.auth.webapp.webappAuthorization
@@ -20,6 +22,7 @@ import es.jvbabi.trails.routes.devices.item.updateDevice
 import es.jvbabi.trails.routes.ring.ringSocket
 import es.jvbabi.trails.routes.me.emitted_shares.getEmittedShares
 import es.jvbabi.trails.routes.me.me
+import es.jvbabi.trails.routes.me.shares.deleteUserShare
 import es.jvbabi.trails.routes.me.shares.getUserShares
 import es.jvbabi.trails.routes.me.shares.registerUserShare
 import es.jvbabi.trails.routes.share.createShare
@@ -57,6 +60,10 @@ fun Application.installRouting() {
 
                     route("/register") {
                         registerUserShare()
+                    }
+
+                    route("/{shareId}") {
+                        deleteUserShare()
                     }
                 }
 
@@ -121,6 +128,10 @@ fun Application.installRouting() {
                         val activeShare = call.getActiveShare()
                         call.respond(db.transaction { activeShare.toApi() })
                     }
+
+                    route("/return") {
+                        returnActiveShare()
+                    }
                 }
             }
 
@@ -138,6 +149,12 @@ fun Application.installRouting() {
 
                 route("/session-healthcheck") {
                     sessionHealthCheck()
+                }
+
+                route("/active-shares") {
+                    route("/bulk-check") {
+                        bulkCheckActiveShares()
+                    }
                 }
             }
 

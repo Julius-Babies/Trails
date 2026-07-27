@@ -56,6 +56,7 @@ class HomeViewModel(
             trailsServerRepository.getMeData()
             trailsServerRepository.updateUserDevices()
             trailsServerRepository.syncAccountShares()
+            trailsServerRepository.pruneRemovedShares()
             backgroundServiceRepository.startService()
         }
 
