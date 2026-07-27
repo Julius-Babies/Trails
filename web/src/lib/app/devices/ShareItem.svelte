@@ -49,7 +49,7 @@
 
 <!-- Links to the share detail page, keyed by the active-share id (the only
      identifier the client has for a share). -->
-<a class="flex flex-row gap-3 items-center transition-colors duration-100 hover:bg-foreground/10 cursor-pointer py-3 pl-2 pr-4 rounded-2xl"
+<a class="flex flex-row gap-3 items-center transition-colors duration-100 hover:bg-foreground/10 cursor-pointer py-3 pl-2 pr-4 rounded-md"
    href={href}>
     <div class="size-10 bg-accent rounded-full flex items-center justify-center">
         {#if imageAvailable}

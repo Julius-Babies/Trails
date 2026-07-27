@@ -33,34 +33,40 @@
 <div class="flex flex-col h-full gap-2 overflow-y-auto scroll-thin pt-8">
     <h1 class="text-xl font-bold px-6">Geräte</h1>
 
-    <div class="px-2 pb-2">
+    <div class="px-3 pb-2">
         <div class="flex flex-col rounded-4xl bg-card overflow-hidden">
             {#each webappSocket.devices as device, index (device.id)}
-                <div class="border-gray-300" class:border-t={index > 0}>
-                    <DeviceItem device={device}/>
-                </div>
+                {#if index > 0}
+                    <div class="px-6 w-full h-px">
+                        <div class="w-full h-full bg-border"></div>
+                    </div>
+                {/if}
+                <DeviceItem device={device}/>
             {/each}
         </div>
     </div>
 
     {#if sharedWithMe.length > 0}
-        <h1 class="text-xl font-bold mt-1 px-6">Geteilt mit mir</h1>
+        <h1 class="text-sm font-semibold mt-1 px-6 text-accent-foreground">Geteilt mit mir</h1>
 
-        <div class="px-2 pb-2 ">
+        <div class="px-3 pb-2">
             <div class="flex flex-col rounded-4xl bg-card overflow-hidden">
                 {#each sharedWithMe as entry, index (entry.key)}
-                    <div class="border-gray-300" class:border-t={index > 0}>
-                        <ShareItem share={entry.share} homeserver={entry.homeserver}/>
-                    </div>
+                    {#if index > 0}
+                        <div class="px-6 w-full h-px">
+                            <div class="w-full h-full bg-border"></div>
+                        </div>
+                    {/if}
+                    <ShareItem share={entry.share} homeserver={entry.homeserver}/>
                 {/each}
             </div>
         </div>
     {/if}
 
     {#if webappSocket.emittedShares.length > 0}
-        <h1 class="text-xl font-bold mt-1 px-6">Von mir geteilt</h1>
+        <h1 class="text-sm font-semibold mt-1 px-6 text-accent-foreground">Meine Freigaben</h1>
 
-        <div class="px-2 pb-2 ">
+        <div class="px-3 pb-2 ">
             <div class="flex flex-col rounded-4xl bg-card overflow-hidden">
                 {#each webappSocket.emittedShares as share, index (share.id)}
                     <div class="border-gray-300" class:border-t={index > 0}>
