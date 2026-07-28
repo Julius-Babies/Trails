@@ -25,5 +25,8 @@ interface ShareRepository {
 
 sealed class ShareCreationResult {
     data class Success(val shareId: Uuid, val homeServer: String): ShareCreationResult()
-    data class Error(val errorMessage: String): ShareCreationResult()
+    sealed class Error: ShareCreationResult() {
+        data object ShareNameAlreadyExists: Error()
+        data class OtherError(val errorMessage: String): Error()
+    }
 }

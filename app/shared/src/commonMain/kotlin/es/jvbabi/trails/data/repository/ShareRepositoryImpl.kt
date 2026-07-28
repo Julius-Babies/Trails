@@ -33,7 +33,7 @@ class ShareRepositoryImpl(
         shareName: String,
         allowMultiuse: Boolean
     ): ShareCreationResult {
-        val token = keyValueRepository.get(Key.Token).first() ?: return ShareCreationResult.Error("No token available")
+        val token = keyValueRepository.get(Key.Token).first() ?: return ShareCreationResult.Error.OtherError("No token available")
         val url = settings.getHomeserver().apply {
             appendPathSegments("api", "v1", "share")
         }.build()
@@ -50,13 +50,15 @@ class ShareRepositoryImpl(
             ))
         }
 
-        if (!response.status.isSuccess()) {
+        // A duplicate share name is answered with 409 plus a regular CreateShareResponse
+        // body, so that status must not short-circuit before the body is parsed.
+        if (!response.status.isSuccess() && response.status != HttpStatusCode.Conflict) {
             Logger.e(NetworkRequestUnsuccessfulException(response)) { "Failed to create share" }
-            return ShareCreationResult.Error("Failed to create share: ${response.status}")
+            return ShareCreationResult.Error.OtherError("Failed to create share: ${response.status}")
         }
 
         return when(val shareResponse = response.body<CreateShareResponse>()) {
-            is CreateShareResponse.ShareNameAlreadyExists -> ShareCreationResult.Error("Share name already exists")
+            is CreateShareResponse.ShareNameAlreadyExists -> ShareCreationResult.Error.ShareNameAlreadyExists
             is CreateShareResponse.ShareCreated -> ShareCreationResult.Success(shareResponse.shareId, homeServer = url.host)
         }
     }

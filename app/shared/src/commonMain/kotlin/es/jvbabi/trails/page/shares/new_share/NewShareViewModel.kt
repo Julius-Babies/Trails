@@ -79,6 +79,7 @@ class NewShareViewModel(
                 state.value = state.value.copy(
                     shareName = event.newName,
                     showShareNameEmptyError = false,
+                    showShareNameAlreadyUsedError = false,
                 )
             }
             NewShareEvent.AllowMultiuseLinkChanged -> {
@@ -97,6 +98,7 @@ class NewShareViewModel(
 
                     state.value = state.value.copy(
                         shareCreationState = NewShareState.ShareCreationState.Loading,
+                        showShareNameAlreadyUsedError = false,
                     )
 
                     try {
@@ -114,7 +116,13 @@ class NewShareViewModel(
                                     username = state.value.currentDevice?.owner?.username ?: "Unbekannt",
                                 ),
                             )
-                            is ShareCreationResult.Error -> state.value.copy(
+                            // A taken name is an input error: report it on the text field
+                            // instead of pushing the user into the error state.
+                            is ShareCreationResult.Error.ShareNameAlreadyExists -> state.value.copy(
+                                shareCreationState = NewShareState.ShareCreationState.Idle,
+                                showShareNameAlreadyUsedError = true,
+                            )
+                            is ShareCreationResult.Error.OtherError -> state.value.copy(
                                 shareCreationState = NewShareState.ShareCreationState.Error(result.errorMessage),
                             )
                         }
@@ -136,6 +144,7 @@ class NewShareViewModel(
                     selectedLocationShareHistoryState = NewShareState.LocationShareHistoryState.OneHour,
                     shareBatteryLevel = true,
                     shareName = "",
+                    showShareNameAlreadyUsedError = false,
                     allowMultiuseLink = false,
                 )
             }
@@ -150,6 +159,7 @@ data class NewShareState(
     val shareBatteryLevel: Boolean = true,
     val shareName: String = "",
     val showShareNameEmptyError: Boolean = false,
+    val showShareNameAlreadyUsedError: Boolean = false,
     val allowMultiuseLink: Boolean = false,
     val shareCreationState: ShareCreationState = ShareCreationState.Idle,
 ) {

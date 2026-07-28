@@ -228,7 +228,7 @@ fun NewShareContent(
                     )
                     Column {
                         Text(
-                            text = "Standortfreigabe",
+                            text = "Standortverlauf",
                             style = MaterialTheme.typography.titleMedium
                         )
                         AnimatedContent(
@@ -318,7 +318,7 @@ fun NewShareContent(
                             onValueChange = { onEvent(NewShareEvent.ShareNameChanged(it)) },
                             placeholder = { Text("z.B. 'Freigabe für Familie'") },
                             singleLine = true,
-                            isError = state.showShareNameEmptyError,
+                            isError = state.showShareNameEmptyError || state.showShareNameAlreadyUsedError,
                         )
                         AnimatedVisibility(
                             visible = state.showShareNameEmptyError,
@@ -328,6 +328,19 @@ fun NewShareContent(
                         ) {
                             Text(
                                 text = "Der Freigabename darf nicht leer sein.",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                        AnimatedVisibility(
+                            visible = state.showShareNameAlreadyUsedError,
+                            enter = expandVertically(expandFrom = Alignment.CenterVertically),
+                            exit = shrinkVertically(shrinkTowards = Alignment.CenterVertically),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Du hast bereits eine Freigabe mit diesem Namen.",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.padding(top = 4.dp)
@@ -480,7 +493,7 @@ fun NewShareContent(
 }
 
 @Composable
-@Preview
+@Preview(showBackground = true)
 fun NewShareScreenPreview() {
     NewShareContent(
         contentPadding = PaddingValues(),
