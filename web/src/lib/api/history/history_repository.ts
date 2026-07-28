@@ -30,10 +30,22 @@ export interface LocationHistory {
     points: HistoryPoint[];
 }
 
+/**
+ * A reported bearing accuracy of exactly 0 means the device had no real fix on its
+ * direction of travel, and such points sit off the actual route often enough to
+ * bend the drawn trail. They are dropped here, at the boundary, so every consumer
+ * (trail, camera, detail views) works off the same cleaned list. A missing accuracy
+ * (`null`) is unknown, not zero, and stays.
+ */
+function isUsable(point: HistoryPoint): boolean {
+    return point.bearing_accuracy !== 0;
+}
+
 async function readHistory(response: Response): Promise<LocationHistory | null> {
     if (!response.ok) return null;
     try {
-        return await response.json() as LocationHistory;
+        const history = await response.json() as LocationHistory;
+        return {...history, points: history.points.filter(isUsable)};
     } catch {
         return null;
     }
