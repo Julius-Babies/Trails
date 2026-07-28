@@ -25,6 +25,7 @@ import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
 import co.touchlab.kermit.Logger
 import es.jvbabi.trails.domain.repository.*
+import es.jvbabi.trails.utils.backgroundExceptionHandler
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import org.koin.core.component.KoinComponent
@@ -32,7 +33,9 @@ import org.koin.core.component.inject
 
 class AndroidLocationService: Service(), LocationListener, KoinComponent {
 
-    private val serviceScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val serviceScope = CoroutineScope(
+        Dispatchers.Default + SupervisorJob() + backgroundExceptionHandler("AndroidLocationService")
+    )
 
     private val locationRepository by inject<LocationRepository>()
     private val snapshotRepository by inject<SnapshotRepository>()

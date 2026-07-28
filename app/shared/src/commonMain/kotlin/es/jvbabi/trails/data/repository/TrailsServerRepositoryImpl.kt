@@ -21,6 +21,7 @@ import es.jvbabi.trails.shared.dto.websocket.PingSource
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketAppMessage
 import es.jvbabi.trails.shared.dto.websocket.TrailsWebSocketServerMessage
 import es.jvbabi.trails.utils.NetworkRequestUnsuccessfulException
+import es.jvbabi.trails.utils.backgroundExceptionHandler
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.websocket.*
@@ -58,7 +59,9 @@ class TrailsServerRepositoryImpl(
     private val trailsApi: TrailsApi,
 ) : TrailsServerRepository {
 
-    val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    val scope = CoroutineScope(
+        Dispatchers.IO + SupervisorJob() + backgroundExceptionHandler("TrailsServerRepositoryImpl")
+    )
     private val logger = Logger.withTag("TrailsServerRepositoryImpl")
     private var websocketSession: DefaultClientWebSocketSession? = null
     private val crashDetectionMarkers = mutableMapOf<String, Uuid>()
@@ -213,7 +216,7 @@ class TrailsServerRepositoryImpl(
                             .collectLatest {
                                 val ws = websocketSession ?: return@collectLatest
                                 logger.i { "Sending location update: $it" }
-                                ws.sendSerialized<TrailsWebSocketAppMessage>(
+                                ws.sendOrLog(
                                     TrailsWebSocketAppMessage.DataSnapshot(
                                         latitude = it.location.latitude,
                                         longitude = it.location.longitude,
@@ -223,7 +226,8 @@ class TrailsServerRepositoryImpl(
                                         batteryLevel = it.batteryState?.percentage?.div(100f),
                                         batteryCharging = it.batteryState?.isCharging,
                                         time = it.time.toInstant(TimeZone.currentSystemDefault()).epochSeconds,
-                                    )
+                                    ),
+                                    logger,
                                 )
                             }
                     }
@@ -424,7 +428,16 @@ class TrailsServerRepositoryImpl(
         pendingPingResults[device.id] = deferred
         val session = websocketSession
         if (session == null || !session.isActive) return PingResult.Error("WebSocket not connected")
-        session.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.DevicePing(device.id.toString()))
+        try {
+            session.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.DevicePing(device.id.toString()))
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // The socket can die between the isActive check above and the write.
+            pendingPingResults.remove(device.id)
+            logger.w(e) { "Failed to send ping for device ${device.id}: ${e.message}" }
+            return PingResult.Error(e.message ?: "Failed to send ping")
+        }
         val result = withTimeoutOrNull(10.seconds) { deferred.await() }
         pendingPingResults.remove(device.id)
         return result ?: PingResult.Timeout
@@ -433,14 +446,14 @@ class TrailsServerRepositoryImpl(
     override fun requestRing(device: Device) {
         scope.launch {
             val session = websocketSession ?: return@launch
-            session.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.DeviceRing(device.id.toString()))
+            session.sendOrLog(TrailsWebSocketAppMessage.DeviceRing(device.id.toString()), logger)
         }
     }
 
     override fun requestStopRing(device: Device) {
         scope.launch {
             val session = websocketSession ?: return@launch
-            session.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.DeviceRingStop(device.id.toString()))
+            session.sendOrLog(TrailsWebSocketAppMessage.DeviceRingStop(device.id.toString()), logger)
         }
     }
 
@@ -742,6 +755,27 @@ private data class UpdateDeviceRequest(
     @SerialName("custom_name") val customName: String?,
 )
 
+/**
+ * Sends [message] and logs — rather than propagates — a write failure.
+ *
+ * Use for fire-and-forget messages launched outside the connect loop's `try`. The socket can
+ * die between the caller's `isActive` check and the write; the connect loop notices the dead
+ * session and reconnects, so a dropped message must not escape as an uncaught exception and
+ * take the process down with it.
+ */
+private suspend fun DefaultClientWebSocketSession.sendOrLog(
+    message: TrailsWebSocketAppMessage,
+    logger: Logger,
+) {
+    try {
+        sendSerialized(message)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        logger.w(e) { "Dropping WS message $message: ${e.message}" }
+    }
+}
+
 private abstract class WebSocketClientBase(
     protected val scope: CoroutineScope,
     protected val applicationRepository: ApplicationRepository,
@@ -774,27 +808,29 @@ private abstract class WebSocketClientBase(
                 .distinctUntilChanged()
                 .collectLatest { shares ->
                     val newShareIds = shares.map { it.id }.toSet() - subscribedShares
-                    sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(
-                        TrailsWebSocketAppMessage.ShareSubscribe(newShareIds.map { it.toString() })
+                    sessionProvider()?.sendOrLog(
+                        TrailsWebSocketAppMessage.ShareSubscribe(newShareIds.map { it.toString() }),
+                        logger,
                     )
                     subscribedShares.addAll(newShareIds)
 
                     val removedShareIds = subscribedShares - shares.map { it.id }.toSet()
-                    sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(
-                        TrailsWebSocketAppMessage.ShareUnsubscribe(removedShareIds.map { it.toString() })
+                    sessionProvider()?.sendOrLog(
+                        TrailsWebSocketAppMessage.ShareUnsubscribe(removedShareIds.map { it.toString() }),
+                        logger,
                     )
                     subscribedShares.removeAll(removedShareIds)
                 }
         }
         launch {
             if (applicationRepository.getApplicationForegroundState().first()) {
-                sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.StartRtUpdates)
+                sessionProvider()?.sendOrLog(TrailsWebSocketAppMessage.StartRtUpdates, logger)
             }
             applicationRepository.getApplicationForegroundState().collectLatest { inForeground ->
                 if (inForeground) {
-                    sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.StartRtUpdates)
+                    sessionProvider()?.sendOrLog(TrailsWebSocketAppMessage.StartRtUpdates, logger)
                 } else {
-                    sessionProvider()?.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.StopRtUpdates)
+                    sessionProvider()?.sendOrLog(TrailsWebSocketAppMessage.StopRtUpdates, logger)
                 }
             }
         }
@@ -828,7 +864,7 @@ private abstract class WebSocketClientBase(
                     is TrailsWebSocketServerMessage.Ring -> {
                         deviceRepository.startRinging(
                             causedByDeviceName = message.ringedByDeviceName,
-                            onStop = { scope.launch { session.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.RingStop) } }
+                            onStop = { scope.launch { session.sendOrLog(TrailsWebSocketAppMessage.RingStop, logger) } }
                         )
                         session.sendSerialized<TrailsWebSocketAppMessage>(TrailsWebSocketAppMessage.RingStart)
                     }

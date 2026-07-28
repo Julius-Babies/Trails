@@ -6,6 +6,7 @@ import es.jvbabi.trails.data.database.TrailsDatabase
 import es.jvbabi.trails.data.database.converter.InstantConverter
 import es.jvbabi.trails.data.database.converter.UuidConverter
 import es.jvbabi.trails.data.remote.TrailsApi
+import es.jvbabi.trails.data.remote.WsHandshakeDiagnostics
 import es.jvbabi.trails.data.repository.DevicesRepositoryImpl
 import es.jvbabi.trails.data.repository.KeyValueRepositoryImpl
 import es.jvbabi.trails.data.repository.LocationRepositoryImpl
@@ -94,6 +95,8 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
                 }
 
                 install(SSE)
+
+                install(WsHandshakeDiagnostics)
             }
         }
 
