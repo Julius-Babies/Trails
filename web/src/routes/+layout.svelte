@@ -7,8 +7,9 @@
     import UserIcon from "$lib/app/shell/UserIcon.svelte";
     import {startWebappSocket} from "$lib/state/webapp_socket.svelte";
     import {startForeignShareSync} from "$lib/state/share_socket.svelte";
-    import {mapFocus, toggleMapFocus, setContentRect} from "$lib/state/map_focus.svelte";
-    import {FrameCornersIcon, CircleNotchIcon} from "phosphor-svelte";
+    import {setContentRect} from "$lib/state/map_camera.svelte";
+    import CameraModeSwitch from "$lib/app/shell/map/CameraModeSwitch.svelte";
+    import {CircleNotchIcon} from "phosphor-svelte";
     import {page} from "$app/state";
     import {beforeNavigate} from "$app/navigation";
     import {cubicOut} from "svelte/easing";
@@ -156,15 +157,6 @@
     </div>
 
     <div class="fixed bottom-0 right-0 z-20 p-4">
-        <button
-                type="button"
-                onclick={toggleMapFocus}
-                aria-pressed={mapFocus.active}
-                title="Alle Geräte im Blick behalten"
-                class="pointer-events-auto flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-border shadow-2xl transition-colors
-                   {mapFocus.active ? 'bg-primary text-primary-foreground' : 'bg-card text-card-foreground'}"
-        >
-            <FrameCornersIcon size={20} weight={mapFocus.active ? 'fill' : 'regular'} />
-        </button>
+        <CameraModeSwitch />
     </div>
 {/if}

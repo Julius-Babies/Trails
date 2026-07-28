@@ -1,8 +1,8 @@
 <script lang="ts">
     import {page} from "$app/state";
     import {webappSocket} from "$lib/state/webapp_socket.svelte";
-    import {focusDevice} from "$lib/state/map_focus.svelte";
-    import DeviceDetails from "$lib/app/devices/DeviceDetails.svelte";
+    import {setCameraTarget} from "$lib/state/map_camera.svelte";
+    import DeviceDetails, { type HistoryState } from "$lib/app/devices/DeviceDetails.svelte";
     import DeviceHeader from "$lib/app/devices/DeviceHeader.svelte";
     import {ShareSubscription, shareOriginBase} from "$lib/state/share_socket.svelte";
     import {loadHistory} from "$lib/state/history.svelte";
@@ -59,10 +59,11 @@
         return webappSocket.connected ? null : undefined;
     });
 
-    // Highlight the pin (present for same-server shares) while the page is open.
+    // Hand the camera to the detail scope (and highlight the pin, present for
+    // same-server shares) while the page is open.
     $effect(() => {
-        focusDevice(shareId ?? null);
-        return () => focusDevice(null);
+        setCameraTarget(shareId ?? null);
+        return () => setCameraTarget(null);
     });
 
     // Draw the history as a line on the map while the page is open.
@@ -71,6 +72,11 @@
         return () => setMapTrail(null);
     });
 
+    let historyState: HistoryState = $derived.by(() => {
+        if (!share || !history) return {type: "loading"}
+        if (history.historySeconds === 0) return {type: "not-available"}
+        return {type: "available", state: history}
+    })
 </script>
 
 <div class="flex flex-col h-full gap-2 overflow-y-auto scroll-thin pt-8">
@@ -78,7 +84,10 @@
 
     {#if share}
         <div class="flex flex-col gap-2 px-4">
-            <DeviceDetails share={share} />
+            <DeviceDetails
+                    share={share}
+                    history={historyState}
+            />
         </div>
     {:else if share === null}
         <p class="px-2 mt-4 text-sm text-muted-foreground">Freigabe nicht gefunden.</p>

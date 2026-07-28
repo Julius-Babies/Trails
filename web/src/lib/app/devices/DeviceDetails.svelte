@@ -1,6 +1,15 @@
+<script lang="ts" module>
+    import type {HistoryLoad} from "$lib/state/history.svelte";
+
+    export type HistoryState =
+        { type: "loading" } |
+        { type: "not-available" } |
+        { type: "available", state: HistoryLoad };
+</script>
+
 <script lang="ts">
     import type {Snippet} from "svelte";
-    import {ClockIcon, DeviceMobileIcon, MapPinIcon} from "phosphor-svelte";
+    import {ClockCounterClockwiseIcon, ClockIcon, DeviceMobileIcon, MapPinIcon} from "phosphor-svelte";
     import BatteryIcon from "$lib/components/BatteryIcon.svelte";
     import type {Battery, LastLocation} from "$lib/state/webapp_socket.svelte";
     import dayjs from "$lib/dayjs";
@@ -26,6 +35,7 @@
         subtitle = null,
         lastLocation,
         battery = null,
+        history,
         actions,
     }: {
         // When given, drives the whole header (title = friendly name, subtitle =
@@ -37,6 +47,7 @@
         subtitle?: string | null;
         lastLocation?: LastLocation | null;
         battery?: Battery | null;
+        history: HistoryState;
         // Optional content placed beside the image, below the title/subtitle
         // (e.g. the ping/ring actions for the user's own devices).
         actions?: Snippet;
@@ -139,6 +150,23 @@
         <div class="flex flex-row items-center gap-1.5 text-sm col-span-2">
             <MapPinIcon class="w-lh h-lh" />
             <span class="font-medium text-muted-foreground truncate">{placeText}</span>
+        </div>
+
+        <div class="flex flex-row items-center gap-1.5 text-sm">
+            <ClockCounterClockwiseIcon />
+            <span class="font-medium text-muted-foreground truncate">
+                {#if history.type === "loading"}
+                    Lade...
+                {:else if history.type === "not-available"}
+                    Verlauf nicht verfügbar
+                {:else if history.type === "available"}
+                    {#if history.state.historySeconds === null}
+                        Vollständiger Verlauf
+                    {:else}
+                        Verlauf für {history.state.historySeconds} Sekunden verfügbar
+                    {/if}
+                {/if}
+            </span>
         </div>
     </div>
 </div>

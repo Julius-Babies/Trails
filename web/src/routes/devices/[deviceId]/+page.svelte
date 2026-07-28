@@ -1,9 +1,9 @@
 <script lang="ts">
     import {page} from "$app/state";
     import {webappSocket} from "$lib/state/webapp_socket.svelte";
-    import {focusDevice} from "$lib/state/map_focus.svelte";
+    import {setCameraTarget} from "$lib/state/map_camera.svelte";
     import DeviceActions from "$lib/app/devices/DeviceActions.svelte";
-    import DeviceDetails from "$lib/app/devices/DeviceDetails.svelte";
+    import DeviceDetails, {type HistoryState} from "$lib/app/devices/DeviceDetails.svelte";
     import DeviceHeader from "$lib/app/devices/DeviceHeader.svelte";
     import {loadHistory} from "$lib/state/history.svelte";
     import {setMapTrail} from "$lib/state/map_trail.svelte";
@@ -20,10 +20,11 @@
     // ownership check should shares ever route to this page.
     let isOwnDevice = $derived(device != null && webappSocket.devices.some((d) => d.id === deviceId));
 
-    // Focus the map on this device while the page is open; restore on leave.
+    // Hand the camera to the detail scope while the page is open, and give it back
+    // to the overview on leave.
     $effect(() => {
-        focusDevice(deviceId ?? null);
-        return () => focusDevice(null);
+        setCameraTarget(deviceId ?? null);
+        return () => setCameraTarget(null);
     });
 
     // Draw the history as a line on the map while the page is open.
@@ -33,6 +34,12 @@
     });
 
     let imageUrl = $derived(device ? `/api/v1/devices/image/${device.manufacturer}-${device.model}` : null);
+
+    let historyState: HistoryState = $derived.by(() => {
+        if (!device || !history) return {type: "loading"}
+        if (history.historySeconds === 0) return {type: "not-available"}
+        return {type: "available", state: history}
+    })
 </script>
 
 <div class="flex flex-col h-full gap-2 overflow-y-auto scroll-thin pt-8">
@@ -54,6 +61,7 @@
                     title={device.name}
                     subtitle={device.hasCustomName ? device.modelName : null}
                     lastLocation={device.last_location}
+                    history={historyState}
                     battery={device.battery}
                     actions={isOwnDevice ? deviceActions : undefined}
             />

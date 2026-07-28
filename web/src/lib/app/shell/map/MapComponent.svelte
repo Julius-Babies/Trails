@@ -6,7 +6,7 @@
     import { getMapboxToken } from "$lib/api/mapbox/get_mapbox_token";
     import { webappSocket, shareMainText } from "$lib/state/webapp_socket.svelte";
     import { foreignShares, shareOriginBase } from "$lib/state/share_socket.svelte";
-    import { mapFocus, disableMapFocus } from "$lib/state/map_focus.svelte";
+    import { mapCamera, releaseCameraToUser } from "$lib/state/map_camera.svelte";
     import { mapTrail } from "$lib/state/map_trail.svelte";
     import type { HistoryPoint } from "$lib/api/history/history_repository";
     import MapPin from "./MapPin.svelte";
@@ -50,6 +50,7 @@
     const TRAIL_SOURCE = "location-history";
     const TRAIL_CASING_LAYER = "location-history-casing";
     const TRAIL_LINE_LAYER = "location-history-line";
+    const TRAIL_GAP_LAYER = "location-history-gap";
     const trailColors = $derived(
         darkMode.current
             ? { line: "#e2e8f0", casing: "#020617" }
@@ -65,23 +66,51 @@
     // Minimal GeoJSON shape for the trail. Spelled out locally because
     // @types/geojson isn't a dependency, so the global `GeoJSON` namespace that
     // mapbox-gl's own typings reference is unavailable here.
-    type TrailData = {
-        type: "FeatureCollection";
-        features: {
-            type: "Feature";
-            properties: Record<string, never>;
-            geometry: { type: "LineString"; coordinates: number[][] };
-        }[];
+    type TrailFeature = {
+        type: "Feature";
+        properties: { gap: boolean };
+        geometry: { type: "LineString"; coordinates: number[][] };
     };
+    type TrailData = { type: "FeatureCollection"; features: TrailFeature[] };
 
-    function trailData(coordinates: number[][]): TrailData {
-        return {
-            type: "FeatureCollection",
-            // A LineString needs at least two positions; fewer means nothing to draw.
-            features: coordinates.length < 2
-                ? []
-                : [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates } }]
-        };
+    /**
+     * Anything longer than this between two consecutive points is a recording gap:
+     * where the device actually went in between is unknown, so that stretch is
+     * drawn as a faint dotted hint instead of a solid line.
+     */
+    const TRAIL_GAP_MS = 60_000;
+
+    /**
+     * Per-point flag: `gaps[i]` marks the segment from point `i - 1` to `i` as a
+     * gap. Index 0 has no incoming segment and is always false, which keeps the
+     * flags aligned with {@link toCoordinates} — the animation relies on that.
+     */
+    function gapFlags(points: HistoryPoint[]): boolean[] {
+        return points.map((point, i) => i > 0 && point.timestamp - points[i - 1].timestamp > TRAIL_GAP_MS);
+    }
+
+    /**
+     * Splits the coordinates into one LineString per run of same-kind segments, so
+     * the solid and the dotted layer can each filter for their own features. Runs
+     * share their boundary point, which keeps the line visually continuous.
+     */
+    function trailData(coordinates: number[][], gaps: boolean[]): TrailData {
+        const features: TrailFeature[] = [];
+        // A LineString needs at least two positions; fewer means nothing to draw.
+        let runStart = 1;
+        for (let segment = 1; segment < coordinates.length; segment++) {
+            const gap = gaps[segment] ?? false;
+            const isLast = segment === coordinates.length - 1;
+            if (!isLast && (gaps[segment + 1] ?? false) === gap) continue;
+
+            features.push({
+                type: "Feature",
+                properties: { gap },
+                geometry: { type: "LineString", coordinates: coordinates.slice(runStart - 1, segment + 1) }
+            });
+            runStart = segment + 1;
+        }
+        return { type: "FeatureCollection", features };
     }
 
     function toCoordinates(points: HistoryPoint[]): number[][] {
@@ -103,17 +132,20 @@
         if (currentMap.getSource(TRAIL_SOURCE) != null) return true;
 
         try {
-            currentMap.addSource(TRAIL_SOURCE, { type: "geojson", data: trailData([]) });
+            currentMap.addSource(TRAIL_SOURCE, { type: "geojson", data: trailData([], []) });
 
             // `slot` positions the layers in the v3 "standard" style (which imports
             // its basemap, so it exposes no symbol layers to sort against); the
             // beforeId does the same job in the classic night style.
             const beforeId = firstSymbolLayerId(currentMap);
+            // Solid stretches only — a solid casing under the dots would undo the
+            // point of drawing them faintly.
             currentMap.addLayer({
                 id: TRAIL_CASING_LAYER,
                 type: "line",
                 slot: "middle",
                 source: TRAIL_SOURCE,
+                filter: ["!", ["get", "gap"]],
                 layout: { "line-cap": "round", "line-join": "round" },
                 paint: { "line-color": trailColors.casing, "line-width": 7, "line-opacity": 0.7 }
             }, beforeId);
@@ -122,8 +154,27 @@
                 type: "line",
                 slot: "middle",
                 source: TRAIL_SOURCE,
+                filter: ["!", ["get", "gap"]],
                 layout: { "line-cap": "round", "line-join": "round" },
                 paint: { "line-color": trailColors.line, "line-width": 3.5, "line-opacity": 0.9 }
+            }, beforeId);
+            // Recording gaps: round caps plus a zero-length dash renders as dots.
+            // Dash lengths are multiples of the line width, so 2 = one dot diameter
+            // of spacing. `line-dasharray` takes no data-driven expression, hence a
+            // layer of its own rather than a filter on the one above.
+            currentMap.addLayer({
+                id: TRAIL_GAP_LAYER,
+                type: "line",
+                slot: "middle",
+                source: TRAIL_SOURCE,
+                filter: ["get", "gap"],
+                layout: { "line-cap": "round", "line-join": "round" },
+                paint: {
+                    "line-color": trailColors.line,
+                    "line-width": 3.5,
+                    "line-opacity": 0.45,
+                    "line-dasharray": [0, 2]
+                }
             }, beforeId);
             return true;
         } catch {
@@ -131,9 +182,9 @@
         }
     }
 
-    function setTrailCoordinates(currentMap: mapboxgl.Map, coordinates: number[][]) {
+    function setTrailCoordinates(currentMap: mapboxgl.Map, coordinates: number[][], gaps: boolean[] = []) {
         const source = currentMap.getSource(TRAIL_SOURCE);
-        if (source?.type === "geojson") source.setData(trailData(coordinates));
+        if (source?.type === "geojson") source.setData(trailData(coordinates, gaps));
     }
 
     const TRAIL_ANIMATION_MS = 2000;
@@ -202,8 +253,9 @@
         cancelTrailAnimation();
 
         const coordinates = toCoordinates(points);
+        const gaps = gapFlags(points);
         if (!animate || coordinates.length < 2) {
-            setTrailCoordinates(currentMap, coordinates);
+            setTrailCoordinates(currentMap, coordinates, gaps);
             return;
         }
 
@@ -211,7 +263,9 @@
         const start = performance.now();
         const step = (now: number) => {
             const t = Math.min(1, (now - start) / TRAIL_ANIMATION_MS);
-            setTrailCoordinates(currentMap, trailUpTo(coordinates, lengths, easeOutExpo(t)));
+            // The truncated head keeps the original point indices (its interpolated
+            // tip sits in the segment it replaces), so `gaps` still lines up.
+            setTrailCoordinates(currentMap, trailUpTo(coordinates, lengths, easeOutExpo(t)), gaps);
             trailFrame = t < 1 ? requestAnimationFrame(step) : null;
         };
         // Start from nothing so the first frame doesn't flash the full line.
@@ -235,11 +289,11 @@
                 zoom: 11
             });
 
-            // Any manual camera interaction cancels focus mode. Programmatic
-            // camera moves (our own fitBounds) have no `originalEvent`, so they
-            // don't trip this.
+            // Any hands-on camera interaction switches the *currently driving*
+            // scope to manual. Programmatic camera moves (our own fitBounds/flyTo)
+            // have no `originalEvent`, so they don't trip this.
             const onUserInteraction = (e: { originalEvent?: unknown }) => {
-                if (e.originalEvent != null) disableMapFocus();
+                if (e.originalEvent != null) releaseCameraToUser();
             };
             map.on("dragstart", onUserInteraction);
             map.on("zoomstart", onUserInteraction);
@@ -400,11 +454,11 @@
     //
     // fitBounds only fits the pins' anchor points, so we also add each pin's
     // overhang (top/sides) to the base margin to keep the whole pin visible.
-    function focusPadding(currentMap: mapboxgl.Map) {
+    function cameraPadding(currentMap: mapboxgl.Map) {
         const gap = 16;
         const pinX = PIN_WIDTH / 2; // pin half-width around its anchor
         const pinTop = PIN_HEIGHT;  // pin height above its anchor
-        const rect = mapFocus.contentRect;
+        const rect = mapCamera.contentRect;
 
         const padding = {
             top: gap + pinTop,
@@ -437,91 +491,125 @@
         return padding;
     }
 
-    // While focus mode is on, keep every device inside the visible map area —
-    // re-running on location updates and card resizes. Steps aside while a
-    // single device is focused (its own effect drives the camera then).
-    $effect(() => {
-        const currentMap = map;
-        if (currentMap == null || !mapFocus.active) return;
-        if (mapFocus.focusedDeviceId != null) return;
+    /** Frames a set of coordinates inside the area the card leaves free. */
+    function fitCoordinates(currentMap: mapboxgl.Map, coordinates: [number, number][]) {
+        if (coordinates.length === 0) return;
+        const bounds = coordinates.reduce(
+            (b, c) => b.extend(c),
+            new mapboxgl.LngLatBounds(coordinates[0], coordinates[0])
+        );
+        currentMap.fitBounds(bounds, {
+            padding: cameraPadding(currentMap),
+            maxZoom: 16,
+            duration: 800
+        });
+    }
 
-        const coords: [number, number][] = [];
+    /** Every own device, same-server share and foreign share that has a location. */
+    function allCoordinates(): [number, number][] {
+        const coordinates: [number, number][] = [];
         for (const device of [...webappSocket.devices, ...webappSocket.shares]) {
             const location = device.last_location;
-            if (location != null) coords.push([location.longitude, location.latitude]);
+            if (location != null) coordinates.push([location.longitude, location.latitude]);
         }
         for (const entry of foreignShares.entries) {
             const location = entry.subscription.snapshot?.last_location;
-            if (location != null) coords.push([location.longitude, location.latitude]);
+            if (location != null) coordinates.push([location.longitude, location.latitude]);
         }
-        if (coords.length === 0) return;
+        return coordinates;
+    }
 
-        const bounds = coords.reduce(
-            (b, c) => b.extend(c),
-            new mapboxgl.LngLatBounds(coords[0], coords[0])
-        );
+    /**
+     * The current location of an opened target, which may be an own device, a
+     * same-server share or a foreign share — so all three are searched.
+     */
+    function targetLocation(id: string): { longitude: number; latitude: number } | null {
+        return webappSocket.devices.find((d) => d.id === id)?.last_location
+            ?? webappSocket.shares.find((s) => s.id === id)?.last_location
+            ?? foreignShares.entries.find((e) => e.activeShareId === id)?.subscription.snapshot?.last_location
+            ?? null;
+    }
 
-        currentMap.fitBounds(bounds, {
-            padding: focusPadding(currentMap),
-            maxZoom: 16,
+    // Overview camera. Only drives anything while no device/share is open and the
+    // general mode is tracking; re-runs on location updates and card resizes.
+    $effect(() => {
+        const currentMap = map;
+        if (currentMap == null) return;
+        if (mapCamera.scope !== "general" || mapCamera.generalMode !== "tracking") return;
+
+        fitCoordinates(currentMap, allCoordinates());
+    });
+
+    // Detail camera. `tracking` follows the target at a readable zoom, `trail`
+    // frames its whole history, `manual` leaves the camera alone. Reading
+    // mapTrail.points only in the trail branch keeps tracking from re-running on
+    // every history update.
+    $effect(() => {
+        const currentMap = map;
+        if (currentMap == null) return;
+        if (mapCamera.scope !== "detail") return;
+
+        const mode = mapCamera.detailMode;
+        if (mode === "manual") return;
+
+        const id = mapCamera.targetId;
+        if (id == null) return;
+        const location = targetLocation(id);
+
+        if (mode === "trail") {
+            const coordinates: [number, number][] = mapTrail.points.map((point) => [point.longitude, point.latitude]);
+            // Include where the device is now, so the frame covers the whole
+            // journey even if the trail stops short of the latest position.
+            if (location != null) coordinates.push([location.longitude, location.latitude]);
+            fitCoordinates(currentMap, coordinates);
+            return;
+        }
+
+        if (location == null) return;
+        currentMap.flyTo({
+            center: [location.longitude, location.latitude],
+            zoom: 16,
+            padding: cameraPadding(currentMap),
             duration: 800
         });
     });
 
-    // The camera to fall back to when a single-device focus is cleared.
-    let prevFocusId: string | null = null;
-    let preFocusCamera: {
+    // The camera to fall back to when the detail scope closes.
+    let prevTargetId: string | null = null;
+    let preDetailCamera: {
         center: mapboxgl.LngLat;
         zoom: number;
         bearing: number;
         pitch: number;
     } | null = null;
 
-    // Zoom onto a single device while its detail page is open, then restore the
-    // previous camera when the focus is cleared (e.g. navigating back).
+    // Remember the camera when a detail view opens and restore it on leave — but
+    // only if the overview is in manual mode, since nothing else would move the
+    // camera back then. Under general tracking the overview effect refits instead.
     $effect(() => {
         const currentMap = map;
         if (currentMap == null) return;
 
-        const id = mapFocus.focusedDeviceId;
+        const id = mapCamera.targetId;
 
         if (id != null) {
-            // Remember where we were the moment focus begins (once, not on the
-            // re-runs triggered by later location/card updates).
-            if (prevFocusId == null) {
-                preFocusCamera = {
+            // Capture once, not on the re-runs caused by later mode changes.
+            if (prevTargetId == null) {
+                preDetailCamera = {
                     center: currentMap.getCenter(),
                     zoom: currentMap.getZoom(),
                     bearing: currentMap.getBearing(),
                     pitch: currentMap.getPitch()
                 };
             }
-
-            // The focused id may be an own device, a same-server share, or a
-            // foreign share — look it up across all three.
-            const location =
-                webappSocket.devices.find((d) => d.id === id)?.last_location
-                ?? webappSocket.shares.find((s) => s.id === id)?.last_location
-                ?? foreignShares.entries.find((e) => e.activeShareId === id)?.subscription.snapshot?.last_location
-                ?? null;
-            if (location != null) {
-                currentMap.flyTo({
-                    center: [location.longitude, location.latitude],
-                    zoom: 16,
-                    padding: focusPadding(currentMap),
-                    duration: 800
-                });
+        } else if (prevTargetId != null) {
+            if (mapCamera.generalMode !== "tracking" && preDetailCamera != null) {
+                currentMap.flyTo({ ...preDetailCamera, duration: 800 });
             }
-        } else if (prevFocusId != null) {
-            // Leaving focus: when "keep all devices in view" is on the other
-            // effect refits everything; otherwise fly back to where we started.
-            if (!mapFocus.active && preFocusCamera != null) {
-                currentMap.flyTo({ ...preFocusCamera, duration: 800 });
-            }
-            preFocusCamera = null;
+            preDetailCamera = null;
         }
 
-        prevFocusId = id;
+        prevTargetId = id;
     });
 </script>
 

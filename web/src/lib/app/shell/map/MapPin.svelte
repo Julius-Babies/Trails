@@ -1,6 +1,6 @@
 <script lang="ts">
     import {DeviceMobileIcon} from "phosphor-svelte";
-    import {mapFocus} from "$lib/state/map_focus.svelte";
+    import {mapCamera} from "$lib/state/map_camera.svelte";
 
     let {
         id,
@@ -15,8 +15,8 @@
         href?: string | null;
     } = $props();
 
-    // Highlighted while its device's detail page is open (see focusDevice).
-    let highlighted = $derived(mapFocus.focusedDeviceId === id);
+    // Highlighted while its device's detail page is open (see setCameraTarget).
+    let highlighted = $derived(mapCamera.targetId === id);
 
     let imageAvailable = $state(true);
 

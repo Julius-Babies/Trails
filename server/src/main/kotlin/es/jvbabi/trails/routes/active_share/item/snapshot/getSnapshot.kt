@@ -6,7 +6,6 @@ import es.jvbabi.trails.database.ActiveShare
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.data.ReverseGeocoding
 import es.jvbabi.trails.routes.EntityNotFoundException
-import io.ktor.http.HttpHeaders
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -22,7 +21,8 @@ import kotlin.uuid.Uuid
  * Public, capability-based snapshot of a shared device, keyed by the active-share
  * id (an unguessable UUID that acts as the capability — the same handle the app
  * subscribes with). This is what a foreign homeserver's web client fetches
- * directly to render a shared device, so it is unauthenticated and CORS-open.
+ * directly to render a shared device, so it is unauthenticated; every origin is
+ * allowed application-wide by `installCors`.
  *
  * Returns the current location/battery honouring the share's settings (battery is
  * withheld unless the share opted in).
@@ -32,11 +32,6 @@ fun Route.getActiveShareSnapshot() {
     val reverseGeocoding by inject<ReverseGeocoding>()
 
     get {
-        // Allow any web origin to read this capability endpoint (cross-homeserver
-        // federation runs in the browser). A plain GET with no custom headers is a
-        // CORS "simple request", so no preflight handling is required.
-        call.response.header(HttpHeaders.AccessControlAllowOrigin, "*")
-
         val activeShareId = call.parameters["activeShareId"]?.let(Uuid::parseOrNull)
             ?: throw EntityNotFoundException("Active share not found")
 

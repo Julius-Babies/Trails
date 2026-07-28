@@ -7,7 +7,6 @@ import es.jvbabi.trails.database.ActiveShare
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.mapper.toHistoryPoint
 import es.jvbabi.trails.routes.EntityNotFoundException
-import io.ktor.http.HttpHeaders
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -24,8 +23,9 @@ import kotlin.uuid.Uuid
  * `GET /active-shares/{activeShareId}/history` — the location history a redeemed
  * share is allowed to see, oldest point first. Capability-based and
  * unauthenticated, exactly like the snapshot channel: holding the active-share id
- * (an unguessable UUID) *is* the permission, and the response is CORS-open so a
- * foreign homeserver's browser client can fetch it directly.
+ * (an unguessable UUID) *is* the permission. A foreign homeserver's browser client
+ * fetches this directly; the CORS headers that allow it come from the
+ * application-wide plugin (see `installCors`), never from here.
  *
  * The share — not the caller — decides how much is revealed. The window comes
  * from `Share.locationHistorySeconds`:
@@ -42,11 +42,6 @@ fun Route.getActiveShareHistory() {
     val db by inject<DatabaseManager>()
 
     get {
-        // Cross-homeserver federation runs in the browser, so allow any origin. A
-        // plain GET with no custom headers is a CORS "simple request", so no
-        // preflight handling is required.
-        call.response.header(HttpHeaders.AccessControlAllowOrigin, "*")
-
         val activeShareId = call.parameters["activeShareId"]?.let(Uuid::parseOrNull)
             ?: throw EntityNotFoundException("Active share not found")
 

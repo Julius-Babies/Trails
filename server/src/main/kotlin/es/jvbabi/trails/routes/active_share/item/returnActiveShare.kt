@@ -2,7 +2,6 @@ package es.jvbabi.trails.routes.active_share.item
 
 import es.jvbabi.trails.database.ActiveShare
 import es.jvbabi.trails.database.DatabaseManager
-import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.*
 import io.ktor.server.response.*
@@ -21,16 +20,13 @@ import kotlin.uuid.Uuid
  * spent single-use share stays locked, so the link cannot be redeemed again.
  *
  * A `POST` (not `DELETE`) so a cross-homeserver browser call stays a CORS
- * "simple request" and needs no preflight; the response is CORS-open like the
- * snapshot endpoint.
+ * "simple request" and needs no preflight; the origin is allowed application-wide
+ * by `installCors`.
  */
 fun Route.returnActiveShare() {
     val db by inject<DatabaseManager>()
 
     post {
-        // Cross-homeserver federation runs in the browser, so allow any origin.
-        call.response.header(HttpHeaders.AccessControlAllowOrigin, "*")
-
         val activeShareId = call.parameters["activeShareId"]?.let(Uuid::parseOrNull)
             ?: return@post call.respond(HttpStatusCode.NotFound)
 
