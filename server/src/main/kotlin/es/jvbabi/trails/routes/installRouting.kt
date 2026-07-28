@@ -3,6 +3,7 @@ package es.jvbabi.trails.routes
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.database.mapper.toApi
 import es.jvbabi.trails.routes.active_share.item.getActiveShare
+import es.jvbabi.trails.routes.active_share.item.history.getActiveShareHistory
 import es.jvbabi.trails.routes.active_share.item.returnActiveShare
 import es.jvbabi.trails.routes.active_share.shareSnapshotSocket
 import es.jvbabi.trails.routes.app.app
@@ -15,6 +16,7 @@ import es.jvbabi.trails.routes.devices.devices
 import es.jvbabi.trails.routes.devices.image.deviceImage
 import es.jvbabi.trails.routes.devices.item.deleteDevice
 import es.jvbabi.trails.routes.devices.item.getDevice
+import es.jvbabi.trails.routes.devices.item.history.getDeviceHistory
 import es.jvbabi.trails.routes.devices.item.pingDevice
 import es.jvbabi.trails.routes.devices.item.ringDevice
 import es.jvbabi.trails.routes.devices.item.stopRingDevice
@@ -85,6 +87,10 @@ fun Application.installRouting() {
 
                     deleteDevice()
 
+                    route("/history") {
+                        getDeviceHistory()
+                    }
+
                     route("/ping") {
                         pingDevice()
                     }
@@ -127,6 +133,10 @@ fun Application.installRouting() {
                     get {
                         val activeShare = call.getActiveShare()
                         call.respond(db.transaction { activeShare.toApi() })
+                    }
+
+                    route("/history") {
+                        getActiveShareHistory()
                     }
 
                     route("/return") {

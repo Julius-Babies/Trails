@@ -5,9 +5,15 @@
     import DeviceActions from "$lib/app/devices/DeviceActions.svelte";
     import DeviceDetails from "$lib/app/devices/DeviceDetails.svelte";
     import DeviceHeader from "$lib/app/devices/DeviceHeader.svelte";
+    import {loadHistory} from "$lib/state/history.svelte";
+    import {setMapTrail} from "$lib/state/map_trail.svelte";
 
     let deviceId = $derived(page.params.deviceId);
     let device = $derived(webappSocket.devices.find((d) => d.id === deviceId) ?? null);
+
+    // The device's full location history, read once on open. Owned devices are
+    // never limited, so this is everything the server has recorded.
+    let history = loadHistory(() => (deviceId ? {kind: "device", deviceId} : null));
 
     // The ping/ring actions only make sense for the user's own devices. The
     // device list only carries owned devices, so membership doubles as the
@@ -18,6 +24,12 @@
     $effect(() => {
         focusDevice(deviceId ?? null);
         return () => focusDevice(null);
+    });
+
+    // Draw the history as a line on the map while the page is open.
+    $effect(() => {
+        setMapTrail(history.points);
+        return () => setMapTrail(null);
     });
 
     let imageUrl = $derived(device ? `/api/v1/devices/image/${device.manufacturer}-${device.model}` : null);

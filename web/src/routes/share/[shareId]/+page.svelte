@@ -5,11 +5,17 @@
     import DeviceDetails from "$lib/app/devices/DeviceDetails.svelte";
     import DeviceHeader from "$lib/app/devices/DeviceHeader.svelte";
     import {ShareSubscription, shareOriginBase} from "$lib/state/share_socket.svelte";
+    import {loadHistory} from "$lib/state/history.svelte";
+    import {setMapTrail} from "$lib/state/map_trail.svelte";
 
     let shareId = $derived(page.params.shareId);
     // The share's origin homeserver. Absent for same-server shares → current origin.
     let homeserver = $derived(page.url.searchParams.get("homeserver") ?? "");
     let isForeign = $derived(homeserver !== "");
+
+    // The history this share is allowed to see, read once on open straight from
+    // the origin homeserver. How far back it reaches is the share's decision.
+    let history = loadHistory(() => (shareId ? {kind: "share", shareId, homeserver} : null));
 
     // Foreign shares have no webapp socket on this origin, so subscribe to their
     // host's (persistent, per-host) share socket. Same-server shares are NOT
@@ -57,6 +63,12 @@
     $effect(() => {
         focusDevice(shareId ?? null);
         return () => focusDevice(null);
+    });
+
+    // Draw the history as a line on the map while the page is open.
+    $effect(() => {
+        setMapTrail(history.points);
+        return () => setMapTrail(null);
     });
 
 </script>
