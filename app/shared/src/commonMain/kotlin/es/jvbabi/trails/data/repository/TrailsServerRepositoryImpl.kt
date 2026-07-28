@@ -11,6 +11,7 @@ import es.jvbabi.trails.data.database.entity.DbDevice
 import es.jvbabi.trails.data.database.entity.DbUser
 import es.jvbabi.trails.data.remote.ApiException
 import es.jvbabi.trails.data.remote.TrailsApi
+import es.jvbabi.trails.domain.model.ActiveShare
 import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.model.Snapshot
 import es.jvbabi.trails.domain.repository.*
@@ -585,6 +586,36 @@ class TrailsServerRepositoryImpl(
                     database.activeShareDao.deleteById(goneId)
                 }
             }
+    }
+
+    override suspend fun returnShare(share: ActiveShare): Result<Unit> {
+        // The stored homeserver is the one the share was registered with, so it both
+        // addresses the origin and identifies the account reference. Blank means the
+        // share came from our own homeserver.
+        val originHomeserver = share.device.owner.homeserver
+        val accountHost = getBaseUrl().first()?.host
+        val originHost = originHomeserver.ifBlank { accountHost }
+            ?: return Result.failure(IllegalStateException("No homeserver known for share ${share.id}"))
+
+        // Deleting the redemption is the step that actually revokes our access, so a
+        // failure here aborts: nothing is forgotten locally and the user can retry.
+        runCatching { trailsApi.returnActiveShare(originHost, share.id) }
+            .onFailure {
+                Logger.e(it) { "Failed to return share ${share.id} on $originHost" }
+                return Result.failure(it)
+            }
+
+        // The account only holds a backup reference. Losing this call leaves a stale
+        // entry that points at a share that no longer exists, which syncAccountShares
+        // and pruneRemovedShares already tolerate — so it must not fail the return.
+        val token = getToken().first()
+        if (token != null && accountHost != null) {
+            runCatching { trailsApi.deleteUserShare(accountHost, token, share.id, originHomeserver) }
+                .onFailure { Logger.w(it) { "Failed to remove account reference for share ${share.id}" } }
+        }
+
+        database.activeShareDao.deleteById(share.id)
+        return Result.success(Unit)
     }
 
     typealias ServerHost = String

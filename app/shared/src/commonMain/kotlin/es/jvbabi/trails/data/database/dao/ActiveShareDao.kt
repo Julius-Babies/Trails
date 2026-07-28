@@ -24,4 +24,9 @@ interface ActiveShareDao {
     @Transaction
     @Query("SELECT * FROM active_shares WHERE id = :shareId")
     fun getActiveShareById(shareId: Uuid): Flow<EmbeddedActiveShare?>
+
+    /** A list because the same device may be reachable through several redeemed links. */
+    @Transaction
+    @Query("SELECT * FROM active_shares WHERE device_id = :deviceId")
+    fun getActiveSharesForDevice(deviceId: Uuid): Flow<List<EmbeddedActiveShare>>
 }

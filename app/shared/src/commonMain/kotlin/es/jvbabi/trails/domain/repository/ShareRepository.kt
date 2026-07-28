@@ -15,6 +15,12 @@ interface ShareRepository {
 
     fun getShares(): Flow<List<ActiveShare>>
     fun getShareById(id: Uuid): Flow<ActiveShare?>
+
+    /**
+     * The shares that grant access to [deviceId]. Empty for an own device; more than
+     * one entry when several links for the same device were redeemed.
+     */
+    fun getSharesForDevice(deviceId: Uuid): Flow<List<ActiveShare>>
 }
 
 sealed class ShareCreationResult {

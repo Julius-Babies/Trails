@@ -4,6 +4,7 @@ package es.jvbabi.trails.page.devices.device
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import es.jvbabi.trails.domain.model.ActiveShare
 import es.jvbabi.trails.domain.model.User
 import es.jvbabi.trails.domain.repository.DeviceRepository
 import es.jvbabi.trails.domain.repository.DevicesRepository
@@ -11,6 +12,7 @@ import es.jvbabi.trails.domain.repository.FileRepository
 import es.jvbabi.trails.domain.repository.Key
 import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.PingResult
+import es.jvbabi.trails.domain.repository.ShareRepository
 import es.jvbabi.trails.domain.repository.TrailsServerRepository
 import es.jvbabi.trails.domain.repository.UiRepository
 import es.jvbabi.trails.domain.repository.UserRepository
@@ -31,6 +33,7 @@ class DeviceViewModel(
     private val fileRepository: FileRepository,
     private val uiRepository: UiRepository,
     private val trailsServerRepository: TrailsServerRepository,
+    private val shareRepository: ShareRepository,
 ): ViewModel() {
 
     val state: StateFlow<DeviceState>
@@ -54,6 +57,7 @@ class DeviceViewModel(
                         device = device,
                         deletionState = null,
                         renameState = if (it.device?.device?.id != device.device.id) null else it.renameState,
+                        returnState = if (it.device?.device?.id != device.device.id) null else it.returnState,
                         image = if (it.device?.device?.id != device.device.id) null else it.image,
                         pingState = if (it.device?.device?.id != device.device.id) null else it.pingState,
                         ringState = if (it.device?.device?.id != device.device.id) null else it.ringState,
@@ -72,6 +76,15 @@ class DeviceViewModel(
                 .flatMapLatest { userRepository.getUser(it) }
                 .collectLatest { user ->
                     state.update { it.copy(currentUser = user) }
+                }
+        }
+
+        viewModelScope.launch {
+            deviceId
+                .filterNotNull()
+                .flatMapLatest { shareRepository.getSharesForDevice(it) }
+                .collectLatest { shares ->
+                    state.update { it.copy(shares = shares) }
                 }
         }
 
@@ -145,6 +158,25 @@ class DeviceViewModel(
                 }
             }
 
+            is DeviceEvent.ReturnShare -> viewModelScope.launch {
+                val shares = state.value.shares
+                if (shares.isEmpty()) return@launch
+                if (state.value.returnState is DeviceState.ReturnState.Loading) return@launch
+                state.update { it.copy(returnState = DeviceState.ReturnState.Loading) }
+                try {
+                    // Every share of this device goes back at once: each one grants the
+                    // same access, so keeping one would leave the device visible after
+                    // the user returned "the" share.
+                    val failure = shares
+                        .map { trailsServerRepository.returnShare(it) }
+                        .firstNotNullOfOrNull { it.exceptionOrNull() }
+                    if (failure == null) state.update { it.copy(returnState = DeviceState.ReturnState.Success) }
+                    else state.update { it.copy(returnState = DeviceState.ReturnState.Error(failure.message ?: "Unknown error")) }
+                } catch (e: Exception) {
+                    state.update { it.copy(returnState = DeviceState.ReturnState.Error(e.message ?: "Unknown error")) }
+                }
+            }
+
             is DeviceEvent.Ping -> {
                 viewModelScope.launch {
                     state.update { it.copy(pingState = DeviceState.PingState.Loading) }
@@ -193,15 +225,24 @@ data class DeviceState(
     val currentUser: User? = null,
     val pingState: PingState? = null,
     val ringState: RingState? = null,
+    /** The redeemed shares this device is visible through; empty for an own device. */
+    val shares: List<ActiveShare> = emptyList(),
 
     val deletionState: DeletionState? = null,
     val renameState: RenameState? = null,
+    val returnState: ReturnState? = null,
     val image: ByteArray? = null,
 ) {
     sealed class DeletionState {
         data object Loading: DeletionState()
         data object Success: DeletionState()
         data class Error(val message: String): DeletionState()
+    }
+
+    sealed class ReturnState {
+        data object Loading: ReturnState()
+        data object Success: ReturnState()
+        data class Error(val message: String): ReturnState()
     }
 
     sealed class RenameState {
@@ -227,6 +268,7 @@ data class DeviceState(
 sealed class DeviceEvent {
     data class Rename(val customName: String?): DeviceEvent()
     data object Delete: DeviceEvent()
+    data object ReturnShare: DeviceEvent()
     data object Ping: DeviceEvent()
     data object Ring: DeviceEvent()
     data object StopRing: DeviceEvent()

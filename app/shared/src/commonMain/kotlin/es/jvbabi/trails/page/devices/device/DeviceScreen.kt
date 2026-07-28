@@ -60,6 +60,13 @@ fun DeviceScreen(
         }
     }
 
+    // A returned share drops the device from the list, so this screen has to go too.
+    LaunchedEffect(state.returnState) {
+        if (state.returnState is DeviceState.ReturnState.Success) {
+            backstack.removeLastOrNull()
+        }
+    }
+
     DeviceContent(
         state = state,
         contentPadding = contentPadding,
@@ -81,6 +88,7 @@ fun DeviceContent(
 
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
     var showRenameDialog by rememberSaveable { mutableStateOf(false) }
+    var showReturnDialog by rememberSaveable { mutableStateOf(false) }
 
     val isOwner = state.currentUser != null && state.currentUser.id == state.device.device.owner.id
 
@@ -109,20 +117,35 @@ fun DeviceContent(
                 )
             }
         } },
-        actions = if (isOwner) listOf(
-            TopBarAction(
-                title = "Umbenennen",
-                icon = Res.drawable.pencil,
-                display = TopBarActionDisplay.ALWAYS,
-                onClick = { showRenameDialog = true },
-            ),
-            TopBarAction(
-                title = "Löschen",
-                icon = Res.drawable.trash_2,
-                destructive = true,
-                onClick = { showDeleteDialog = true },
-            ),
-        ) else emptyList(),
+        actions = when {
+            isOwner -> listOf(
+                TopBarAction(
+                    title = "Umbenennen",
+                    icon = Res.drawable.pencil,
+                    display = TopBarActionDisplay.ALWAYS,
+                    onClick = { showRenameDialog = true },
+                ),
+                TopBarAction(
+                    title = "Löschen",
+                    icon = Res.drawable.trash_2,
+                    destructive = true,
+                    onClick = { showDeleteDialog = true },
+                ),
+            )
+
+            // A foreign device is only visible through a share, which we can give back.
+            state.shares.isNotEmpty() -> listOf(
+                TopBarAction(
+                    title = "Freigabe zurückgeben",
+                    icon = Res.drawable.trash_2,
+                    display = TopBarActionDisplay.ALWAYS,
+                    destructive = true,
+                    onClick = { showReturnDialog = true },
+                ),
+            )
+
+            else -> emptyList()
+        },
     )
 
     if (showRenameDialog) RenameDeviceDialog(
@@ -136,6 +159,12 @@ fun DeviceContent(
     LaunchedEffect(state.renameState) {
         if (state.renameState is DeviceState.RenameState.Success) showRenameDialog = false
     }
+
+    if (showReturnDialog) ReturnShareDialog(
+        returnState = state.returnState,
+        onDismiss = { showReturnDialog = false },
+        onConfirm = { onEvent(DeviceEvent.ReturnShare) },
+    )
 
     if (showDeleteDialog) AlertDialog(
         onDismissRequest = { showDeleteDialog = false },
@@ -310,6 +339,77 @@ fun DeviceContent(
             }
         }
     }
+}
+
+@Composable
+private fun ReturnShareDialog(
+    returnState: DeviceState.ReturnState?,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val isLoading = returnState is DeviceState.ReturnState.Loading
+
+    AlertDialog(
+        onDismissRequest = { if (!isLoading) onDismiss() },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = !isLoading,
+            ) {
+                Text(
+                    text = "Zurückgeben",
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isLoading,
+            ) {
+                Text("Abbrechen")
+            }
+        },
+        icon = {
+            AnimatedContent(targetState = isLoading) { loading ->
+                if (loading) LoadingIndicator(Modifier.size(24.dp))
+                else Icon(
+                    painter = painterResource(Res.drawable.trash_2),
+                    tint = MaterialTheme.colorScheme.error,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        },
+        title = {
+            Text("Freigabe zurückgeben?")
+        },
+        text = {
+            Column {
+                Text("Du kannst den Standort dieses Geräts dann nicht mehr sehen. Um erneut Zugriff zu erhalten, brauchst du eine neue Freigabe.")
+
+                var errorMessage by remember { mutableStateOf<String?>(null) }
+
+                LaunchedEffect(returnState) {
+                    if (returnState is DeviceState.ReturnState.Error) {
+                        errorMessage = returnState.message
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = returnState is DeviceState.ReturnState.Error,
+                    enter = expandVertically(expandFrom = Alignment.CenterVertically),
+                    exit = shrinkVertically(shrinkTowards = Alignment.CenterVertically)
+                ) {
+                    Text(
+                        text = "An error occurred: ${errorMessage.orEmpty()}",
+                        color = MaterialTheme.colorScheme.error,
+                        maxLines = 6,
+                    )
+                }
+            }
+        }
+    )
 }
 
 @Composable

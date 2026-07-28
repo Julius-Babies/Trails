@@ -1,6 +1,7 @@
 package es.jvbabi.trails.domain.repository
 
 import es.jvbabi.trails.data.database.entity.ConnectionEvent
+import es.jvbabi.trails.domain.model.ActiveShare
 import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.shared.dto.MeResponse
 import io.ktor.http.*
@@ -49,6 +50,15 @@ interface TrailsServerRepository {
      * account reference. A homeserver that can't be reached is left untouched.
      */
     suspend fun pruneRemovedShares()
+
+    /**
+     * Gives [share] back: deletes the redemption on its origin homeserver, drops the
+     * account's backup reference and forgets the share locally. Client-driven
+     * federation, so the origin call goes out directly. Fails without changing
+     * anything if the origin can't be reached; the share's lock is deliberately not
+     * lifted, so a spent link stays spent.
+     */
+    suspend fun returnShare(share: ActiveShare): Result<Unit>
 
     fun getConnectionEvents(server: String): Flow<List<ConnectionEvent>>
 

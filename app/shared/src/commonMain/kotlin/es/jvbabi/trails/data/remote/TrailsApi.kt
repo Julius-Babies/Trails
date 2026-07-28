@@ -11,6 +11,7 @@ import es.jvbabi.trails.api.v1.me.UserShareResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -47,6 +48,32 @@ class TrailsApi(
             bearerAuth(token)
             contentType(ContentType.Application.Json)
             setBody(request)
+        }
+        response.requireSuccess()
+    }
+
+    /**
+     * Gives a redeemed share back on its origin homeserver by deleting the active
+     * share. Capability-based (holding the id is the permission), so no auth, and a
+     * `POST` because the route is shaped for CORS-simple browser calls. Idempotent:
+     * an already-returned share still answers successfully.
+     */
+    suspend fun returnActiveShare(host: String, activeShareId: Uuid) {
+        val response = httpClient.post(urlFor(host, "active-shares", activeShareId.toString(), "return"))
+        response.requireSuccess()
+    }
+
+    /**
+     * Drops the account's saved reference to a returned share. [homeserver] must be
+     * the value the share was registered with, since that pair identifies the entry.
+     */
+    suspend fun deleteUserShare(host: String, token: String, activeShareId: Uuid, homeserver: String) {
+        val url = URLBuilder(urlFor(host, "me", "shares", activeShareId.toString())).apply {
+            parameters.append("homeserver", homeserver)
+        }.buildString()
+
+        val response = httpClient.delete(url) {
+            bearerAuth(token)
         }
         response.requireSuccess()
     }
