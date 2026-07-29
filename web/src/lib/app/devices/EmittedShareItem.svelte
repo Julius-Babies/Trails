@@ -1,5 +1,6 @@
 <script lang="ts">
     import type {EmittedShare} from "$lib/state/webapp_socket.svelte";
+    import {locationHistoryLabel} from "$lib/app/emitted-shares/location_history";
     import {
         BatteryVerticalHighIcon,
         ClockCounterClockwiseIcon,
@@ -21,21 +22,10 @@
     }
 
     // Human-readable location history retention, derived from the raw seconds.
-    let historyText = $derived.by(() => {
-        const seconds = share.location_history_seconds;
-        if (seconds <= 0) return "Kein Verlauf";
-        const hours = Math.round(seconds / 3600);
-        if (hours >= 24) {
-            const days = Math.round(hours / 24);
-            return `${days} ${days === 1 ? "Tag" : "Tage"} Verlauf`;
-        }
-        if (hours >= 1) return `${hours} ${hours === 1 ? "Stunde" : "Stunden"} Verlauf`;
-        const minutes = Math.round(seconds / 60);
-        return `${minutes} min Verlauf`;
-    });
+    let historyText = $derived(locationHistoryLabel(share.location_history_seconds));
 </script>
 
-<div class="flex flex-row gap-3 items-center py-3 pl-2 pr-4 rounded-2xl">
+<a class="flex flex-row gap-3 items-center transition-colors duration-100 hover:bg-foreground/10 cursor-pointer py-3 pl-2 pr-4 rounded-2xl" href={"/myshare/" + share.id}>
     <div class="size-10 bg-accent rounded-full flex items-center justify-center shrink-0">
         {#if imageAvailable}
             <img
@@ -86,4 +76,4 @@
             {share.redemption_count === 1 ? "Einlösung" : "Einlösungen"}
         </span>
     </div>
-</div>
+</a>

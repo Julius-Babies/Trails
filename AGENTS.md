@@ -106,11 +106,14 @@ files over inventing new ones.
 
   Wire names use `snake_case`; Kotlin properties use `camelCase`.
 
+- We don't use enums for external communication, prefer a sealed class with @Serializable and @SerialName for its subclasses
+
 ### Comments & documentation
 
 - All comments must be written in **English**.
 - Add KDoc / Javadoc-style documentation comments where they add value
   (public APIs, non-obvious behaviour, invariants). Don't document the obvious.
+- Commits follow the structure {feat/fix/chore/docs/...}(<component name (e.g. webapp/share, api/share)> #<issue ID>): <description>
 
 ### Web tooling
 

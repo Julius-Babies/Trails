@@ -1,0 +1,30 @@
+// Zed task definitions for the Trails project.
+// Mirrors the IntelliJ run configurations (.idea/runConfigurations).
+[
+  {
+    "label": "server",
+    "command": "./gradlew",
+    "args": [":server:run"],
+    // Gradle's `run` task uses the :server project directory as working
+    // directory, so runtime data ends up in server/data (like in IntelliJ).
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "reveal_target": "dock",
+    "shell": "system",
+    "tags": []
+  },
+  {
+    "label": "web",
+    "command": "bun",
+    "args": ["run", "dev"],
+    "cwd": "$ZED_WORKTREE_ROOT/web",
+    "use_new_terminal": false,
+    "allow_concurrent_runs": false,
+    "reveal": "always",
+    "reveal_target": "dock",
+    "shell": "system",
+    "tags": []
+  }
+]

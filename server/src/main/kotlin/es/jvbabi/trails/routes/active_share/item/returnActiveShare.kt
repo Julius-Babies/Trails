@@ -1,5 +1,7 @@
 package es.jvbabi.trails.routes.active_share.item
 
+import es.jvbabi.trails.data.UserSubscriptionMessage
+import es.jvbabi.trails.data.UserSubscriptionRepository
 import es.jvbabi.trails.database.ActiveShare
 import es.jvbabi.trails.database.DatabaseManager
 import io.ktor.http.HttpStatusCode
@@ -25,13 +27,28 @@ import kotlin.uuid.Uuid
  */
 fun Route.returnActiveShare() {
     val db by inject<DatabaseManager>()
+    val userSubscriptionRepository by inject<UserSubscriptionRepository>()
 
     post {
         val activeShareId = call.parameters["activeShareId"]?.let(Uuid::parseOrNull)
             ?: return@post call.respond(HttpStatusCode.NotFound)
 
-        // Idempotent: an already-returned (missing) share is still a success.
-        db.transaction { ActiveShare.findById(activeShareId)?.delete() }
+        // Idempotent: an already-returned (missing) share is still a success. The
+        // emitting user is read before the delete so they can be notified after.
+        val emitter = db.transaction {
+            val activeShare = ActiveShare.findById(activeShareId) ?: return@transaction null
+            val share = activeShare.share
+            val emitter = share.id.value to share.device.owner.id.value
+            activeShare.delete()
+            emitter
+        }
+
+        // The redemption is gone from the emitter's share; refresh their webapp
+        // sockets so it disappears from the redemption list.
+        emitter?.let { (shareId, ownerId) ->
+            userSubscriptionRepository.getFlowForUser(ownerId)
+                .emit(UserSubscriptionMessage.EmittedSharesChanged(shareId))
+        }
 
         call.respond(HttpStatusCode.NoContent)
     }

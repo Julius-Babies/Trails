@@ -125,6 +125,7 @@ fun Route.app() {
                             }
                             is UserSubscriptionMessage.RingState -> { }
                             is UserSubscriptionMessage.SharesChanged -> { }
+                            is UserSubscriptionMessage.EmittedSharesChanged -> { }
                         }
                     }
                     .mapNotNull { it.toAppSocketMessage(principal) }

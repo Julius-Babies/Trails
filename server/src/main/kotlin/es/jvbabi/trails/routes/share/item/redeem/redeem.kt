@@ -1,6 +1,8 @@
 package es.jvbabi.trails.routes.share.item.redeem
 
 import es.jvbabi.trails.api.v1.share.RedeemShareResponse
+import es.jvbabi.trails.data.UserSubscriptionMessage
+import es.jvbabi.trails.data.UserSubscriptionRepository
 import es.jvbabi.trails.database.ActiveShare
 import es.jvbabi.trails.database.DatabaseManager
 import es.jvbabi.trails.routes.share.item.getShare
@@ -11,6 +13,7 @@ import org.koin.ktor.ext.inject
 
 fun Route.redeemShare() {
     val db by inject<DatabaseManager>()
+    val userSubscriptionRepository by inject<UserSubscriptionRepository>()
 
     post {
         val share = call.getShare()
@@ -28,6 +31,12 @@ fun Route.redeemShare() {
             if (!share.allowMultiuse) share.isLocked = true
             activeShare
         }
+
+        // Tell the emitting user so their open webapp sockets pick up the new
+        // redemption (and a now-locked single-use share) right away.
+        val (shareId, ownerId) = db.transaction { share.id.value to share.device.owner.id.value }
+        userSubscriptionRepository.getFlowForUser(ownerId)
+            .emit(UserSubscriptionMessage.EmittedSharesChanged(shareId))
 
         call.respond<RedeemShareResponse>(
             message = RedeemShareResponse.Success(

@@ -36,6 +36,11 @@ sealed class UserSubscriptionMessage: KoinComponent {
      * [shareId] is the active-share id. The webapp re-sends its list; the app is
      * told to drop the local share via a [TrailsWebSocketServerMessage.ShareDeleted]. */
     data class SharesChanged(val shareId: Uuid): UserSubscriptionMessage()
+    /** A share this user emitted changed: its settings were edited, or it was
+     * redeemed / given back. [shareId] is the share id (not an active-share id).
+     * Only the webapp needs this — it re-sends its emitted-share list so the
+     * settings and the redemption list stay live. */
+    data class EmittedSharesChanged(val shareId: Uuid): UserSubscriptionMessage()
     data class RingState(
         val deviceId: Uuid,
         val isRinging: Boolean,
@@ -73,6 +78,9 @@ sealed class UserSubscriptionMessage: KoinComponent {
                     shareId = shareId.toString(),
                 )
             )
+            // Emitted shares are not part of the app's socket state — it reads them
+            // via `GET /me/emitted-shares` when it needs them.
+            is EmittedSharesChanged -> return null
             is RingState -> {
                 return AppSocketMessage(TrailsWebSocketServerMessage.RingState(
                     deviceId = this.deviceId.toString(),

@@ -4,6 +4,8 @@ import {getMe} from "$lib/api/auth/get_me";
 export interface User {
     id: string;
     username: string;
+    /** Host of the server this account lives on, e.g. `trails.example.com`. */
+    homeserver: string;
 }
 
 export const currentUser = writable<User | null>(null);

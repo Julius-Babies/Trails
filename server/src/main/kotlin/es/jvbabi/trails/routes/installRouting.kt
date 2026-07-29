@@ -28,8 +28,10 @@ import es.jvbabi.trails.routes.me.shares.deleteUserShare
 import es.jvbabi.trails.routes.me.shares.getUserShares
 import es.jvbabi.trails.routes.me.shares.registerUserShare
 import es.jvbabi.trails.routes.share.createShare
+import es.jvbabi.trails.routes.share.item.deleteShare
 import es.jvbabi.trails.routes.share.item.getShare
 import es.jvbabi.trails.routes.share.item.redeem.redeemShare
+import es.jvbabi.trails.routes.share.item.updateShare
 import es.jvbabi.trails.routes.user.item.getUser
 import es.jvbabi.trails.routes.webapp.mapbox.webappMapbox
 import es.jvbabi.trails.routes.webapp.me.webappMe
@@ -117,6 +119,10 @@ fun Application.installRouting() {
                         val share = call.getShare()
                         call.respond(db.transaction { share.toApi() })
                     }
+
+                    updateShare()
+
+                    deleteShare()
 
                     route("/redeem") {
                         redeemShare()
