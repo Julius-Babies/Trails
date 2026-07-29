@@ -2,8 +2,8 @@
     import { ArrowLeftIcon, DotsThreeVerticalIcon, TrashIcon, PencilIcon } from "phosphor-svelte";
     import {DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem} from "$lib/components/ui/dropdown-menu";
     import Button from "$lib/components/ui/button/button.svelte";
-    import DeleteShareDialog from "$lib/app/shares/DeleteShareDialog.svelte";
-    import RenameShareDialog from "$lib/app/shares/RenameShareDialog.svelte";
+    import DeleteShareDialog from "$lib/app/emitted-shares/DeleteShareDialog.svelte";
+    import RenameShareDialog from "$lib/app/emitted-shares/RenameShareDialog.svelte";
     import type {EmittedShare} from "$lib/state/webapp_socket.svelte";
 
     let {

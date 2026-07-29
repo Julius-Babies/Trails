@@ -1,6 +1,6 @@
 <script lang="ts">
     import type {EmittedShare} from "$lib/state/webapp_socket.svelte";
-    import {locationHistoryLabel} from "$lib/app/shares/location_history";
+    import {locationHistoryLabel} from "$lib/app/emitted-shares/location_history";
     import {
         BatteryVerticalHighIcon,
         ClockCounterClockwiseIcon,

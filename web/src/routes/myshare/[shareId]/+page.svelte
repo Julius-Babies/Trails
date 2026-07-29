@@ -14,13 +14,13 @@
     import {webappSocket} from "$lib/state/webapp_socket.svelte";
     import {setCameraTarget} from "$lib/state/map_camera.svelte";
     import {ShareRepository} from "$lib/api/shares/share_repository";
-    import {locationHistoryLabel, locationHistoryOptionsFor} from "$lib/app/shares/location_history";
+    import {locationHistoryLabel, locationHistoryOptionsFor} from "$lib/app/emitted-shares/location_history";
     import {Checkbox} from "$lib/components/ui/checkbox";
     import {Select, SelectContent, SelectItem, SelectTrigger} from "$lib/components/ui/select";
     import {Field, FieldContent, FieldDescription, FieldTitle} from "$lib/components/ui/field";
     import {Alert, AlertDescription} from "$lib/components/ui/alert";
     import dayjs from "$lib/dayjs";
-    import ShareHeader from "$lib/app/shares/ShareHeader.svelte";
+    import ShareHeader from "$lib/app/emitted-shares/ShareHeader.svelte";
     import { currentUser } from "$lib/state/current_user";
     import InputGroup from "$lib/components/ui/input-group/input-group.svelte";
     import InputGroupInput from "$lib/components/ui/input-group/input-group-input.svelte";
