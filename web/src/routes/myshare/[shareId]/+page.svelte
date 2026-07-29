@@ -3,6 +3,8 @@
     import {
         ArrowLeftIcon,
         BatteryVerticalHighIcon,
+        CheckIcon,
+        ClipboardIcon,
         ClockCounterClockwiseIcon,
         DeviceMobileIcon,
         LinkIcon,
@@ -19,6 +21,11 @@
     import {Alert, AlertDescription} from "$lib/components/ui/alert";
     import dayjs from "$lib/dayjs";
     import ShareHeader from "$lib/app/shares/ShareHeader.svelte";
+    import { currentUser } from "$lib/state/current_user";
+    import InputGroup from "$lib/components/ui/input-group/input-group.svelte";
+    import InputGroupInput from "$lib/components/ui/input-group/input-group-input.svelte";
+    import InputGroupButton from "$lib/components/ui/input-group/input-group-button.svelte";
+    import InputGroupAddon from "$lib/components/ui/input-group/input-group-addon.svelte";
 
     let shareId = $derived(page.params.shareId);
 
@@ -91,6 +98,25 @@
         share?.id;
         imageAvailable = true;
     });
+
+    let shareUrlState = $derived.by(() => {
+      if (!share) return null
+      if (!$currentUser) return null
+      if (share.allow_multiuse || share.active_shares.length === 0) return { type: "ready", uri: "trailsapp://application/" + $currentUser.homeserver + "/share/" + share.id }
+    })
+    let copyShareUrlReturnStateTimeoutId: number | null = $state(null);
+    let copiedShareUrl = $derived(!!copyShareUrlReturnStateTimeoutId);
+
+    function copyShareUrl() {
+      if (copyShareUrlReturnStateTimeoutId) {
+        clearTimeout(copyShareUrlReturnStateTimeoutId);
+      }
+      copyShareUrlReturnStateTimeoutId = setTimeout(() => {
+        copyShareUrlReturnStateTimeoutId = null;
+      }, 3000);
+
+      if (shareUrlState?.type === "ready") navigator.clipboard.writeText(shareUrlState?.uri)
+    }
 </script>
 
 <div class="flex flex-col h-full gap-2 overflow-y-auto scroll-thin pt-8">
@@ -133,6 +159,45 @@
                     </span>
                 {/if}
             </div>
+
+            {#if shareUrlState?.type === "ready"}
+                <div class="flex flex-col gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-4">
+                    <div class="flex flex-row items-center gap-2">
+                        <LinkIcon class="size-4 shrink-0 text-primary"/>
+                        <span class="text-sm font-semibold text-accent-foreground">Freigabe-Link</span>
+                    </div>
+
+                    <p class="text-xs text-muted-foreground">
+                        {share.allow_multiuse
+                            ? "Wer den Link mit Trails öffnet, kann das Gerät sehen. Er lässt sich mehrfach einlösen."
+                            : "Wer den Link mit Trails öffnet, kann das Gerät sehen. Er lässt sich nur einmal einlösen."}
+                    </p>
+
+                    <InputGroup class="bg-background">
+                        <InputGroupInput
+                                value={shareUrlState.uri}
+                                readonly
+                                disabled
+                        />
+
+                        <InputGroupAddon align="inline-end">
+                            <InputGroupButton
+                                    variant="link"
+                                    size="sm"
+                                    onclick={copyShareUrl}
+                            >
+                                {#if copiedShareUrl}
+                                    <CheckIcon />
+                                    Kopiert
+                                {:else}
+                                    <ClipboardIcon />
+                                    Kopieren
+                                {/if}
+                            </InputGroupButton>
+                        </InputGroupAddon>
+                    </InputGroup>
+                </div>
+            {/if}
 
             {#if saveFailed}
                 <Alert variant="destructive">

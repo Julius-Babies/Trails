@@ -2,6 +2,7 @@ package es.jvbabi.trails.routes.webapp.me
 
 import es.jvbabi.trails.api.TRAILS_WEBAPP_REALM
 import es.jvbabi.trails.api.TrailsWebappPrincipal
+import es.jvbabi.trails.config.ApplicationConfig
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.response.respond
@@ -9,13 +10,23 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import org.koin.ktor.ext.inject
 import kotlin.uuid.Uuid
 
 fun Route.webappMe() {
     authenticate(TRAILS_WEBAPP_REALM) {
         get {
+            val applicationConfig by inject<ApplicationConfig>()
             val user = call.principal<TrailsWebappPrincipal>()!!.user
-            call.respond(WebappMeResponse(id = user.id.value, username = user.username))
+            call.respond(
+                WebappMeResponse(
+                    id = user.id.value,
+                    username = user.username,
+                    // This server is the account's homeserver, so the client can compare it
+                    // against a share's homeserver to tell local from foreign shares.
+                    homeserver = applicationConfig.url.host,
+                )
+            )
         }
     }
 }
@@ -24,4 +35,5 @@ fun Route.webappMe() {
 data class WebappMeResponse(
     @SerialName("id") val id: Uuid,
     @SerialName("username") val username: String,
+    @SerialName("homeserver") val homeserver: String,
 )

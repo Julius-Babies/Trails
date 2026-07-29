@@ -8,6 +8,7 @@ export async function getMe() {
         return {
             id: data.id,
             username: data.username,
+            homeserver: data.homeserver,
         }
     } else {
         return null;
