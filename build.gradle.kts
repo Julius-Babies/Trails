@@ -9,4 +9,5 @@ plugins {
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.androidMultiplatformLibrary) apply false
     alias(libs.plugins.androidx.room) apply false
+    alias(libs.plugins.build.konfig) apply false
 }

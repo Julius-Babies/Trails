@@ -1,3 +1,4 @@
+import com.codingfeline.buildkonfig.compiler.FieldSpec.Type
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
@@ -9,6 +10,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.ksp)
     alias(libs.plugins.androidx.room)
+    alias(libs.plugins.build.konfig)
 }
 
 val localProperties = Properties().apply {
@@ -124,4 +126,17 @@ room {
 
 dependencies {
     androidRuntimeClasspath(libs.app.compose.uiTooling)
+}
+
+buildkonfig {
+    packageName = "es.jvbabi.trails"
+
+    defaultConfigs {
+        buildConfigField(
+            type = Type.STRING,
+            name =  "WERKBANK_TOKEN",
+            value = localProperties["werkbank.access_token"]?.toString(),
+            nullable = true,
+        )
+    }
 }

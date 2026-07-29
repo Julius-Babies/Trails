@@ -2,28 +2,15 @@ package es.jvbabi.trails.di
 
 import androidx.room.RoomDatabase
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
+import es.jvbabi.trails.BuildKonfig
 import es.jvbabi.trails.data.database.TrailsDatabase
 import es.jvbabi.trails.data.database.converter.InstantConverter
 import es.jvbabi.trails.data.database.converter.UuidConverter
 import es.jvbabi.trails.data.remote.TrailsApi
 import es.jvbabi.trails.data.remote.WsHandshakeDiagnostics
-import es.jvbabi.trails.data.repository.DevicesRepositoryImpl
-import es.jvbabi.trails.data.repository.KeyValueRepositoryImpl
-import es.jvbabi.trails.data.repository.LocationRepositoryImpl
-import es.jvbabi.trails.data.repository.ShareRepositoryImpl
-import es.jvbabi.trails.data.repository.SnapshotRepositoryImpl
-import es.jvbabi.trails.data.repository.TrailsServerRepositoryImpl
-import es.jvbabi.trails.data.repository.UiRepositoryImpl
-import es.jvbabi.trails.data.repository.UserRepositoryImpl
+import es.jvbabi.trails.data.repository.*
 import es.jvbabi.trails.domain.extension.Settings
-import es.jvbabi.trails.domain.repository.DevicesRepository
-import es.jvbabi.trails.domain.repository.KeyValueRepository
-import es.jvbabi.trails.domain.repository.LocationRepository
-import es.jvbabi.trails.domain.repository.ShareRepository
-import es.jvbabi.trails.domain.repository.SnapshotRepository
-import es.jvbabi.trails.domain.repository.TrailsServerRepository
-import es.jvbabi.trails.domain.repository.UiRepository
-import es.jvbabi.trails.domain.repository.UserRepository
+import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.domain.usecase.SetupNotificationsUseCase
 import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
 import es.jvbabi.trails.domain.usecase.auth.LoginUseCase
@@ -39,17 +26,16 @@ import es.jvbabi.trails.page.setings.SettingsViewModel
 import es.jvbabi.trails.page.shares.add_share.AddShareViewModel
 import es.jvbabi.trails.page.shares.new_share.NewShareViewModel
 import es.jvbabi.trails.ui.overlay.DeviceDeletedViewModel
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.plugins.sse.SSE
-import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
-import io.ktor.client.plugins.websocket.WebSockets
-import io.ktor.client.plugins.websocket.pingInterval
-import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
-import io.ktor.serialization.kotlinx.json.json
+import io.ktor.client.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.plugins.sse.*
+import io.ktor.client.plugins.websocket.*
+import io.ktor.client.request.header
+import io.ktor.serialization.kotlinx.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.serialization.json.Json
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.singleOf
@@ -57,6 +43,7 @@ import org.koin.core.module.dsl.viewModelOf
 import org.koin.dsl.KoinAppDeclaration
 import org.koin.dsl.bind
 import org.koin.dsl.module
+import kotlin.time.Duration.Companion.seconds
 
 expect fun getDatabaseBuilder(): RoomDatabase.Builder<TrailsDatabase>
 
@@ -97,6 +84,14 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
                 install(SSE)
 
                 install(WsHandshakeDiagnostics)
+
+
+                defaultRequest {
+                    if (BuildKonfig.WERKBANK_TOKEN != null) {
+                        header("Werkbank-No-Browser", "true")
+                        header("Werkbank-Access-Token", BuildKonfig.WERKBANK_TOKEN)
+                    }
+                }
             }
         }
 
