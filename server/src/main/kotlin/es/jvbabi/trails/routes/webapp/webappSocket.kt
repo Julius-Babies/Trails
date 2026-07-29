@@ -150,7 +150,12 @@ fun Route.webappSocket() {
             // added, changed or removed, and keep the device subscriptions in sync.
             launch {
                 userSubscriptionRepository.getFlowForUser(user.id.value)
-                    .filter { it is UserSubscriptionMessage.DeviceUpdated || it is UserSubscriptionMessage.DeviceDeleted || it is UserSubscriptionMessage.SharesChanged }
+                    .filter {
+                        it is UserSubscriptionMessage.DeviceUpdated ||
+                                it is UserSubscriptionMessage.DeviceDeleted ||
+                                it is UserSubscriptionMessage.SharesChanged ||
+                                it is UserSubscriptionMessage.EmittedSharesChanged
+                    }
                     .onEach { message ->
                         when (message) {
                             is UserSubscriptionMessage.DeviceUpdated ->
@@ -323,10 +328,21 @@ sealed class WebAppSocketServerMessage {
             @SerialName("is_locked") val isLocked: Boolean,
             @SerialName("created_at") val createdAt: Long,
             @SerialName("redemption_count") val redemptionCount: Long,
+            @SerialName("active_shares") val activeShares: List<ActiveShareEntry> = emptyList(),
         ) {
             companion object {
                 fun fromShare(share: es.jvbabi.trails.database.Share): EmittedShare {
                     val device = share.device
+                    // Newest redemption first — the detail page lists them in that order.
+                    val activeShares = ActiveShare
+                        .find { ActiveShares.share eq share.id }
+                        .orderBy(ActiveShares.createdAt to SortOrder.DESC)
+                        .map { activeShare ->
+                            ActiveShareEntry(
+                                id = activeShare.id.value,
+                                createdAt = activeShare.createdAt.toEpochMilliseconds(),
+                            )
+                        }
                     return EmittedShare(
                         id = share.id.value,
                         name = share.shareName,
@@ -339,10 +355,23 @@ sealed class WebAppSocketServerMessage {
                         allowMultiuse = share.allowMultiuse,
                         isLocked = share.isLocked,
                         createdAt = share.createdAt.toEpochMilliseconds(),
-                        redemptionCount = ActiveShare.count(ActiveShares.share eq share.id),
+                        redemptionCount = activeShares.size.toLong(),
+                        activeShares = activeShares,
                     )
                 }
             }
+
+            /**
+             * One redemption of an emitted share. There is nothing to say about
+             * *who* redeemed it — a share is a capability, and the redeemer may
+             * live on a foreign homeserver — so only the redemption itself
+             * (its id and when it happened) is carried.
+             */
+            @Serializable
+            data class ActiveShareEntry(
+                @SerialName("id") val id: Uuid,
+                @SerialName("created_at") val createdAt: Long,
+            )
         }
     }
 }

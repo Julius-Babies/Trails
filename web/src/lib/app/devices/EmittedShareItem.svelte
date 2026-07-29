@@ -35,7 +35,7 @@
     });
 </script>
 
-<div class="flex flex-row gap-3 items-center py-3 pl-2 pr-4 rounded-2xl">
+<a class="flex flex-row gap-3 items-center transition-colors duration-100 hover:bg-foreground/10 cursor-pointer py-3 pl-2 pr-4 rounded-2xl" href={"/myshare/" + share.id}>
     <div class="size-10 bg-accent rounded-full flex items-center justify-center shrink-0">
         {#if imageAvailable}
             <img
@@ -86,4 +86,4 @@
             {share.redemption_count === 1 ? "Einlösung" : "Einlösungen"}
         </span>
     </div>
-</div>
+</a>
