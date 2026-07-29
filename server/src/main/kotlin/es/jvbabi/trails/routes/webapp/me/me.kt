@@ -22,8 +22,6 @@ fun Route.webappMe() {
                 WebappMeResponse(
                     id = user.id.value,
                     username = user.username,
-                    // This server is the account's homeserver, so the client can compare it
-                    // against a share's homeserver to tell local from foreign shares.
                     homeserver = applicationConfig.url.host,
                 )
             )
