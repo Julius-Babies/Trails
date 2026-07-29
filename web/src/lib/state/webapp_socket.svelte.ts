@@ -89,9 +89,17 @@ export function shareMainText(share: { device_friendly_name: string; owner_usern
     return `${share.device_friendly_name} von ${share.owner_username}`;
 }
 
+/** One redemption of an emitted share. A share is a capability and the redeemer
+ * may live on a foreign homeserver, so nothing is known about *who* redeemed it —
+ * only the redemption itself. */
+export interface ActiveShare {
+    id: string;
+    created_at: number;
+}
+
 /** A location share the current user has emitted (created) themselves. Carries
- * the share settings and how often it has been redeemed. Manufacturer/model are
- * only for the device image. */
+ * the share settings and its redemptions. Manufacturer/model are only for the
+ * device image. */
 export interface EmittedShare {
     id: string;
     name: string;
@@ -105,6 +113,8 @@ export interface EmittedShare {
     is_locked: boolean;
     created_at: number;
     redemption_count: number;
+    /** Redemptions of this share, newest first. */
+    active_shares: ActiveShare[];
 }
 
 /** A saved share that lives on another homeserver — only its capability

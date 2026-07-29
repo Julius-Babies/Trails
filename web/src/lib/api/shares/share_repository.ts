@@ -40,4 +40,32 @@ export const ShareRepository = {
         requireResponseIsFromTrails(response);
         return response.ok;
     },
+
+    /**
+     * Changes the settings of a share the current user emitted. Only the given
+     * fields are touched; the change applies to everyone who already redeemed the
+     * share. Resolves `true` on success, `false` on any failure (network error,
+     * forbidden, …).
+     *
+     * `location_history_seconds` uses the share's own encoding: `0` shares no
+     * history, a negative value an unbounded window (see
+     * {@link INFINITE_HISTORY_SECONDS}).
+     */
+    async updateEmittedShare(
+        shareId: string,
+        settings: {location_history_seconds?: number; share_battery_state?: boolean},
+    ): Promise<boolean> {
+        let response: Response;
+        try {
+            response = await fetch(`/api/v1/share/${shareId}`, {
+                method: "PATCH",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify(settings),
+            });
+        } catch {
+            return false;
+        }
+        requireResponseIsFromTrails(response);
+        return response.ok;
+    },
 };
