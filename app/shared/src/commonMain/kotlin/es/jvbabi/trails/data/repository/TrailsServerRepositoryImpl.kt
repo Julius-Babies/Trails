@@ -1,6 +1,8 @@
 package es.jvbabi.trails.data.repository
 
 import co.touchlab.kermit.Logger
+import es.jvbabi.trails.Optional
+import es.jvbabi.trails.api.v1.devices.UpdateDeviceRequest
 import es.jvbabi.trails.api.v1.me.RegisterUserShareRequest
 import es.jvbabi.trails.api.v1.share.RedeemShareResponse
 import es.jvbabi.trails.data.database.TrailsDatabase
@@ -34,8 +36,6 @@ import io.ktor.utils.io.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
@@ -772,7 +772,7 @@ class TrailsServerRepositoryImpl(
         val response = httpClient.patch(url.buildString()) {
             bearerAuth(token)
             contentType(ContentType.Application.Json)
-            setBody(UpdateDeviceRequest(customName = newName))
+            setBody(UpdateDeviceRequest(customName = Optional.Defined(newName)))
         }
 
         if (response.status.isSuccess()) return Result.success(Unit)
@@ -780,11 +780,6 @@ class TrailsServerRepositoryImpl(
         return Result.failure(IllegalStateException("Error renaming device: ${response.status} ${response.bodyAsText()}"))
     }
 }
-
-@Serializable
-private data class UpdateDeviceRequest(
-    @SerialName("custom_name") val customName: String?,
-)
 
 /**
  * Sends [message] and logs — rather than propagates — a write failure.
