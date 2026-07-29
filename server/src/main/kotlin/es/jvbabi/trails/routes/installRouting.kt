@@ -28,6 +28,7 @@ import es.jvbabi.trails.routes.me.shares.deleteUserShare
 import es.jvbabi.trails.routes.me.shares.getUserShares
 import es.jvbabi.trails.routes.me.shares.registerUserShare
 import es.jvbabi.trails.routes.share.createShare
+import es.jvbabi.trails.routes.share.item.deleteShare
 import es.jvbabi.trails.routes.share.item.getShare
 import es.jvbabi.trails.routes.share.item.redeem.redeemShare
 import es.jvbabi.trails.routes.share.item.updateShare
@@ -120,6 +121,8 @@ fun Application.installRouting() {
                     }
 
                     updateShare()
+
+                    deleteShare()
 
                     route("/redeem") {
                         redeemShare()

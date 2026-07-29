@@ -18,6 +18,7 @@
     import {Field, FieldContent, FieldDescription, FieldTitle} from "$lib/components/ui/field";
     import {Alert, AlertDescription} from "$lib/components/ui/alert";
     import dayjs from "$lib/dayjs";
+    import ShareHeader from "$lib/app/shares/ShareHeader.svelte";
 
     let shareId = $derived(page.params.shareId);
 
@@ -93,15 +94,7 @@
 </script>
 
 <div class="flex flex-col h-full gap-2 overflow-y-auto scroll-thin pt-8">
-    <div class="flex flex-row items-center gap-2 justify-between px-4">
-        <a
-                href="/"
-                class="flex flex-row grow items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-            <ArrowLeftIcon class="size-4"/>
-            Meine Shares
-        </a>
-    </div>
+    <ShareHeader share={share}/>
 
     {#if share}
         <div class="flex flex-col gap-4 px-4 pb-4">
