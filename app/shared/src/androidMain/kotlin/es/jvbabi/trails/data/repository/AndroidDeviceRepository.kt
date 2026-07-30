@@ -43,6 +43,8 @@ class AndroidDeviceRepository : DeviceRepository, KoinComponent {
         }
     }
 
+    override fun getSupportedAbis(): List<String> = Build.SUPPORTED_ABIS.toList()
+
     override fun getBatteryState(): SharedFlow<BatteryState> {
         return callbackFlow {
             val batteryReceiver = object : BroadcastReceiver() {

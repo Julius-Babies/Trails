@@ -58,6 +58,9 @@ class IosDeviceRepository : DeviceRepository {
 
     override fun getManufacturer(): String = "Apple"
 
+    // iOS updates come from the App Store, so there is no APK to pick an ABI for.
+    override fun getSupportedAbis(): List<String> = emptyList()
+
     override fun getBatteryState(): Flow<BatteryState> = callbackFlow {
         val device = UIDevice.currentDevice
         device.batteryMonitoringEnabled = true

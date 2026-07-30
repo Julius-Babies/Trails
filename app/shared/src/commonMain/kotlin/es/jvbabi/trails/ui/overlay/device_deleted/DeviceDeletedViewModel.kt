@@ -1,4 +1,4 @@
-package es.jvbabi.trails.ui.overlay
+package es.jvbabi.trails.ui.overlay.device_deleted
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
