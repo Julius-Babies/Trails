@@ -9,4 +9,5 @@ data class Snapshot(
     val time: LocalDateTime,
     val location: Location,
     val batteryState: BatteryState?,
+    val isSynced: Boolean,
 )

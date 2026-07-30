@@ -152,7 +152,8 @@ fun DeviceCardPreview() {
                     bearingAccuracy = null,
                     locationAccuracy = 4f,
                     time = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                )
+                ),
+                isSynced = false,
             )
         ),
         onClick = {},

@@ -55,6 +55,7 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
             getDatabaseBuilder()
                 .setDriver(BundledSQLiteDriver())
                 .setQueryCoroutineContext(Dispatchers.IO)
+                .addMigrations(TrailsDatabase.Migration2to3)
                 .addTypeConverter(UuidConverter())
                 .addTypeConverter(InstantConverter())
                 .build()

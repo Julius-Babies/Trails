@@ -214,22 +214,25 @@ class TrailsServerRepositoryImpl(
                                 )
                             }
                             .takeWhile { isConnected.value }
-                            .collectLatest {
+                            .filterNot { it.isSynced }
+                            .collectLatest { snapshot ->
                                 val ws = websocketSession ?: return@collectLatest
-                                logger.i { "Sending location update: $it" }
+                                logger.i { "Sending location update: $snapshot" }
                                 ws.sendOrLog(
                                     TrailsWebSocketAppMessage.DataSnapshot(
-                                        latitude = it.location.latitude,
-                                        longitude = it.location.longitude,
-                                        bearing = it.location.bearing,
-                                        bearingAccuracy = it.location.bearingAccuracy,
-                                        locationAccuracy = it.location.locationAccuracy,
-                                        batteryLevel = it.batteryState?.percentage?.div(100f),
-                                        batteryCharging = it.batteryState?.isCharging,
-                                        time = it.time.toInstant(TimeZone.currentSystemDefault()).epochSeconds,
+                                        latitude = snapshot.location.latitude,
+                                        longitude = snapshot.location.longitude,
+                                        bearing = snapshot.location.bearing,
+                                        bearingAccuracy = snapshot.location.bearingAccuracy,
+                                        locationAccuracy = snapshot.location.locationAccuracy,
+                                        batteryLevel = snapshot.batteryState?.percentage?.div(100f),
+                                        batteryCharging = snapshot.batteryState?.isCharging,
+                                        time = snapshot.time.toInstant(TimeZone.currentSystemDefault()).epochSeconds,
                                     ),
                                     logger,
                                 )
+
+                                snapshotRepository.storeSnapshot(snapshot.copy(isSynced = true))
                             }
                     }
 
@@ -975,6 +978,7 @@ private abstract class WebSocketClientBase(
                                         isCharging = it.isCharging,
                                     )
                                 },
+                                isSynced = true,
                             )
                         )
                     }

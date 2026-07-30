@@ -39,7 +39,8 @@ data class EmbeddedDataSnapshot(
             batteryState = if (dataSnapshot.batteryLevel != null && dataSnapshot.batteryCharging != null) BatteryState(
                 percentage = (dataSnapshot.batteryLevel * 100).roundToInt(),
                 isCharging = dataSnapshot.batteryCharging
-            ) else null
+            ) else null,
+            isSynced = dataSnapshot.isSynced,
         )
     }
 }

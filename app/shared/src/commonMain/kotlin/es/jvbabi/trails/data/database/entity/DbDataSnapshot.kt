@@ -31,4 +31,5 @@ data class DbDataSnapshot(
     @ColumnInfo("location_accuracy") val locationAccuracy: Float,
     @ColumnInfo("battery_level") val batteryLevel: Float?,
     @ColumnInfo("battery_charging") val batteryCharging: Boolean?,
+    @ColumnInfo("is_synced") val isSynced: Boolean,
 )
