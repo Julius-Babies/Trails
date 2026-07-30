@@ -2,12 +2,14 @@ package es.jvbabi.trails.shared.dto.websocket
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.uuid.Uuid
 
 @Serializable
 sealed class TrailsWebSocketAppMessage {
     @SerialName("data_snapshot")
     @Serializable
     data class DataSnapshot(
+        @SerialName("snapshot_id") val snapshotId: Uuid,
         @SerialName("latitude") val latitude: Double,
         @SerialName("longitude") val longitude: Double,
         @SerialName("bearing") val bearing: Float,

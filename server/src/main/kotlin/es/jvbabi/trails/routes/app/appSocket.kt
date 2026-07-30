@@ -144,47 +144,26 @@ fun Route.app() {
                                 if (principal == null) continue
                                 launch {
                                     val snapshot = db.transaction {
-                                        val existingSnapshot = DataSnapshot.find {
-                                            DataSnapshots.device eq principal.device.id
-                                        }.orderBy(DataSnapshots.createdAt to SortOrder.DESC)
-                                            .limit(1)
-                                            .firstOrNull()
-
-                                        val batteryChanged = existingSnapshot?.let {
-                                            it.batteryLevel != message.batteryLevel ||
-                                                    it.batteryCharging != message.batteryCharging
-                                        } ?: true
-
-                                        val movedEnough = existingSnapshot?.let {
-                                            distanceMeters(
-                                                it.latitude,
-                                                it.longitude,
-                                                message.latitude,
-                                                message.longitude,
-                                            ) > MIN_DISTANCE_METERS
-                                        } ?: true
-
-                                        if (batteryChanged || movedEnough) {
-                                            DataSnapshot.new {
-                                                this.device = principal.device
-                                                this.latitude = message.latitude
-                                                this.longitude = message.longitude
-                                                this.bearing = message.bearing.toDouble()
-                                                this.bearingAccuracy = message.bearingAccuracy?.toDouble()
-                                                this.locationAccuracy = message.locationAccuracy.toDouble()
-                                                this.batteryLevel = message.batteryLevel
-                                                this.batteryCharging = message.batteryCharging
-                                                this.createdAt = Instant.fromEpochSeconds(message.time)
-                                            }
-                                        } else {
-                                            existingSnapshot.createdAt = Instant.fromEpochSeconds(message.time)
-                                            existingSnapshot
+                                        DataSnapshot.new(message.snapshotId) {
+                                            this.device = principal.device
+                                            this.latitude = message.latitude
+                                            this.longitude = message.longitude
+                                            this.bearing = message.bearing.toDouble()
+                                            this.bearingAccuracy = message.bearingAccuracy?.toDouble()
+                                            this.locationAccuracy = message.locationAccuracy.toDouble()
+                                            this.batteryLevel = message.batteryLevel
+                                            this.batteryCharging = message.batteryCharging
+                                            this.createdAt = Instant.fromEpochSeconds(message.time)
                                         }
                                     }
 
                                     if (selfFlow != null && selfFlow.subscriptionCount.value > 0) {
                                         selfFlow.emit(DeviceSubscriptionMessage.Snapshot(snapshot))
                                     }
+
+                                    sendSerialized<TrailsWebSocketServerMessage>(TrailsWebSocketServerMessage.SnapshotAcknowledged(
+                                        snapshotId = message.snapshotId,
+                                    ))
                                 }
                             }
 

@@ -26,6 +26,7 @@ data class EmbeddedDataSnapshot(
             .toLocalDateTime(TimeZone.currentSystemDefault())
 
         return Snapshot(
+            id = dataSnapshot.id,
             device = device.toModel(),
             time = timestamp,
             location = Location(

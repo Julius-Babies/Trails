@@ -142,6 +142,7 @@ fun DeviceCardPreview() {
             device = device,
             image = null,
             snapshot = Snapshot(
+                id = Uuid.random(),
                 device = device,
                 time = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
                 batteryState = BatteryState(73, true),

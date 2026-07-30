@@ -90,6 +90,7 @@ sealed class DeviceSubscriptionMessage : KoinComponent {
                 val batteryCharging = snapshot.batteryCharging
 
                 return AppSocketMessage(TrailsWebSocketServerMessage.Snapshot(
+                    snapshotId = snapshot.id.value,
                     target = if (share != null) TrailsWebSocketServerMessage.Snapshot.Target.Share(share.id.value.toString())
                     else TrailsWebSocketServerMessage.Snapshot.Target.Device(device.id.value.toString()),
                     timestamp = snapshot.createdAt.epochSeconds,

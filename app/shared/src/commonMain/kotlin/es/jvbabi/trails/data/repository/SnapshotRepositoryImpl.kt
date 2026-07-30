@@ -45,6 +45,7 @@ class SnapshotRepositoryImpl(
             device,
         ) { location, batteryState, device ->
             Snapshot(
+                id = Uuid.random(),
                 device = device,
                 time = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
                 location = location,
@@ -59,6 +60,10 @@ class SnapshotRepositoryImpl(
             .launchIn(scope)
     }
 
+    override fun getSnapshotById(id: Uuid): Flow<Snapshot?> {
+        return database.dataSnapshotDao.getSnapshotById(id).map { it?.toModel() }
+    }
+
     override suspend fun storeSnapshot(snapshot: Snapshot) {
         val deviceId = snapshot.device.id
 
@@ -67,6 +72,7 @@ class SnapshotRepositoryImpl(
 
         database.dataSnapshotDao.upsert(
             DbDataSnapshot(
+                id = snapshot.id,
                 timestamp = timestamp,
                 deviceId = snapshot.device.id,
                 latitude = snapshot.location.latitude,

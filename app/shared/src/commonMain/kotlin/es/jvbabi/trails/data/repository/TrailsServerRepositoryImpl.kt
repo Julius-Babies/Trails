@@ -220,6 +220,7 @@ class TrailsServerRepositoryImpl(
                                 logger.i { "Sending location update: $snapshot" }
                                 ws.sendOrLog(
                                     TrailsWebSocketAppMessage.DataSnapshot(
+                                        snapshotId = snapshot.id,
                                         latitude = snapshot.location.latitude,
                                         longitude = snapshot.location.longitude,
                                         bearing = snapshot.location.bearing,
@@ -231,8 +232,6 @@ class TrailsServerRepositoryImpl(
                                     ),
                                     logger,
                                 )
-
-                                snapshotRepository.storeSnapshot(snapshot.copy(isSynced = true))
                             }
                     }
 
@@ -949,6 +948,15 @@ private abstract class WebSocketClientBase(
                         }
                     }
 
+                    is TrailsWebSocketServerMessage.SnapshotAcknowledged -> {
+                        scope.launch {
+                            val snapshot = snapshotRepository.getSnapshotById(message.snapshotId).first()
+                                ?: return@launch
+
+                            snapshotRepository.storeSnapshot(snapshot.copy(isSynced = true))
+                        }
+                    }
+
                     is TrailsWebSocketServerMessage.Snapshot -> {
                         val device = when (val target = message.target) {
                             is TrailsWebSocketServerMessage.Snapshot.Target.Device -> runCatching { Uuid.parse(target.deviceId) }.getOrNull()?.let { devicesRepository.getDeviceById(it).firstOrNull() }
@@ -962,6 +970,7 @@ private abstract class WebSocketClientBase(
                             .toLocalDateTime(TimeZone.currentSystemDefault())
                         snapshotRepository.storeSnapshot(
                             Snapshot(
+                                id = message.snapshotId,
                                 device = device,
                                 time = timestamp,
                                 location = Location(

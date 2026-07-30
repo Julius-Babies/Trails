@@ -353,6 +353,7 @@ internal fun rememberMockHomeState(): HomeState {
         time = now,
     )
     val mockSnapshot = Snapshot(
+        id = Uuid.random(),
         device = mockDevice,
         time = now,
         location = mockLocation,
