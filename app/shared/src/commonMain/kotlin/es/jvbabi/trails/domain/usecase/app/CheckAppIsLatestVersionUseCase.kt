@@ -1,5 +1,7 @@
 package es.jvbabi.trails.domain.usecase.app
 
+import es.jvbabi.trails.BuildKonfig
+import es.jvbabi.trails.domain.repository.ApplicationRepository
 import es.jvbabi.trails.domain.repository.TrailsAppRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.datetime.LocalDateTime
@@ -8,15 +10,19 @@ import kotlinx.datetime.format.char
 
 class CheckAppIsLatestVersionUseCase(
     private val trailsAppRepository: TrailsAppRepository,
+    private val applicationRepository: ApplicationRepository,
 ) {
     /**
      * Compares the running build against the latest published release.
      *
      * Returns `null` when the check couldn't be completed (offline, rate limited, unexpected
      * response, …) — the caller cannot tell anything about the version then, so the state stays
-     * unknown instead of claiming the app is up to date.
+     * unknown instead of claiming the app is up to date. Debug builds return `null` as well
+     * unless `app.check_for_updates.enable_in_debug` is set in `local.properties`.
      */
     suspend operator fun invoke(): AppVersionState? {
+        if (applicationRepository.isDebugBuild && !BuildKonfig.CHECK_FOR_UPDATES_IN_DEBUG) return null
+
         val latestVersion = ignoreErrors { trailsAppRepository.getLatestVersion() } ?: return null
         val currentVersion = trailsAppRepository.getCurrentVersion()
 

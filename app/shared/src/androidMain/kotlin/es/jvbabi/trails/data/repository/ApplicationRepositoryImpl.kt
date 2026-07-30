@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.StateFlow
 
 class ApplicationRepositoryImpl(
     private val isVisibleStateFlow: StateFlow<Boolean>,
+    // Passed in from the app module, which is where BuildConfig.DEBUG lives.
+    override val isDebugBuild: Boolean,
 ) : ApplicationRepository {
 
     companion object {

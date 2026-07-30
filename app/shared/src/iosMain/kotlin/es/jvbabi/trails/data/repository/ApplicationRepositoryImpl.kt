@@ -16,8 +16,13 @@ import platform.UIKit.UIApplication
 import platform.UIKit.UIApplicationDidBecomeActiveNotification
 import platform.UIKit.UIApplicationWillResignActiveNotification
 import platform.darwin.NSObject
+import kotlin.experimental.ExperimentalNativeApi
+import kotlin.native.Platform
 
 class IosApplicationRepository : ApplicationRepository {
+
+    @OptIn(ExperimentalNativeApi::class)
+    override val isDebugBuild: Boolean = Platform.isDebugBinary
 
     override fun getApplicationForegroundState(): Flow<Boolean> = callbackFlow {
         trySend(true)
