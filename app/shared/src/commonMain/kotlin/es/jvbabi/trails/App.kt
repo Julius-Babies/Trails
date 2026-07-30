@@ -24,7 +24,8 @@ import es.jvbabi.trails.page.home.HomeScreen
 import es.jvbabi.trails.page.setings.SettingsScreen
 import es.jvbabi.trails.ui.components.LocalHazeState
 import es.jvbabi.trails.ui.components.Snackbar
-import es.jvbabi.trails.ui.overlay.DeviceDeletedOverlay
+import es.jvbabi.trails.ui.overlay.device_deleted.DeviceDeletedOverlay
+import es.jvbabi.trails.ui.overlay.update_available.UpdateAvailableOverlay
 import es.jvbabi.trails.ui.theme.AppTheme
 import kotlinx.coroutines.flow.map
 import org.koin.compose.koinInject
@@ -67,6 +68,7 @@ fun App(
                 }
 
                 DeviceDeletedOverlay()
+                UpdateAvailableOverlay()
 
                 val uiRepository = koinInject<UiRepository>()
 

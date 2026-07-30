@@ -138,5 +138,25 @@ buildkonfig {
             value = localProperties["werkbank.access_token"]?.toString(),
             nullable = true,
         )
+        // Defined in the root build script, shared with versionName in :app:android.
+        buildConfigField(
+            type = Type.STRING,
+            name = "CURRENT_VERSION",
+            value = rootProject.extra["buildTag"] as String,
+            nullable = false,
+            const = true,
+        )
+        // Debug builds carry a throwaway version, so checking them against the latest release
+        // only ever nags. Opt in per developer machine to work on the update flow itself.
+        buildConfigField(
+            type = Type.BOOLEAN,
+            name = "CHECK_FOR_UPDATES_IN_DEBUG",
+            value = localProperties["app.check_for_updates.enable_in_debug"]
+                ?.toString()
+                .toBoolean()
+                .toString(),
+            nullable = false,
+            const = true,
+        )
     }
 }

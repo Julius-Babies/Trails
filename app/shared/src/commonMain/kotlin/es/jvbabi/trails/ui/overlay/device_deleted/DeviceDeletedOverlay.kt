@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 
-package es.jvbabi.trails.ui.overlay
+package es.jvbabi.trails.ui.overlay.device_deleted
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -135,7 +135,7 @@ fun DeviceDeletedContent(
     }
 }
 
-@Preview
+@Preview(showBackground = true)
 @PreviewWrapper(wrapper = ThemeWrapper::class)
 @Composable
 private fun DeviceDeletedPreview() {

@@ -12,6 +12,7 @@ import es.jvbabi.trails.data.repository.*
 import es.jvbabi.trails.domain.extension.Settings
 import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.domain.usecase.SetupNotificationsUseCase
+import es.jvbabi.trails.domain.usecase.app.CheckAppIsLatestVersionUseCase
 import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
 import es.jvbabi.trails.domain.usecase.auth.LoginUseCase
 import es.jvbabi.trails.domain.usecase.communication.StartExternalConnectionsUseCase
@@ -25,7 +26,8 @@ import es.jvbabi.trails.page.ringing.RingingViewModel
 import es.jvbabi.trails.page.setings.SettingsViewModel
 import es.jvbabi.trails.page.shares.add_share.AddShareViewModel
 import es.jvbabi.trails.page.shares.new_share.NewShareViewModel
-import es.jvbabi.trails.ui.overlay.DeviceDeletedViewModel
+import es.jvbabi.trails.ui.overlay.device_deleted.DeviceDeletedViewModel
+import es.jvbabi.trails.ui.overlay.update_available.UpdateAvailableViewModel
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -40,12 +42,22 @@ import kotlinx.serialization.json.Json
 import org.koin.core.context.startKoin
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
+import org.koin.core.qualifier.named
 import org.koin.dsl.KoinAppDeclaration
 import org.koin.dsl.bind
 import org.koin.dsl.module
 import kotlin.time.Duration.Companion.seconds
 
 expect fun getDatabaseBuilder(): RoomDatabase.Builder<TrailsDatabase>
+
+/** Qualifier of the [HttpClient] used for requests to hosts we don't control. */
+const val KOIN_HTTP_CLIENT_THIRD_PARTY = "http_client_third_party"
+
+private val jsonInstance = Json {
+    prettyPrint = true
+    isLenient = true
+    ignoreUnknownKeys = true
+}
 
 fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
     appDeclaration()
@@ -62,16 +74,10 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
         }
 
         single<HttpClient> {
-            val jsonInstance = Json {
-                prettyPrint = true
-                isLenient = true
-                ignoreUnknownKeys = true
-            }
-
             HttpClient {
                 install(ContentNegotiation) {
-                    // Verhindert, dass ContentNegotiation beim WS-Handshake versucht, die
-                    // WebSocket-Session selbst zu (de)serialisieren
+                    // Keeps ContentNegotiation from trying to (de)serialize the WebSocket session
+                    // itself during the WS handshake
                     // ("Serializer for class 'DefaultClientWebSocketSession' is not found").
                     ignoreType<DefaultClientWebSocketSession>()
                     json(jsonInstance)
@@ -96,6 +102,16 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
             }
         }
 
+        // Client for third-party APIs (e.g. GitHub). Deliberately carries no Werkbank headers,
+        // so the access token can never leak to a host outside our own infrastructure.
+        single<HttpClient>(named(KOIN_HTTP_CLIENT_THIRD_PARTY)) {
+            HttpClient {
+                install(ContentNegotiation) {
+                    json(jsonInstance)
+                }
+            }
+        }
+
         singleOf(::TrailsApi)
         singleOf(::UiRepositoryImpl) bind UiRepository::class
         singleOf(::KeyValueRepositoryImpl) bind KeyValueRepository::class
@@ -106,8 +122,15 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
         singleOf(::SnapshotRepositoryImpl) bind SnapshotRepository::class
         singleOf(::TrailsServerRepositoryImpl) bind TrailsServerRepository::class
         singleOf(::ShareRepositoryImpl) bind ShareRepository::class
+        single<TrailsAppRepository> {
+            TrailsAppRepositoryImpl(
+                httpClient = get(named(KOIN_HTTP_CLIENT_THIRD_PARTY)),
+                deviceRepository = get(),
+            )
+        }
 
         singleOf(::SetupNotificationsUseCase)
+        singleOf(::CheckAppIsLatestVersionUseCase)
 
         singleOf(::HandleDeepLinkUseCase)
         singleOf(::LoginUseCase)
@@ -125,5 +148,6 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
         viewModelOf(::DeviceViewModel)
         viewModelOf(::ConnectionEventsViewModel)
         viewModelOf(::DeviceDeletedViewModel)
+        viewModelOf(::UpdateAvailableViewModel)
     })
 }

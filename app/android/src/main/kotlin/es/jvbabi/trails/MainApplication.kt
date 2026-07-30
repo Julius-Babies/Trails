@@ -46,7 +46,12 @@ class MainApplication: Application() {
                 single<PermissionsController> { PermissionsControllerImpl(get()) }
                 single<BackgroundServiceRepository> { BackgroundServiceRepositoryImpl() }
                 single<FileRepository> { AndroidFileRepositoryImpl(get()) }
-                single<ApplicationRepository> { ApplicationRepositoryImpl(get(named(ApplicationRepositoryImpl.KOIN_KEY_APP_IN_FOREGROUND_FLOW))) }
+                single<ApplicationRepository> {
+                    ApplicationRepositoryImpl(
+                        isVisibleStateFlow = get(named(ApplicationRepositoryImpl.KOIN_KEY_APP_IN_FOREGROUND_FLOW)),
+                        isDebugBuild = BuildConfig.DEBUG,
+                    )
+                }
                 single(named(KOIN_KEY_CORNER_RADIUS)) { cornerRadiusBottom.asStateFlow() }
                 single<StateFlow<Boolean>>(named(ApplicationRepositoryImpl.KOIN_KEY_APP_IN_FOREGROUND_FLOW)) { isVisible.asStateFlow() }
             })
