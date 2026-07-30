@@ -138,5 +138,13 @@ buildkonfig {
             value = localProperties["werkbank.access_token"]?.toString(),
             nullable = true,
         )
+        // Defined in the root build script, shared with versionName in :app:android.
+        buildConfigField(
+            type = Type.STRING,
+            name = "CURRENT_VERSION",
+            value = rootProject.extra["buildTag"] as String,
+            nullable = false,
+            const = true,
+        )
     }
 }

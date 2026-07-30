@@ -1,7 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
-import java.util.Date
-import java.text.SimpleDateFormat
 import kotlin.apply
 
 plugins {
@@ -70,11 +68,9 @@ android {
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
 
-        val buildTime = System.getenv("BUILD_TIMESTAMP")?.toLongOrNull() ?: (System.currentTimeMillis() / 1000)
-        val buildTag = System.getenv("BUILD_TAG") ?: SimpleDateFormat("yyyyMMdd_HHmm").format(Date(buildTime * 1000))
-
-        versionCode = buildTime.toInt()
-        versionName = buildTag
+        // Defined in the root build script, shared with BuildKonfig.CURRENT_VERSION in :app:shared.
+        versionCode = (rootProject.extra["buildTime"] as Long).toInt()
+        versionName = rootProject.extra["buildTag"] as String
 
         buildConfigField("String", "MAPBOX_API_KEY", "\"${localProperties.getProperty("mapbox.public-token")}\"")
     }
