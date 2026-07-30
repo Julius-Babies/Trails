@@ -42,4 +42,7 @@ interface DataSnapshotDao {
         excludedIds: Collection<Uuid>,
         limit: Int,
     ): List<EmbeddedDataSnapshot>
+
+    @Query("SELECT COUNT(*) FROM data_snapshot WHERE device_id = :deviceId AND is_synced = 0")
+    fun getUnsyncedSnapshotCount(deviceId: Uuid): Flow<Int>
 }

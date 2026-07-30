@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package es.jvbabi.trails.page.setings
 
 import androidx.lifecycle.ViewModel
@@ -11,6 +13,7 @@ import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.domain.usecase.SetupNotificationsUseCase
 import es.jvbabi.trails.openUrl
 import io.ktor.http.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.isActive
@@ -24,6 +27,7 @@ class SettingsViewModel(
     private val devicesRepository: DevicesRepository,
     private val backgroundServiceRepository: BackgroundServiceRepository,
     private val setupNotificationsUseCase: SetupNotificationsUseCase,
+    private val snapshotRepository: SnapshotRepository,
     private val permissionsController: PermissionsController,
 ) : ViewModel() {
 
@@ -77,6 +81,17 @@ class SettingsViewModel(
                     } else {
                         state.update { it.copy(thisDevice = null) }
                     }
+                }
+        }
+
+        viewModelScope.launch {
+            keyValueRepository.get(Key.ThisDeviceId)
+                .flatMapLatest { deviceId ->
+                    if (deviceId == null) flowOf(null)
+                    else snapshotRepository.getUnsyncedSnapshotCount(deviceId)
+                }
+                .collect { count ->
+                    state.update { it.copy(unsyncedSnapshotCount = count) }
                 }
         }
 
@@ -167,6 +182,9 @@ data class SettingsState(
     val userId: Uuid? = null,
     val thisDeviceId: Uuid? = null,
     val thisDevice: Device? = null,
+
+    /** Snapshots of this device still waiting for the server's acknowledgement, `null` until known. */
+    val unsyncedSnapshotCount: Int? = null,
 
     val appTheme: Theme? = null,
 )

@@ -174,6 +174,7 @@ fun SettingsContent(
             Text("Trails Server: ${state.currentHomeserverUrl}")
             Text("Trails Device: ${state.thisDeviceId} ${state.thisDevice?.displayName}")
             Text("Trails User ID: ${state.userId}")
+            Text("Nicht synchronisierte Snapshots: ${state.unsyncedSnapshotCount ?: "–"}")
 
             Button(
                 onClick = { onEvent(SettingsEvent.RingDevice) }
