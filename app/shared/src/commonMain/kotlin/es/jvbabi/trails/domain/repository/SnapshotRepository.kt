@@ -25,5 +25,11 @@ interface SnapshotRepository {
         limit: Int,
     ): List<Snapshot>
 
+    /**
+     * Number of snapshots of [deviceId] the server has not acknowledged yet. The flow re-emits
+     * whenever snapshots are stored or acknowledged.
+     */
+    fun getUnsyncedSnapshotCount(deviceId: Uuid): Flow<Int>
+
     fun getCurrentSnapshotForDevice(device: Device): Flow<Snapshot?>
 }

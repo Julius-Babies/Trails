@@ -102,6 +102,10 @@ class SnapshotRepositoryImpl(
         ).map { it.toModel() }
     }
 
+    override fun getUnsyncedSnapshotCount(deviceId: Uuid): Flow<Int> {
+        return database.dataSnapshotDao.getUnsyncedSnapshotCount(deviceId)
+    }
+
     override fun getCurrentSnapshotForDevice(device: Device): Flow<Snapshot?> {
         return database.dataSnapshotDao.getLastSnapshot(device.id)
             .map { snapshot ->
