@@ -41,6 +41,11 @@ abstract class TrailsDatabase : RoomDatabase() {
     companion object {
         val Migration2to3 = object : Migration(2, 3) {
             override fun migrate(connection: SQLiteConnection) {
+                // Existing snapshots default to unsynced: a device that was offline before the
+                // upgrade still has to push them. Snapshots the server already holds are
+                // re-uploaded under a new ID — [Migration3to4] regenerates them — and the server
+                // recognises them by (device, timestamp) and acknowledges them without storing
+                // a duplicate.
                 connection.execSQL(
                     """
                         ALTER TABLE data_snapshot

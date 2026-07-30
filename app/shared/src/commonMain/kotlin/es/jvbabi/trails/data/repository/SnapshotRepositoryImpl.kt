@@ -17,6 +17,7 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 @OptIn(FlowPreview::class)
@@ -85,6 +86,20 @@ class SnapshotRepositoryImpl(
                 isSynced = snapshot.isSynced,
             )
         )
+    }
+
+    override suspend fun getUnsyncedSnapshots(
+        deviceId: Uuid,
+        olderThan: Instant,
+        excludedIds: Collection<Uuid>,
+        limit: Int,
+    ): List<Snapshot> {
+        return database.dataSnapshotDao.getUnsyncedSnapshots(
+            deviceId = deviceId,
+            maxTimestamp = olderThan.epochSeconds,
+            excludedIds = excludedIds,
+            limit = limit,
+        ).map { it.toModel() }
     }
 
     override fun getCurrentSnapshotForDevice(device: Device): Flow<Snapshot?> {

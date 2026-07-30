@@ -25,6 +25,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlin.time.Duration.Companion.seconds
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.koin.ktor.ext.inject
 import kotlin.math.atan2
@@ -143,22 +144,57 @@ fun Route.app() {
                             is TrailsWebSocketAppMessage.DataSnapshot -> {
                                 if (principal == null) continue
                                 launch {
-                                    val snapshot = db.transaction {
-                                        DataSnapshot.new(message.snapshotId) {
-                                            this.device = principal.device
-                                            this.latitude = message.latitude
-                                            this.longitude = message.longitude
-                                            this.bearing = message.bearing.toDouble()
-                                            this.bearingAccuracy = message.bearingAccuracy?.toDouble()
-                                            this.locationAccuracy = message.locationAccuracy.toDouble()
-                                            this.batteryLevel = message.batteryLevel
-                                            this.batteryCharging = message.batteryCharging
-                                            this.createdAt = Instant.fromEpochSeconds(message.time)
-                                        }
+                                    val createdAt = Instant.fromEpochSeconds(message.time)
+
+                                    // A snapshot counts as stored once its ID is known, or once the
+                                    // device has one for that second — the unique
+                                    // (device, timestamp) index allows only one. Must run inside a
+                                    // transaction.
+                                    val isAlreadyStored = {
+                                        DataSnapshot.findById(message.snapshotId) != null ||
+                                                !DataSnapshot.find {
+                                                    (DataSnapshots.device eq principal.device.id) and
+                                                            (DataSnapshots.createdAt eq createdAt)
+                                                }.empty()
                                     }
 
-                                    if (selfFlow != null && selfFlow.subscriptionCount.value > 0) {
-                                        selfFlow.emit(DeviceSubscriptionMessage.Snapshot(snapshot))
+                                    // Storing has to be idempotent: an app whose acknowledgement
+                                    // got lost re-uploads the snapshot, and a snapshot recorded in
+                                    // the same second as an existing one collides with the index.
+                                    // Both cases mean the data is already stored, so they are
+                                    // acknowledged instead of failing the write — otherwise the
+                                    // app retries them forever.
+                                    val stored = runCatching {
+                                        db.transaction {
+                                            if (isAlreadyStored()) return@transaction null
+
+                                            DataSnapshot.new(message.snapshotId) {
+                                                this.device = principal.device
+                                                this.latitude = message.latitude
+                                                this.longitude = message.longitude
+                                                this.bearing = message.bearing.toDouble()
+                                                this.bearingAccuracy = message.bearingAccuracy?.toDouble()
+                                                this.locationAccuracy = message.locationAccuracy.toDouble()
+                                                this.batteryLevel = message.batteryLevel
+                                                this.batteryCharging = message.batteryCharging
+                                                this.createdAt = createdAt
+                                            }
+                                        }
+                                    }.getOrElse { error ->
+                                        // Two uploads for the same second can race past the check
+                                        // above. Only acknowledge if the data did land.
+                                        val landed = runCatching { db.transaction(isAlreadyStored) }
+                                            .getOrDefault(false)
+
+                                        if (!landed) {
+                                            appSocketLogger.warn("Could not store snapshot ${message.snapshotId}", error)
+                                            return@launch
+                                        }
+                                        null
+                                    }
+
+                                    if (stored != null && selfFlow != null && selfFlow.subscriptionCount.value > 0) {
+                                        selfFlow.emit(DeviceSubscriptionMessage.Snapshot(stored))
                                     }
 
                                     sendSerialized<TrailsWebSocketServerMessage>(TrailsWebSocketServerMessage.SnapshotAcknowledged(
