@@ -8,8 +8,9 @@ import kotlin.uuid.Uuid
 
 @Entity(
     tableName = "data_snapshot",
-    primaryKeys = ["timestamp", "device_id"],
+    primaryKeys = ["id", "timestamp", "device_id"],
     indices = [
+        Index("id", unique = true),
         Index("device_id")
     ],
     foreignKeys = [
@@ -22,6 +23,7 @@ import kotlin.uuid.Uuid
     ]
 )
 data class DbDataSnapshot(
+    @ColumnInfo("id") val id: Uuid,
     @ColumnInfo("timestamp") val timestamp: Long,
     @ColumnInfo("device_id") val deviceId: Uuid,
     @ColumnInfo("latitude") val latitude: Double,
@@ -31,4 +33,5 @@ data class DbDataSnapshot(
     @ColumnInfo("location_accuracy") val locationAccuracy: Float,
     @ColumnInfo("battery_level") val batteryLevel: Float?,
     @ColumnInfo("battery_charging") val batteryCharging: Boolean?,
+    @ColumnInfo("is_synced") val isSynced: Boolean,
 )

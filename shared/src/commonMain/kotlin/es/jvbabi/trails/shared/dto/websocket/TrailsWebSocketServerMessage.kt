@@ -3,6 +3,7 @@ package es.jvbabi.trails.shared.dto.websocket
 import es.jvbabi.trails.shared.dto.DeviceResponse
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlin.uuid.Uuid
 
 /**
  * Where a device ping originated. Lets the receiving device render an
@@ -38,8 +39,15 @@ sealed class TrailsWebSocketServerMessage {
     ): TrailsWebSocketServerMessage()
 
     @Serializable
+    @SerialName("snapshot.acknowledged")
+    data class SnapshotAcknowledged(
+        @SerialName("snapshot_id") val snapshotId: Uuid,
+    ) : TrailsWebSocketServerMessage()
+
+    @Serializable
     @SerialName("share.snapshot")
     data class Snapshot(
+        @SerialName("snapshot_id") val snapshotId: Uuid,
         @SerialName("target") val target: Target,
         @SerialName("timestamp") val timestamp: Long,
         @SerialName("location") val location: Location,

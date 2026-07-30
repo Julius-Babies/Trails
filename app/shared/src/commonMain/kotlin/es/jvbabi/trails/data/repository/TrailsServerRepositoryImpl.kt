@@ -41,6 +41,7 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -140,16 +141,15 @@ class TrailsServerRepositoryImpl(
     private var homeServerConnectJob: Job? = null
 
     /**
-     * Wartet bis zu [delayMs] ms, wacht aber sofort auf, sobald die App (neu) in den
-     * Vordergrund kommt. Gibt true zurück, wenn durch den Vordergrund-Wechsel geweckt
-     * wurde – dann soll unmittelbar ein neuer Verbindungsversuch erfolgen und der
-     * Backoff zurückgesetzt werden.
+     * Waits up to [delayMs] ms, but wakes up immediately once the app (re-)enters the
+     * foreground. Returns true when the foreground change was what woke it up — the caller
+     * should then start a new connection attempt right away and reset the backoff.
      */
     private suspend fun delayOrUntilForeground(delayMs: Long): Boolean {
         return withTimeoutOrNull(delayMs.milliseconds) {
             applicationRepository.getApplicationForegroundState()
-                .dropWhile { it }   // aktuellen Vordergrund-Zustand überspringen
-                .first { it }       // auf Wechsel nach Vordergrund warten
+                .dropWhile { it }   // skip the current foreground state
+                .first { it }       // wait for the switch to foreground
             true
         } ?: false
     }
@@ -166,6 +166,7 @@ class TrailsServerRepositoryImpl(
             while (isActive) {
                 var wasConnected = false
                 var locationUpdater: Job? = null
+                var backlogUploader: Job? = null
                 var currentServerHost: String? = null
                 try {
                     val url = this@TrailsServerRepositoryImpl.getBaseUrl().first()?.apply {
@@ -214,28 +215,52 @@ class TrailsServerRepositoryImpl(
                                 )
                             }
                             .takeWhile { isConnected.value }
-                            .collectLatest {
+                            .filterNot { it.isSynced }
+                            .collectLatest { snapshot ->
                                 val ws = websocketSession ?: return@collectLatest
-                                logger.i { "Sending location update: $it" }
-                                ws.sendOrLog(
-                                    TrailsWebSocketAppMessage.DataSnapshot(
-                                        latitude = it.location.latitude,
-                                        longitude = it.location.longitude,
-                                        bearing = it.location.bearing,
-                                        bearingAccuracy = it.location.bearingAccuracy,
-                                        locationAccuracy = it.location.locationAccuracy,
-                                        batteryLevel = it.batteryState?.percentage?.div(100f),
-                                        batteryCharging = it.batteryState?.isCharging,
-                                        time = it.time.toInstant(TimeZone.currentSystemDefault()).epochSeconds,
-                                    ),
-                                    logger,
-                                )
+                                logger.i { "Sending location update: $snapshot" }
+                                ws.sendOrLog(snapshot.toDataSnapshotMessage(), logger)
                             }
+                    }
+
+                    backlogUploader = scope.launch {
+                        // The server acknowledges each snapshot individually; until the
+                        // acknowledgement arrives, is_synced stays 0. Without this set the next
+                        // query would upload the same snapshots again.
+                        val pendingSnapshotIds = mutableSetOf<Uuid>()
+                        while (isActive && isConnected.value) {
+                            val ws = websocketSession
+                            if (ws == null) {
+                                delay(SNAPSHOT_BACKLOG_IDLE_INTERVAL)
+                                continue
+                            }
+
+                            val batch = snapshotRepository.getUnsyncedSnapshots(
+                                deviceId = device.id,
+                                olderThan = Clock.System.now() - SNAPSHOT_BACKLOG_MIN_AGE,
+                                excludedIds = pendingSnapshotIds,
+                                limit = SNAPSHOT_BACKLOG_BATCH_SIZE,
+                            )
+
+                            if (batch.isEmpty()) {
+                                delay(SNAPSHOT_BACKLOG_IDLE_INTERVAL)
+                                continue
+                            }
+
+                            logger.i { "Uploading ${batch.size} unsynced snapshots" }
+                            batch.forEach { snapshot ->
+                                pendingSnapshotIds += snapshot.id
+                                ws.sendOrLog(snapshot.toDataSnapshotMessage(), logger)
+                            }
+
+                            delay(SNAPSHOT_BACKLOG_BATCH_INTERVAL)
+                        }
                     }
 
                     homeServerSocketClient.run(websocketSession!!, url.host)
 
                     locationUpdater.cancel()
+                    backlogUploader.cancel()
                     stopCrashDetection(url.host)
 
                     isConnected.value = false
@@ -252,6 +277,7 @@ class TrailsServerRepositoryImpl(
                 } catch (e: Exception) {
                     Logger.e(e) { "Error connecting to WS: ${e.message}" }
                     locationUpdater?.cancel()
+                    backlogUploader?.cancel()
                     if (currentServerHost != null) stopCrashDetection(currentServerHost)
                     isConnected.value = false
                     database.connectionEventDao.upsert(ConnectionEvent(
@@ -262,9 +288,9 @@ class TrailsServerRepositoryImpl(
                     ).toEntity())
                 }
 
-                // Anzahl Fehlversuche, nach denen der Aufrufer nicht länger blockiert wird.
-                // Die Schleife gibt NICHT auf, sondern versucht im Hintergrund weiter zu
-                // verbinden (Tracking-App muss dauerhaft reconnecten).
+                // Number of failed attempts after which the caller is no longer blocked. The loop
+                // does NOT give up, it keeps reconnecting in the background (a tracking app has to
+                // reconnect permanently).
                 val retriesBeforeUnblockingCaller = 30
                 if (!wasConnected) {
                     if (currentRetry >= retriesBeforeUnblockingCaller && !deferred.isCompleted) {
@@ -273,10 +299,10 @@ class TrailsServerRepositoryImpl(
                     val delayMs = if (applicationRepository.getApplicationForegroundState().first()) {
                         1_000L
                     } else {
-                        // 1L shl bei zu großem Exponenten vermeiden -> Exponent deckeln.
+                        // Avoid `1L shl` with an oversized exponent -> cap the exponent.
                         minOf(30_000L, 5_000L * (1L shl minOf(currentRetry, 6)))
                     }
-                    // Kommt die App in den Vordergrund, sofort erneut versuchen und Backoff resetten.
+                    // When the app comes to the foreground, retry immediately and reset the backoff.
                     if (delayOrUntilForeground(delayMs)) currentRetry = 0 else currentRetry++
                 } else {
                     if (!deferred.isCompleted) deferred.complete(true)
@@ -670,13 +696,13 @@ class TrailsServerRepositoryImpl(
             }
 
             if (!wasConnected) {
-                // Nie endgültig aufgeben, weiter mit gedeckeltem Backoff versuchen.
+                // Never give up for good, keep retrying with a capped backoff.
                 val delayMs = if (applicationRepository.getApplicationForegroundState().first()) {
                     1_000L
                 } else {
                     minOf(30_000L, 5_000L * (1L shl minOf(currentRetry, 6)))
                 }
-                // Kommt die App in den Vordergrund, sofort erneut versuchen und Backoff resetten.
+                // When the app comes to the foreground, retry immediately and reset the backoff.
                 if (delayOrUntilForeground(delayMs)) currentRetry = 0 else currentRetry++
             } else {
                 val delayMs = if (applicationRepository.getApplicationForegroundState().first()) {
@@ -780,6 +806,33 @@ class TrailsServerRepositoryImpl(
         return Result.failure(IllegalStateException("Error renaming device: ${response.status} ${response.bodyAsText()}"))
     }
 }
+
+/** Number of snapshots the backlog upload sends to the server per pass. */
+private const val SNAPSHOT_BACKLOG_BATCH_SIZE = 50
+
+/**
+ * Minimum age of a snapshot before the backlog upload touches it. Fresh snapshots already go out
+ * via the live path; the delay keeps both paths from uploading the same one.
+ */
+private val SNAPSHOT_BACKLOG_MIN_AGE = 10.minutes
+
+/** Pause between two batches — time for the server's acknowledgements to arrive. */
+private val SNAPSHOT_BACKLOG_BATCH_INTERVAL = 5.seconds
+
+/** Pause while there is nothing to catch up on. */
+private val SNAPSHOT_BACKLOG_IDLE_INTERVAL = 60.seconds
+
+private fun Snapshot.toDataSnapshotMessage() = TrailsWebSocketAppMessage.DataSnapshot(
+    snapshotId = id,
+    latitude = location.latitude,
+    longitude = location.longitude,
+    bearing = location.bearing,
+    bearingAccuracy = location.bearingAccuracy,
+    locationAccuracy = location.locationAccuracy,
+    batteryLevel = batteryState?.percentage?.div(100f),
+    batteryCharging = batteryState?.isCharging,
+    time = time.toInstant(TimeZone.currentSystemDefault()).epochSeconds,
+)
 
 /**
  * Sends [message] and logs — rather than propagates — a write failure.
@@ -946,6 +999,15 @@ private abstract class WebSocketClientBase(
                         }
                     }
 
+                    is TrailsWebSocketServerMessage.SnapshotAcknowledged -> {
+                        scope.launch {
+                            val snapshot = snapshotRepository.getSnapshotById(message.snapshotId).first()
+                                ?: return@launch
+
+                            snapshotRepository.storeSnapshot(snapshot.copy(isSynced = true))
+                        }
+                    }
+
                     is TrailsWebSocketServerMessage.Snapshot -> {
                         val device = when (val target = message.target) {
                             is TrailsWebSocketServerMessage.Snapshot.Target.Device -> runCatching { Uuid.parse(target.deviceId) }.getOrNull()?.let { devicesRepository.getDeviceById(it).firstOrNull() }
@@ -959,6 +1021,7 @@ private abstract class WebSocketClientBase(
                             .toLocalDateTime(TimeZone.currentSystemDefault())
                         snapshotRepository.storeSnapshot(
                             Snapshot(
+                                id = message.snapshotId,
                                 device = device,
                                 time = timestamp,
                                 location = Location(
@@ -975,6 +1038,7 @@ private abstract class WebSocketClientBase(
                                         isCharging = it.isCharging,
                                     )
                                 },
+                                isSynced = true,
                             )
                         )
                     }

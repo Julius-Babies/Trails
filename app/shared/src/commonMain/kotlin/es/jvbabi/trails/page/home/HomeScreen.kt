@@ -353,10 +353,12 @@ internal fun rememberMockHomeState(): HomeState {
         time = now,
     )
     val mockSnapshot = Snapshot(
+        id = Uuid.random(),
         device = mockDevice,
         time = now,
         location = mockLocation,
         batteryState = es.jvbabi.trails.domain.repository.BatteryState(percentage = 72, isCharging = true),
+        isSynced = true,
     )
 
     return HomeState(

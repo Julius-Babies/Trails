@@ -110,10 +110,37 @@ files over inventing new ones.
 
 ### Comments & documentation
 
-- All comments must be written in **English**.
+- All comments and KDoc must be written in **English** — always, without
+  exception. This holds even when the conversation with the user is in another
+  language and even when neighbouring code still contains non-English comments
+  (those are legacy; translate them when you touch them, never match them).
 - Add KDoc / Javadoc-style documentation comments where they add value
   (public APIs, non-obvious behaviour, invariants). Don't document the obvious.
-- Commits follow the structure {feat/fix/chore/docs/...}(<component name (e.g. webapp/share, api/share)> #<issue ID>): <description>
+
+### Commits
+
+Commit subjects follow:
+
+```
+{feat|fix|chore|docs|refactor|…}(<modules>/<areas> #<issue ID>): <description>
+```
+
+- `<modules>` — the modules the change touches (`app`, `server`, `webapp`,
+  `api`, `build`, …). Several are separated by commas.
+- `<areas>` — the feature areas inside those modules (`database`, `snapshot`,
+  `share`, `devices`, …). Several are separated by commas. Drop the `/<areas>`
+  part when the change isn't tied to one.
+- `#<issue ID>` — the issue the work belongs to. Omit it when there is none.
+- `<description>` — imperative, capitalised, no trailing period.
+
+Examples:
+
+```
+feat(app,server/database,snapshot #9): Add unique ID to data snapshots
+feat(app/database,snapshot #9): Add is_synced column to data_snapshot
+refactor(webapp/share #5): Move emitted-share components to their own folder
+feat(build): Integrate BuildKonfig for Werkbank token management
+```
 
 ### Web tooling
 
