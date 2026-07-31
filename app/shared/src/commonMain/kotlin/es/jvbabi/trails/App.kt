@@ -2,7 +2,7 @@ package es.jvbabi.trails
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.animateDp
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -12,11 +12,12 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewWrapperProvider
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.ui.LocalNavAnimatedContentScope
@@ -94,15 +95,34 @@ fun App(
 
                 val currentSnackbar = uiRepository.currentSnackbar.collectAsStateWithLifecycle().value
 
+                // Progress of the area currently covering home, published by its AreaSurface.
+                val areaProgress = remember { mutableStateOf<State<Float>?>(null) }
+
                 // Home is rendered outside the navigation display and stays composed for the
                 // whole session, so the map keeps its renderer, style and camera no matter what
                 // is opened on top of it. Its entry below therefore draws nothing — anything
                 // full screen there would sit above the map and swallow its gestures.
-                HomeScreen(
-                    viewModel = homeViewModel,
-                    mapViewModel = mapViewModel,
-                    backstack = backstack,
-                )
+                //
+                // While an area covers it, home recedes against that area's progress. The layer is
+                // only in the chain for as long as an area is present: the map is an interop view,
+                // and it should not sit behind a render layer during normal use.
+                Box(
+                    modifier = if (areaProgress.value != null) {
+                        Modifier.graphicsLayer {
+                            val scale = lerp(AREA_BACKGROUND_SCALE, 1f, areaProgress.value?.value ?: 1f)
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                    } else {
+                        Modifier
+                    }
+                ) {
+                    HomeScreen(
+                        viewModel = homeViewModel,
+                        mapViewModel = mapViewModel,
+                        backstack = backstack,
+                    )
+                }
 
                 NavDisplay(
                     backStack = backstack,
@@ -115,7 +135,7 @@ fun App(
                                 key = key,
                                 metadata = settingsAreaTransitions,
                             ) {
-                                AreaSurface {
+                                AreaSurface(progressHolder = areaProgress) {
                                     SettingsScreen(
                                         viewModel = settingsViewModel,
                                         onBack = remember { { backstack.removeLastOrNull() } }
@@ -165,6 +185,9 @@ private const val AREA_PREDICTIVE_EDGE_DRIFT = 12
  */
 private const val AREA_PREDICTIVE_MIN_ALPHA = 0.5f
 
+/** How far the screen behind an area recedes while that area covers it. */
+private const val AREA_BACKGROUND_SCALE = 0.92f
+
 private val areaOffsetSpec = tween<IntOffset>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing)
 private val areaFadeInSpec = tween<Float>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing)
 
@@ -198,19 +221,35 @@ private val AREA_CORNER_RADIUS = 28.dp
  * that handler belongs to the [NavDisplay].
  */
 @Composable
-private fun AreaSurface(content: @Composable () -> Unit) {
+private fun AreaSurface(
+    progressHolder: MutableState<State<Float>?>,
+    content: @Composable () -> Unit,
+) {
     val transition = LocalNavAnimatedContentScope.current.transition
-    val cornerRadius by transition.animateDp(
+
+    // 0 while the area is fully covering, 1 once it has left. Kept as a State and never read
+    // during composition, so a frame of this animation costs a redraw rather than a recomposition
+    // of the whole area.
+    val progress = transition.animateFloat(
         transitionSpec = { tween(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing) },
-        label = "areaCornerRadius",
+        label = "areaProgress",
     ) { state ->
-        if (state == EnterExitState.Visible) 0.dp else AREA_CORNER_RADIUS
+        if (state == EnterExitState.Visible) 0f else 1f
+    }
+
+    // Published so the screen behind can move against the same seeked progress.
+    DisposableEffect(progress) {
+        progressHolder.value = progress
+        onDispose { progressHolder.value = null }
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .clip(RoundedCornerShape(cornerRadius))
+            .graphicsLayer {
+                clip = true
+                shape = RoundedCornerShape(AREA_CORNER_RADIUS * progress.value)
+            }
     ) {
         content()
     }
