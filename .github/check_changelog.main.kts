@@ -48,8 +48,8 @@ val summaryFile = System.getenv("GITHUB_STEP_SUMMARY")?.takeIf { it.isNotBlank()
 // what else commented on the pull request in between.
 val commentMarker = "<!-- changelog-check -->"
 
-// Tags a report that has already been superseded, so it is only folded away once.
-val outdatedMarker = "<!-- changelog-check-outdated -->"
+val repository = System.getenv("GITHUB_REPOSITORY")?.takeIf { it.isNotBlank() }
+    ?: capture("gh", "repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner")
 
 val findings = StringBuilder()
 var warned = false
@@ -66,54 +66,64 @@ fun fail(message: String) {
 }
 
 /**
- * Folds every earlier report of ours away behind a collapsed "outdated" block.
- * Comments are found by [commentMarker] rather than by author, so a second
- * bot commenting on the pull request cannot be mistaken for one of our reports.
+ * Hides every earlier report of ours as outdated, using the same "hide comment"
+ * feature a human would use. Comments are found by [commentMarker] rather than
+ * by author, so another bot commenting on the pull request cannot be mistaken
+ * for one of our reports.
  */
-fun markPreviousReportsOutdated(pullRequest: String) {
+fun hidePreviousReports(pullRequest: String) {
+    val nameWithOwner = repository
+    if (nameWithOwner == null) {
+        println("::warning::Could not determine the repository, leaving earlier reports visible.")
+        return
+    }
+    val (owner, name) = nameWithOwner.split("/", limit = 2)
+
+    // isMinimized is only exposed by GraphQL, so the lookup goes through it too.
+    val listQuery = """
+        query(${'$'}owner: String!, ${'$'}name: String!, ${'$'}number: Int!) {
+          repository(owner: ${'$'}owner, name: ${'$'}name) {
+            pullRequest(number: ${'$'}number) {
+              comments(last: 100) { nodes { id body isMinimized } }
+            }
+          }
+        }
+    """.trimIndent()
+
     val previousIds = capture(
-        "gh", "api", "/repos/{owner}/{repo}/issues/$pullRequest/comments",
-        "--paginate",
-        "--jq", ".[] | select(.body | contains(\"$commentMarker\")) " +
-            "| select(.body | contains(\"$outdatedMarker\") | not) | .id",
+        "gh", "api", "graphql",
+        "-f", "query=$listQuery",
+        "-f", "owner=$owner",
+        "-f", "name=$name",
+        "-F", "number=$pullRequest",
+        "--jq", ".data.repository.pullRequest.comments.nodes[] " +
+            "| select(.isMinimized | not) | select(.body | contains(\"$commentMarker\")) | .id",
     )
         ?.lines()
         ?.mapNotNull { it.trim().takeIf(String::isNotEmpty) }
         .orEmpty()
 
+    val hideMutation = """
+        mutation(${'$'}id: ID!) {
+          minimizeComment(input: { subjectId: ${'$'}id, classifier: OUTDATED }) {
+            minimizedComment { isMinimized minimizedReason }
+          }
+        }
+    """.trimIndent()
+
     previousIds.forEach { id ->
-        val previousBody = capture("gh", "api", "/repos/{owner}/{repo}/issues/comments/$id", "--jq", ".body")
-        if (previousBody == null) {
-            println("::warning::Could not read comment $id, leaving it as it is.")
-            return@forEach
-        }
-
-        val foldedAway = buildString {
-            appendLine(commentMarker)
-            appendLine(outdatedMarker)
-            appendLine("<details>")
-            appendLine("<summary>Outdated changelog report</summary>")
-            appendLine()
-            appendLine(previousBody.removePrefix(commentMarker).trim())
-            appendLine()
-            appendLine("</details>")
-        }
-
-        val patched = execute(
-            "gh", "api", "-X", "PATCH", "/repos/{owner}/{repo}/issues/comments/$id",
-            "-f", "body=$foldedAway",
-        )
-        if (patched.status != 0) {
-            println("::warning::Could not mark comment $id as outdated.")
+        val hidden = execute("gh", "api", "graphql", "-f", "query=$hideMutation", "-f", "id=$id")
+        if (hidden.status != 0) {
+            println("::warning::Could not hide the earlier report $id as outdated.")
         }
     }
 }
 
 /**
  * Writes the report to the step summary and posts it as a new pull request
- * comment, folding away the previous one. Log annotations alone are not enough:
- * without a file reference they only show up on the workflow run page, never in
- * the pull request itself.
+ * comment, hiding the earlier ones as outdated. Log annotations alone are not
+ * enough: without a file reference they only show up on the workflow run page,
+ * never in the pull request itself.
  */
 fun finish(headline: String): Nothing {
     val verdict = when {
@@ -135,7 +145,7 @@ fun finish(headline: String): Nothing {
     summaryFile?.appendText(report)
 
     if (pullRequest != null) {
-        markPreviousReportsOutdated(pullRequest)
+        hidePreviousReports(pullRequest)
 
         val file = File.createTempFile("changelog-check", ".md")
         try {
