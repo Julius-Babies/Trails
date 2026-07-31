@@ -193,6 +193,68 @@ release and renders them under *Features*, *Fixes* and *Other changes*. Keep the
 JSON valid — a broken file fails the release, which is exactly what the pull
 request check is there to catch early.
 
+### Internationalization (i18n)
+
+No user-facing text may be hardcoded in a component or composable — every
+display string goes through the translation layer. App and web app both ship
+**English and German**.
+
+- **English is the base language.** Keys and the default values are English;
+  German is a translation. This matches the English-only rule for comments,
+  KDoc and changelog base texts.
+- **The language is auto-detected** — from the OS locale in the app, from the
+  browser locale in the web app. There is no in-app language picker; users
+  switch language in their system or browser settings.
+- **Missing translations fall back to English**, never to a raw key.
+- **Dates, times and relative durations are localized too.** They must never
+  render German month names or a `dd.MM.yyyy` pattern in an English UI. Use
+  `nl.jacobras:Human-Readable` in the app and the active `dayjs` locale (or
+  `Intl.*`) on the web — never a hardcoded format string.
+- **Keep keys short.** Group them by feature area instead of spelling out the
+  sentence: `devices.renameTitle`, not
+  `devices.dialogs.rename.title.headline`.
+
+#### Web ([`web/`](web))
+
+Uses [svelte-i18n](https://github.com/kaisermann/svelte-i18n). Message
+catalogues live in `web/src/lib/i18n/locales/<language>.json` and use **nested
+groups**, not flat dotted keys:
+
+```json
+{
+  "user": {
+    "email": "E-Mail",
+    "phone": "Phone"
+  }
+}
+```
+
+instead of
+
+```json
+{
+  "user.email": "E-Mail",
+  "user.phone": "Phone"
+}
+```
+
+The lookup path (`$_("user.email")`) is identical either way, but the nested
+form keeps the catalogue readable and diffable.
+
+#### App ([`app/shared/`](app/shared))
+
+Uses Compose Multiplatform resources with a generated class for static access
+(`Res.string.<key>`), see the
+[Compose localization docs](https://kotlinlang.org/docs/multiplatform/compose-localize-strings.html#generate-class-for-static-access).
+Strings live under `app/shared/src/commonMain/composeResources/`:
+`values/strings*.xml` (English, the default) and `values-de/strings*.xml`
+(German). Prefer splitting the strings into several XML files per feature area;
+one file per language is acceptable if the toolchain doesn't pick up the extra
+files.
+
+XML string names can't nest, so prefix by feature area
+(`devices_rename_title`) and keep them short.
+
 ### Web tooling
 
 - Always use **bun** for the Svelte/`web` project (`bun install`, `bun run …`,
