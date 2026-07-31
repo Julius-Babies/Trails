@@ -2,6 +2,14 @@ on:
   push:
     branches:
       - main
+  # Manual runs exist to rehearse a release without publishing anything:
+  # they can produce a draft and never push the Docker image.
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: Create the release as a draft
+        type: boolean
+        default: true
 jobs:
   setup:
     runs-on: ubuntu-latest
@@ -118,7 +126,9 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: true
+          # A manual run still builds the image to prove it builds, but never
+          # overwrites :latest with something that is not on main.
+          push: ${{ github.event_name == 'push' }}
           tags: ghcr.io/julius-babies/trails:latest
 
   build-android:
@@ -226,9 +236,9 @@ jobs:
             apks/Trails*
             build/changelog/changelog*.json
           body_path: build/changelog/CHANGELOG.md
-          draft: false
+          draft: ${{ inputs.draft || false }}
           prerelease: false
-          make_latest: true
+          make_latest: ${{ !inputs.draft }}
           name: Trails (${{ needs.setup.outputs.date_formatted }})
           fail_on_unmatched_files: true
           tag_name: v${{ needs.setup.outputs.build_tag }}
