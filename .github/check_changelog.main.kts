@@ -44,9 +44,12 @@ val branch = System.getenv("BRANCH")?.takeIf { it.isNotBlank() }
 
 val summaryFile = System.getenv("GITHUB_STEP_SUMMARY")?.takeIf { it.isNotBlank() }?.let(::File)
 
-// Tags the comment as ours. --edit-last currently finds it by author, so this
-// only matters if another workflow ever starts commenting as the same bot.
+// Tags a comment as ours so previous reports can be found again, no matter
+// what else commented on the pull request in between.
 val commentMarker = "<!-- changelog-check -->"
+
+// Tags a report that has already been superseded, so it is only folded away once.
+val outdatedMarker = "<!-- changelog-check-outdated -->"
 
 val findings = StringBuilder()
 var warned = false
@@ -63,10 +66,54 @@ fun fail(message: String) {
 }
 
 /**
- * Writes the report to the step summary and to a single, self-updating pull
- * request comment. Log annotations alone are not enough: without a file
- * reference they only show up on the workflow run page, never in the pull
- * request itself.
+ * Folds every earlier report of ours away behind a collapsed "outdated" block.
+ * Comments are found by [commentMarker] rather than by author, so a second
+ * bot commenting on the pull request cannot be mistaken for one of our reports.
+ */
+fun markPreviousReportsOutdated(pullRequest: String) {
+    val previousIds = capture(
+        "gh", "api", "/repos/{owner}/{repo}/issues/$pullRequest/comments",
+        "--paginate",
+        "--jq", ".[] | select(.body | contains(\"$commentMarker\")) " +
+            "| select(.body | contains(\"$outdatedMarker\") | not) | .id",
+    )
+        ?.lines()
+        ?.mapNotNull { it.trim().takeIf(String::isNotEmpty) }
+        .orEmpty()
+
+    previousIds.forEach { id ->
+        val previousBody = capture("gh", "api", "/repos/{owner}/{repo}/issues/comments/$id", "--jq", ".body")
+        if (previousBody == null) {
+            println("::warning::Could not read comment $id, leaving it as it is.")
+            return@forEach
+        }
+
+        val foldedAway = buildString {
+            appendLine(commentMarker)
+            appendLine(outdatedMarker)
+            appendLine("<details>")
+            appendLine("<summary>Outdated changelog report</summary>")
+            appendLine()
+            appendLine(previousBody.removePrefix(commentMarker).trim())
+            appendLine()
+            appendLine("</details>")
+        }
+
+        val patched = execute(
+            "gh", "api", "-X", "PATCH", "/repos/{owner}/{repo}/issues/comments/$id",
+            "-f", "body=$foldedAway",
+        )
+        if (patched.status != 0) {
+            println("::warning::Could not mark comment $id as outdated.")
+        }
+    }
+}
+
+/**
+ * Writes the report to the step summary and posts it as a new pull request
+ * comment, folding away the previous one. Log annotations alone are not enough:
+ * without a file reference they only show up on the workflow run page, never in
+ * the pull request itself.
  */
 fun finish(headline: String): Nothing {
     val verdict = when {
@@ -88,14 +135,12 @@ fun finish(headline: String): Nothing {
     summaryFile?.appendText(report)
 
     if (pullRequest != null) {
+        markPreviousReportsOutdated(pullRequest)
+
         val file = File.createTempFile("changelog-check", ".md")
         try {
             file.writeText(report)
-            val comment = execute(
-                "gh", "pr", "comment", pullRequest,
-                "--body-file", file.absolutePath,
-                "--edit-last", "--create-if-none",
-            )
+            val comment = execute("gh", "pr", "comment", pullRequest, "--body-file", file.absolutePath)
             if (comment.status != 0) {
                 println("::warning::Could not post the changelog report as a pull request comment.")
             }
