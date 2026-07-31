@@ -10,8 +10,12 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import platform.Foundation.NSLocale
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSSelectorFromString
+import platform.Foundation.currentLocale
+import platform.Foundation.languageCode
+import platform.Foundation.preferredLanguages
 import platform.UIKit.UIApplication
 import platform.UIKit.UIApplicationDidBecomeActiveNotification
 import platform.UIKit.UIApplicationWillResignActiveNotification
@@ -23,6 +27,15 @@ class IosApplicationRepository : ApplicationRepository {
 
     @OptIn(ExperimentalNativeApi::class)
     override val isDebugBuild: Boolean = Platform.isDebugBinary
+
+    // Read on every access rather than cached, so a language change at runtime is picked up.
+    // preferredLanguages carries region-qualified tags ("de-DE"), and the changelog assets are
+    // keyed by language alone.
+    override val language: String
+        get() = (NSLocale.preferredLanguages.firstOrNull() as? String)
+            ?.substringBefore('-')
+            ?.lowercase()
+            ?: NSLocale.currentLocale.languageCode.lowercase()
 
     override fun getApplicationForegroundState(): Flow<Boolean> = callbackFlow {
         trySend(true)
