@@ -142,6 +142,57 @@ refactor(webapp/share #5): Move emitted-share components to their own folder
 feat(build): Integrate BuildKonfig for Werkbank token management
 ```
 
+### Changelog
+
+Every feature branch needs a changelog entry for the issue it closes. The entry
+lives in **`docs/changelog/issues/<issue ID>/changelog.<type>.json`**, where
+`<type>` comes from the GitHub issue type. Copy the matching file from
+[`docs/changelog/issues/_template/`](docs/changelog/issues/_template) and fill it
+in.
+
+`.github/check_changelog.main.kts` verifies this on every pull request (see
+[check_changelog.main.kts](.github/check_changelog.main.kts)); the issues are
+taken from the pull request's closing references, falling back to the branch name
+(`feat/15-add-minimal-movement` → `#15`).
+
+| Issue type | File name                 | Entry    | `title`      | `description` |
+|------------|---------------------------|----------|--------------|---------------|
+| Feature    | `changelog.feature.json`  | required | required     | required      |
+| Bug        | `changelog.bug.json`      | optional | not allowed  | required      |
+| Task       | `changelog.task.json`     | optional | not allowed  | optional      |
+
+- The file name must match the issue type — a `changelog.bug.json` on a Feature
+  issue fails the check. The old flat `changelog.json` is no longer read.
+- `title` is **only** for features; on a Bug or Task it fails the check, because
+  fixes and tasks are rendered as one-liners and the title would be dropped.
+- Every text must be a non-empty string. Features get a title plus a full
+  description, fixes and tasks a single-line description.
+- Localizations go under `localized.<language>` (currently `de`). A localization
+  may override only some fields; anything it leaves out falls back to the
+  top-level (English) text. The top-level text is always English.
+- A missing entry is an error for features and a warning for bugs and tasks — but
+  add one anyway whenever the change is user-facing. A task without a
+  `description` is silently left out of the released changelog.
+
+```json
+{
+  "title": "Add changelog support",
+  "description": "Issues now have a changelog section.",
+  "localized": {
+    "de": {
+      "title": "Changelog-Unterstützung",
+      "description": "Issues haben jetzt eine Changelog-Sektion."
+    }
+  }
+}
+```
+
+At release time [generate_changelog.main.kts](.github/generate_changelog.main.kts)
+collects the entries for all issues referenced by the commits since the last
+release and renders them under *Features*, *Fixes* and *Other changes*. Keep the
+JSON valid — a broken file fails the release, which is exactly what the pull
+request check is there to catch early.
+
 ### Web tooling
 
 - Always use **bun** for the Svelte/`web` project (`bun install`, `bun run …`,
