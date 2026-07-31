@@ -2,20 +2,24 @@ package es.jvbabi.trails
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewWrapperProvider
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavEntry
+import androidx.navigation3.ui.LocalNavAnimatedContentScope
 import androidx.navigation3.ui.NavDisplay
 import androidx.navigationevent.NavigationEvent
 import dev.chrisbanes.haze.hazeSource
@@ -111,10 +115,12 @@ fun App(
                                 key = key,
                                 metadata = settingsAreaTransitions,
                             ) {
-                                SettingsScreen(
-                                    viewModel = settingsViewModel,
-                                    onBack = remember { { backstack.removeLastOrNull() } }
-                                )
+                                AreaSurface {
+                                    SettingsScreen(
+                                        viewModel = settingsViewModel,
+                                        onBack = remember { { backstack.removeLastOrNull() } }
+                                    )
+                                }
                             }
                         }
                     }
@@ -145,8 +151,12 @@ fun App(
 
 private const val AREA_TRANSITION_DURATION_MILLIS = 250
 
-/** How far the leaving surface drifts sideways under a predictive back gesture. */
-private const val AREA_PREDICTIVE_EDGE_DRIFT = 8
+/**
+ * Fractions of the surface's own size that it travels. The vertical offset stays small on purpose:
+ * the surface is dismissed by fading and rounding away, not by sliding off the display.
+ */
+private const val AREA_VERTICAL_TRAVEL = 8
+private const val AREA_PREDICTIVE_EDGE_DRIFT = 12
 
 private val areaOffsetSpec = tween<IntOffset>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing)
 private val areaFadeInSpec = tween<Float>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing)
@@ -159,30 +169,63 @@ private val areaFadeOutSpec = tween<Float>(AREA_TRANSITION_DURATION_MILLIS, easi
 
 /**
  * Settings is an area of its own that covers the home screen, which stays composed and in place
- * below it. So rather than the two trading places, the settings surface travels the full height of
- * the display on its own — unmistakably a layer arriving over the map, and distinct from the
- * horizontal push used for master/detail navigation inside the home tabs.
+ * below it. So rather than the two trading places, only the settings surface moves: it rises a
+ * short way into view, and leaves by drifting back down while fading and rounding off its corners
+ * (see [AreaSurface]). That reads as a layer over the map and stays distinct from the horizontal
+ * push used for master/detail navigation inside the home tabs.
  *
  * Home carries no transition of its own here: its entry draws nothing, the real one sits below the
  * navigation display and must not move.
  */
+/** Corner radius the surface of an area reaches once it has fully left. */
+private val AREA_CORNER_RADIUS = 28.dp
+
+/**
+ * Wraps the surface of an area destination so its corners round off as it leaves and square up as
+ * it settles.
+ *
+ * The radius is driven by the entry's own enter/exit transition rather than by the gesture
+ * directly. Navigation3 seeks that transition with the predictive back gesture, so the corners
+ * follow the swipe and unwind again when it is cancelled. The gesture's own touch position is not
+ * reachable from here: the navigation event dispatcher hands a gesture to a single handler, and
+ * that handler belongs to the [NavDisplay].
+ */
+@Composable
+private fun AreaSurface(content: @Composable () -> Unit) {
+    val transition = LocalNavAnimatedContentScope.current.transition
+    val cornerRadius by transition.animateDp(
+        transitionSpec = { tween(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing) },
+        label = "areaCornerRadius",
+    ) { state ->
+        if (state == EnterExitState.Visible) 0.dp else AREA_CORNER_RADIUS
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(RoundedCornerShape(cornerRadius))
+    ) {
+        content()
+    }
+}
+
 private val settingsAreaTransitions: Map<String, Any> =
     NavDisplay.transitionSpec {
-        slideInVertically(areaOffsetSpec) { height -> height } + fadeIn(areaFadeInSpec) togetherWith
-                ExitTransition.None
+        slideInVertically(areaOffsetSpec) { height -> height / AREA_VERTICAL_TRAVEL } +
+                fadeIn(areaFadeInSpec) togetherWith ExitTransition.None
     } + NavDisplay.popTransitionSpec {
         EnterTransition.None togetherWith
-                slideOutVertically(areaOffsetSpec) { height -> height } + fadeOut(areaFadeOutSpec)
+                slideOutVertically(areaOffsetSpec) { height -> height / AREA_VERTICAL_TRAVEL } +
+                fadeOut(areaFadeOutSpec)
     } + NavDisplay.predictivePopTransitionSpec { swipeEdge ->
-        // The same dismissal, but seeked by the gesture and drifting towards the swiped edge so it
-        // follows the finger. Both offsets have to come from a single slide: combining two of them
-        // keeps only the first.
+        // The same dismissal, seeked by the gesture, drifting towards the swiped edge as well.
+        // Both offsets have to come from a single slide: combining two of them keeps only the first.
         val edgeDirection = if (swipeEdge == NavigationEvent.EDGE_RIGHT) -1 else 1
         EnterTransition.None togetherWith
                 slideOut(areaOffsetSpec) { size ->
                     IntOffset(
                         x = edgeDirection * size.width / AREA_PREDICTIVE_EDGE_DRIFT,
-                        y = size.height,
+                        y = size.height / AREA_VERTICAL_TRAVEL,
                     )
                 } + fadeOut(areaFadeOutSpec)
     }
