@@ -3,6 +3,7 @@
     import {onMount, tick} from "svelte";
     import {page} from "$app/state";
     import {Loader} from "@lucide/svelte";
+    import {_} from "svelte-i18n";
 
     const authentikt = useAuthentiktContext()
 
@@ -16,5 +17,5 @@
 
 <div class="flex flex-col items-center justify-center w-full h-full gap-4">
     <Loader class="animate-spin" />
-    <span>Wird geladen...</span>
+    <span>{$_("common.loading")}</span>
 </div>
