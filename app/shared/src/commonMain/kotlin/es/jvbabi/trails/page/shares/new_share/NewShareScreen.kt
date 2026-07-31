@@ -66,17 +66,11 @@ import es.jvbabi.trails.utils.PaddingValues
 import es.jvbabi.trails.utils.padding
 import es.jvbabi.trails.utils.rememberBitmapFromBytes
 import es.jvbabi.trails.utils.toDp
+import nl.jacobras.humanreadable.HumanReadable
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
-import trails.app.shared.generated.resources.Res
-import trails.app.shared.generated.resources.battery_medium
-import trails.app.shared.generated.resources.check
-import trails.app.shared.generated.resources.circle_alert
-import trails.app.shared.generated.resources.link
-import trails.app.shared.generated.resources.map_pin_time
-import trails.app.shared.generated.resources.tag
-import trails.app.shared.generated.resources.users
-import trails.app.shared.generated.resources.x
+import trails.app.shared.generated.resources.*
 import kotlin.uuid.Uuid
 
 @Composable
@@ -114,6 +108,14 @@ fun NewShareContent(
 
     val localHapticFeedback = LocalHapticFeedback.current
 
+    // Resolved up front rather than where it is used: the share sheet is also opened from a
+    // LaunchedEffect, which cannot read resources itself.
+    val shareSheetTitle = stringResource(
+        Res.string.shares_share_sheet_title,
+        (state.shareCreationState as? NewShareState.ShareCreationState.Success)?.username
+            ?: stringResource(Res.string.common_unknown),
+    )
+
     DisposableEffect(Unit) {
         onDispose {
             onEvent(NewShareEvent.ResetShareCreationState)
@@ -133,7 +135,7 @@ fun NewShareContent(
         ) {
             val titleFont = MaterialTheme.typography.headlineMedium
             Text(
-                text = "Neue Freigabe erstellen",
+                text = stringResource(Res.string.shares_new_title),
                 style = titleFont,
                 modifier = Modifier.weight(1f)
             )
@@ -148,7 +150,7 @@ fun NewShareContent(
                 ) {
                     Icon(
                         painter = painterResource(Res.drawable.x),
-                        contentDescription = "Schließen"
+                        contentDescription = stringResource(Res.string.common_close)
                     )
                 }
             }
@@ -185,11 +187,19 @@ fun NewShareContent(
 
                     Column(Modifier.weight(1f)) {
                         Text(
-                            text = state.currentDevice.displayName + " von " + state.currentDevice.owner.username,
+                            text = stringResource(
+                                Res.string.devices_card_owner,
+                                state.currentDevice.displayName,
+                                state.currentDevice.owner.username,
+                            ),
                             style = MaterialTheme.typography.bodyMedium
                         )
                         Text(
-                            text = state.currentDevice.friendlyName + " (" + state.currentDevice.model + ")",
+                            text = stringResource(
+                                Res.string.devices_card_model,
+                                state.currentDevice.friendlyName,
+                                state.currentDevice.model,
+                            ),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -200,14 +210,14 @@ fun NewShareContent(
                     ) {
                         (state.currentDevice.batteryState as? Device.BatteryState.Shared)?.let {
                             Text(
-                                text = "${it.percentage}%",
+                                text = stringResource(Res.string.common_percentage, HumanReadable.number(it.percentage)),
                                 style = MaterialTheme.typography.bodyMedium,
                             )
                         }
                     }
                 }
                 Text(
-                    text = "Du wirst den Standort für dieses Gerät teilen.",
+                    text = stringResource(Res.string.shares_new_hint),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.outlineVariant,
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -228,7 +238,7 @@ fun NewShareContent(
                     )
                     Column {
                         Text(
-                            text = "Standortverlauf",
+                            text = stringResource(Res.string.shares_location_history),
                             style = MaterialTheme.typography.titleMedium
                         )
                         AnimatedContent(
@@ -237,14 +247,14 @@ fun NewShareContent(
                             transitionSpec = { slideInVertically { it } togetherWith slideOutVertically { -it } }
                         ) { duration ->
                             Text(
-                                text = when (duration) {
-                                    NewShareState.LocationShareHistoryState.NoHistory -> "Nur aktuellen Standort"
-                                    NewShareState.LocationShareHistoryState.OneHour -> "Standortverlauf der letzten Stunde"
-                                    NewShareState.LocationShareHistoryState.SixHours -> "Standortverlauf der letzten 6 Stunden"
-                                    NewShareState.LocationShareHistoryState.OneDay -> "Standortverlauf des letzten Tages"
-                                    NewShareState.LocationShareHistoryState.OneWeek -> "Standortverlauf der letzten Woche"
-                                    NewShareState.LocationShareHistoryState.Infinite -> "Vollständiger Standortverlauf"
-                                },
+                                text = stringResource(when (duration) {
+                                    NewShareState.LocationShareHistoryState.NoHistory -> Res.string.shares_location_history_none
+                                    NewShareState.LocationShareHistoryState.OneHour -> Res.string.shares_location_history_one_hour
+                                    NewShareState.LocationShareHistoryState.SixHours -> Res.string.shares_location_history_six_hours
+                                    NewShareState.LocationShareHistoryState.OneDay -> Res.string.shares_location_history_one_day
+                                    NewShareState.LocationShareHistoryState.OneWeek -> Res.string.shares_location_history_one_week
+                                    NewShareState.LocationShareHistoryState.Infinite -> Res.string.shares_location_history_infinite
+                                }),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.primary,
                             )
@@ -280,7 +290,7 @@ fun NewShareContent(
                     )
                     Column(Modifier.weight(1f)) {
                         Text(
-                            text = "Batteriestand teilen",
+                            text = stringResource(Res.string.shares_share_battery_level),
                             style = MaterialTheme.typography.titleMedium
                         )
                     }
@@ -306,7 +316,7 @@ fun NewShareContent(
                     )
                     Column(Modifier.weight(1f)) {
                         Text(
-                            text = "Freigabe benennen",
+                            text = stringResource(Res.string.shares_name_title),
                             style = MaterialTheme.typography.titleMedium
                         )
 
@@ -316,7 +326,7 @@ fun NewShareContent(
                                 .fillMaxWidth(),
                             value = state.shareName,
                             onValueChange = { onEvent(NewShareEvent.ShareNameChanged(it)) },
-                            placeholder = { Text("z.B. 'Freigabe für Familie'") },
+                            placeholder = { Text(stringResource(Res.string.shares_name_placeholder)) },
                             singleLine = true,
                             isError = state.showShareNameEmptyError || state.showShareNameAlreadyUsedError,
                         )
@@ -327,7 +337,7 @@ fun NewShareContent(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "Der Freigabename darf nicht leer sein.",
+                                text = stringResource(Res.string.shares_name_empty_error),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.padding(top = 4.dp)
@@ -340,7 +350,7 @@ fun NewShareContent(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "Du hast bereits eine Freigabe mit diesem Namen.",
+                                text = stringResource(Res.string.shares_name_taken_error),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.padding(top = 4.dp)
@@ -366,7 +376,7 @@ fun NewShareContent(
                     )
                     Column(Modifier.weight(1f)) {
                         Text(
-                            text = "Mehrfachnutzung zulassen",
+                            text = stringResource(Res.string.shares_allow_multiuse),
                             style = MaterialTheme.typography.titleMedium
                         )
                     }
@@ -397,7 +407,7 @@ fun NewShareContent(
                             contentDescription = null,
                             modifier = Modifier.size(20.dp),
                         )
-                        Text("Link teilen")
+                        Text(stringResource(Res.string.shares_share_link))
                     }
                 }
             }
@@ -440,9 +450,9 @@ fun NewShareContent(
                     Text(
                         text = when (creationState) {
                             NewShareState.ShareCreationState.Idle -> ""
-                            NewShareState.ShareCreationState.Loading -> "Freigabe wird erstellt..."
-                            is NewShareState.ShareCreationState.Success -> "Freigabe erstellt"
-                            is NewShareState.ShareCreationState.Error -> "Ein Fehler ist aufgetreten"
+                            NewShareState.ShareCreationState.Loading -> stringResource(Res.string.shares_creating)
+                            is NewShareState.ShareCreationState.Success -> stringResource(Res.string.shares_created)
+                            is NewShareState.ShareCreationState.Error -> stringResource(Res.string.common_error)
                         },
                         modifier = Modifier.fillMaxWidth(),
                         textAlign = TextAlign.Center,
@@ -460,11 +470,11 @@ fun NewShareContent(
                             if (state.shareCreationState !is NewShareState.ShareCreationState.Success) return@TextButton
                             shareUrl(
                                 url = state.shareCreationState.url.buildString(),
-                                title = state.shareCreationState.title,
+                                title = shareSheetTitle,
                             )
                         }
                     ) {
-                        Text("Teilen")
+                        Text(stringResource(Res.string.common_share))
                     }
                 }
             },
@@ -477,7 +487,7 @@ fun NewShareContent(
                     },
                     enabled = state.shareCreationState != NewShareState.ShareCreationState.Loading && state.shareCreationState != NewShareState.ShareCreationState.Idle
                 ) {
-                    Text("Schließen")
+                    Text(stringResource(Res.string.common_close))
                 }
             }
         )
@@ -487,7 +497,7 @@ fun NewShareContent(
         if (state.shareCreationState !is NewShareState.ShareCreationState.Success) return@LaunchedEffect
         shareUrl(
             url = state.shareCreationState.url.buildString(),
-            title = state.shareCreationState.title,
+            title = shareSheetTitle,
         )
     }
 }
