@@ -158,6 +158,13 @@ private const val AREA_TRANSITION_DURATION_MILLIS = 250
 private const val AREA_VERTICAL_TRAVEL = 8
 private const val AREA_PREDICTIVE_EDGE_DRIFT = 12
 
+/**
+ * How far the surface may fade while the gesture is still in the user's hand. A completed swipe is
+ * not a completed navigation — it can still be cancelled — so the surface has to stay on screen at
+ * full progress. Letting go is what fades the rest of the way out.
+ */
+private const val AREA_PREDICTIVE_MIN_ALPHA = 0.5f
+
 private val areaOffsetSpec = tween<IntOffset>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing)
 private val areaFadeInSpec = tween<Float>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing)
 
@@ -227,7 +234,7 @@ private val settingsAreaTransitions: Map<String, Any> =
                         x = edgeDirection * size.width / AREA_PREDICTIVE_EDGE_DRIFT,
                         y = size.height / AREA_VERTICAL_TRAVEL,
                     )
-                } + fadeOut(areaFadeOutSpec)
+                } + fadeOut(areaFadeOutSpec, targetAlpha = AREA_PREDICTIVE_MIN_ALPHA)
     }
 
 class ThemeWrapper: PreviewWrapperProvider {
