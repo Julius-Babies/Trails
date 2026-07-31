@@ -1,0 +1,7 @@
+<resources>
+    <string name="connection_events_title">Verbindungsereignisse</string>
+    <string name="connection_events_subtitle_connected">%1$s – verbunden</string>
+    <string name="connection_events_subtitle_disconnected">%1$s – nicht verbunden</string>
+    <string name="connection_events_connected">Verbunden</string>
+    <string name="connection_events_disconnected">Getrennt</string>
+</resources>

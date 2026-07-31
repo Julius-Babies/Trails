@@ -1,0 +1,8 @@
+<resources>
+    <string name="ringing_title">Your device is being located</string>
+    <!-- %1$s is the name of the device that started the search. -->
+    <string name="ringing_searched_by">Your %1$s is looking for this device</string>
+    <!-- Stopwatch, e.g. "1:07". %1$s is minutes, %2$s is zero-padded seconds. -->
+    <string name="ringing_elapsed">%1$s:%2$s</string>
+    <string name="ringing_stop">Stop</string>
+</resources>

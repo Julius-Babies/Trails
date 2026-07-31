@@ -1,0 +1,32 @@
+<resources>
+    <string name="shares_enter_link">Enter link</string>
+    <string name="shares_add">Add share</string>
+
+    <string name="shares_add_title">Add share link</string>
+    <!-- Sample deep link, identical in every language. -->
+    <string name="shares_add_url_placeholder">trailsapp://application/…/share/…</string>
+
+    <string name="shares_new_title">Create new share</string>
+    <string name="shares_new_hint">You are about to share the location of this device.</string>
+
+    <string name="shares_location_history">Location history</string>
+    <string name="shares_location_history_none">Current location only</string>
+    <string name="shares_location_history_one_hour">Location history of the last hour</string>
+    <string name="shares_location_history_six_hours">Location history of the last 6 hours</string>
+    <string name="shares_location_history_one_day">Location history of the last day</string>
+    <string name="shares_location_history_one_week">Location history of the last week</string>
+    <string name="shares_location_history_infinite">Complete location history</string>
+
+    <string name="shares_share_battery_level">Share battery level</string>
+    <string name="shares_name_title">Name the share</string>
+    <string name="shares_name_placeholder">e.g. "Share for the family"</string>
+    <string name="shares_name_empty_error">The share name must not be empty.</string>
+    <string name="shares_name_taken_error">You already have a share with this name.</string>
+    <string name="shares_allow_multiuse">Allow multiple uses</string>
+    <string name="shares_share_link">Share link</string>
+
+    <string name="shares_creating">Creating share…</string>
+    <string name="shares_created">Share created</string>
+    <!-- Title of the system share sheet; %1$s is the user the share belongs to. -->
+    <string name="shares_share_sheet_title">Trails location share for %1$s</string>
+</resources>
