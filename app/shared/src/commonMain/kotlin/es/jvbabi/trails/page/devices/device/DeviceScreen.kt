@@ -36,6 +36,7 @@ import es.jvbabi.trails.utils.PaddingValues
 import es.jvbabi.trails.utils.padding
 import es.jvbabi.trails.utils.rememberBitmapFromBytes
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import trails.app.shared.generated.resources.*
 import kotlin.uuid.Uuid
@@ -112,7 +113,7 @@ fun DeviceContent(
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.arrow_left),
-                    contentDescription = "Back",
+                    contentDescription = stringResource(Res.string.common_back),
                     modifier = Modifier.size(24.dp),
                 )
             }
@@ -120,13 +121,13 @@ fun DeviceContent(
         actions = when {
             isOwner -> listOf(
                 TopBarAction(
-                    title = "Umbenennen",
+                    title = stringResource(Res.string.device_rename),
                     icon = Res.drawable.pencil,
                     display = TopBarActionDisplay.ALWAYS,
                     onClick = { showRenameDialog = true },
                 ),
                 TopBarAction(
-                    title = "Löschen",
+                    title = stringResource(Res.string.common_delete),
                     icon = Res.drawable.trash_2,
                     destructive = true,
                     onClick = { showDeleteDialog = true },
@@ -136,7 +137,7 @@ fun DeviceContent(
             // A foreign device is only visible through a share, which we can give back.
             state.shares.isNotEmpty() -> listOf(
                 TopBarAction(
-                    title = "Freigabe zurückgeben",
+                    title = stringResource(Res.string.device_return_share),
                     icon = Res.drawable.trash_2,
                     display = TopBarActionDisplay.ALWAYS,
                     destructive = true,
@@ -176,7 +177,7 @@ fun DeviceContent(
                 enabled = state.deletionState !is DeviceState.DeletionState.Loading
             ) {
                 Text(
-                    text = "Löschen",
+                    text = stringResource(Res.string.common_delete),
                     color = MaterialTheme.colorScheme.error
                 )
             }
@@ -186,7 +187,7 @@ fun DeviceContent(
                 onClick = { showDeleteDialog = false },
                 enabled = state.deletionState !is DeviceState.DeletionState.Loading
             ) {
-                Text("Abbrechen")
+                Text(stringResource(Res.string.common_cancel))
             }
         },
         icon = {
@@ -203,11 +204,11 @@ fun DeviceContent(
             }
         },
         title = {
-            Text("Gerät löschen?")
+            Text(stringResource(Res.string.device_delete_title))
         },
         text = {
             Column {
-                Text("Dies kann nicht rückgängig gemacht werden. Alle Freigaben, die von dem Gerät erteilt wurden, verfallen.")
+                Text(stringResource(Res.string.device_delete_message))
                 var errorMessage by remember { mutableStateOf<String?>(null) }
 
                 LaunchedEffect(state.deletionState) {
@@ -222,7 +223,7 @@ fun DeviceContent(
                     exit = shrinkVertically(shrinkTowards = Alignment.CenterVertically)
                 ) {
                     Text(
-                        text = "An error occurred: ${errorMessage.orEmpty()}",
+                        text = stringResource(Res.string.common_error_with_message, errorMessage.orEmpty()),
                         color = MaterialTheme.colorScheme.error,
                         maxLines = 6,
                     )
@@ -287,7 +288,7 @@ fun DeviceContent(
                                         contentDescription = null,
                                         modifier = Modifier.size(16.dp),
                                     )
-                                    Text("Ping")
+                                    Text(stringResource(Res.string.device_ping))
                                 }
                             }
                         }
@@ -307,7 +308,7 @@ fun DeviceContent(
                                             contentDescription = null,
                                             modifier = Modifier.size(16.dp),
                                         )
-                                        Text("Klingeln beenden")
+                                        Text(stringResource(Res.string.device_ring_stop))
                                     }
                                 }
                             } else {
@@ -328,7 +329,7 @@ fun DeviceContent(
                                                 contentDescription = null,
                                                 modifier = Modifier.size(16.dp),
                                             )
-                                            Text("Anklingeln")
+                                            Text(stringResource(Res.string.device_ring))
                                         }
                                     }
                                 }
@@ -357,7 +358,7 @@ private fun ReturnShareDialog(
                 enabled = !isLoading,
             ) {
                 Text(
-                    text = "Zurückgeben",
+                    text = stringResource(Res.string.device_return_share_confirm),
                     color = MaterialTheme.colorScheme.error,
                 )
             }
@@ -367,7 +368,7 @@ private fun ReturnShareDialog(
                 onClick = onDismiss,
                 enabled = !isLoading,
             ) {
-                Text("Abbrechen")
+                Text(stringResource(Res.string.common_cancel))
             }
         },
         icon = {
@@ -382,11 +383,11 @@ private fun ReturnShareDialog(
             }
         },
         title = {
-            Text("Freigabe zurückgeben?")
+            Text(stringResource(Res.string.device_return_share_title))
         },
         text = {
             Column {
-                Text("Du kannst den Standort dieses Geräts dann nicht mehr sehen. Um erneut Zugriff zu erhalten, brauchst du eine neue Freigabe.")
+                Text(stringResource(Res.string.device_return_share_message))
 
                 var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -402,7 +403,7 @@ private fun ReturnShareDialog(
                     exit = shrinkVertically(shrinkTowards = Alignment.CenterVertically)
                 ) {
                     Text(
-                        text = "An error occurred: ${errorMessage.orEmpty()}",
+                        text = stringResource(Res.string.common_error_with_message, errorMessage.orEmpty()),
                         color = MaterialTheme.colorScheme.error,
                         maxLines = 6,
                     )
@@ -419,7 +420,7 @@ private fun RenameDeviceDialog(
     onDismiss: () -> Unit,
     onConfirm: (customName: String?) -> Unit,
 ) {
-    val defaultName = "${device.manufacturer} ${device.friendlyName}"
+    val defaultName = stringResource(Res.string.device_default_name, device.manufacturer, device.friendlyName)
     val hasCustomName = device.displayName != defaultName
     // An empty field clears the custom name; the server then reverts to the
     // model name, so we seed it empty when no custom name is set.
@@ -435,7 +436,7 @@ private fun RenameDeviceDialog(
                 onClick = { onConfirm(name.trim().ifEmpty { null }) },
                 enabled = !isLoading,
             ) {
-                Text("Speichern")
+                Text(stringResource(Res.string.common_save))
             }
         },
         dismissButton = {
@@ -443,7 +444,7 @@ private fun RenameDeviceDialog(
                 onClick = onDismiss,
                 enabled = !isLoading,
             ) {
-                Text("Abbrechen")
+                Text(stringResource(Res.string.common_cancel))
             }
         },
         icon = {
@@ -457,11 +458,11 @@ private fun RenameDeviceDialog(
             }
         },
         title = {
-            Text("Gerät umbenennen")
+            Text(stringResource(Res.string.device_rename_title))
         },
         text = {
             Column {
-                Text("Gib deinem Gerät einen erkennbaren Namen. Wenn du dein Gerät teilst, ist er möglicherweise für andere Personen sichtbar.")
+                Text(stringResource(Res.string.device_rename_message))
 
                 Spacer(Modifier.height(16.dp))
 
@@ -488,7 +489,7 @@ private fun RenameDeviceDialog(
                     exit = shrinkVertically(shrinkTowards = Alignment.CenterVertically)
                 ) {
                     Text(
-                        text = "An error occurred: ${errorMessage.orEmpty()}",
+                        text = stringResource(Res.string.common_error_with_message, errorMessage.orEmpty()),
                         color = MaterialTheme.colorScheme.error,
                         maxLines = 6,
                     )

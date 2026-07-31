@@ -22,10 +22,9 @@ import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.model.User
 import es.jvbabi.trails.utils.rememberBitmapFromBytes
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
-import trails.app.shared.generated.resources.Res
-import trails.app.shared.generated.resources.move_right
-import trails.app.shared.generated.resources.trash_2
+import trails.app.shared.generated.resources.*
 import kotlin.uuid.Uuid
 
 @Composable
@@ -101,7 +100,7 @@ fun DeviceDeletedContent(
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.trash_2),
-                    contentDescription = "Trash",
+                    contentDescription = null,
                     modifier = Modifier.size(48.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -109,7 +108,7 @@ fun DeviceDeletedContent(
         }
         Spacer(Modifier.weight(.4f))
         Text(
-            text = "Gerät entfernt",
+            text = stringResource(Res.string.device_deleted_title),
             style = MaterialTheme.typography.displayMedium,
             modifier = Modifier
                 .padding(horizontal = 16.dp)
@@ -118,7 +117,7 @@ fun DeviceDeletedContent(
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Dieses Gerät wurde von ${state.deletedByDevice} aus deinem Trails-Account entfernt. Es wird keine Standortdaten mehr an deinen Homeserver senden.",
+            text = stringResource(Res.string.device_deleted_message, state.deletedByDevice),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier
                 .padding(horizontal = 16.dp)
@@ -130,7 +129,7 @@ fun DeviceDeletedContent(
             onClick = { onEvent(DeviceDeletedEvent.RequestDismiss) },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(text = "OK")
+            Text(text = stringResource(Res.string.common_ok))
         }
     }
 }

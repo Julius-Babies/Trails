@@ -21,6 +21,8 @@ import es.jvbabi.trails.page.home.HomeState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
+import trails.app.shared.generated.resources.*
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
@@ -183,27 +185,27 @@ class DeviceViewModel(
                     try {
                         when (val result = trailsServerRepository.requestPing(state.value.device!!.device)) {
                             is PingResult.Pinged -> {
-                                uiRepository.sendSnackbar(when (result.hasDeliveredNotification) {
-                                    true -> "Das Gerät wurde gefunden."
-                                    false -> "Das Gerät hat geantwortet, konnte die Benachrichtigung jedoch nicht senden."
-                                }, autoDismiss = 5.seconds)
+                                uiRepository.sendSnackbar(getString(when (result.hasDeliveredNotification) {
+                                    true -> Res.string.device_ping_found
+                                    false -> Res.string.device_ping_no_notification
+                                }), autoDismiss = 5.seconds)
                                 state.update { it.copy(pingState = DeviceState.PingState.Ready) }
                             }
                             PingResult.NotAllowed -> {
-                                uiRepository.sendSnackbar("Du darfst dieses Gerät nicht pingen.", autoDismiss = 5.seconds)
+                                uiRepository.sendSnackbar(getString(Res.string.device_ping_not_allowed), autoDismiss = 5.seconds)
                                 state.update { it.copy(pingState = DeviceState.PingState.Disabled) }
                             }
                             PingResult.Timeout -> {
-                                uiRepository.sendSnackbar("Das Gerät antwortet nicht.", autoDismiss = 5.seconds)
+                                uiRepository.sendSnackbar(getString(Res.string.device_ping_timeout), autoDismiss = 5.seconds)
                                 state.update { it.copy(pingState = DeviceState.PingState.Ready) }
                             }
                             is PingResult.Error -> {
-                                uiRepository.sendSnackbar("Ein Fehler ist aufgetreten: ${result.errorMessage}", autoDismiss = 5.seconds)
+                                uiRepository.sendSnackbar(getString(Res.string.common_error_with_message, result.errorMessage), autoDismiss = 5.seconds)
                                 state.update { it.copy(pingState = DeviceState.PingState.Ready) }
                             }
                         }
                     } catch (e: Exception) {
-                        uiRepository.sendSnackbar("Ein Fehler ist aufgetreten: ${e.message}", autoDismiss = 5.seconds)
+                        uiRepository.sendSnackbar(getString(Res.string.common_error_with_message, e.message.orEmpty()), autoDismiss = 5.seconds)
                         state.update { it.copy(pingState = DeviceState.PingState.Ready) }
                     }
                 }
