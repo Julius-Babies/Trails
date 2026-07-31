@@ -17,15 +17,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import es.jvbabi.trails.domain.repository.Theme
 import es.jvbabi.trails.ui.components.SteppedSlider
 import org.jetbrains.compose.resources.painterResource
-import org.koin.compose.viewmodel.koinViewModel
 import trails.app.shared.generated.resources.*
 import kotlin.math.abs
 
 @Composable
 fun SettingsScreen(
+    viewModel: SettingsViewModel,
     onBack: () -> Unit,
 ) {
-    val viewModel = koinViewModel<SettingsViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     if (state.minimumMovementMeters == null) return
