@@ -1,3 +1,15 @@
+name: Deploy
+
+# run-name only has the github, inputs and vars contexts, so it cannot use the
+# build tag from the setup job. It names the trigger and the thing being shipped,
+# which is what tells two runs apart in the Actions list.
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch'
+      && (inputs.draft
+          && format('Rehearsal (draft) · {0} · @{1}', github.ref_name, github.actor)
+          || format('Manual release · {0} · @{1}', github.ref_name, github.actor))
+      || format('Release · {0}', github.event.head_commit.message) }}
+
 on:
   push:
     branches:
