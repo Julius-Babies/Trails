@@ -188,17 +188,24 @@ private const val AREA_VERTICAL_TRAVEL = 4
 private const val AREA_PREDICTIVE_EDGE_DRIFT = 12
 
 /**
- * How far the surface may fade while the gesture is still in the user's hand. A completed swipe is
- * not a completed navigation — it can still be cancelled — so the surface has to stay on screen at
- * full progress. Letting go is what fades the rest of the way out.
+ * Opacity of an area surface at a given point in its travel.
+ *
+ * Squared rather than linear, so the surface keeps most of its opacity while the gesture is still in
+ * the user's hand — a swipe that is 60% of the way is not 60% gone, it can still be cancelled — and
+ * spends its opacity near the end instead.
+ *
+ * This cannot be expressed as a [fadeOut] on the transition spec. When a gesture ends, Navigation3
+ * settles the remaining fraction while keeping the predictive spec in force, so a spec whose fade
+ * stopped at some floor left the surface being cut away at that floor the moment it was removed from
+ * composition. Driving opacity from the progress instead means one curve covers the gesture, the
+ * settle and a plain back press alike, and it is genuinely at zero when the surface goes away.
  */
-private const val AREA_PREDICTIVE_MIN_ALPHA = 0.5f
+private fun areaAlphaAt(progress: Float): Float = 1f - progress * progress
 
 /** How far the screen behind an area recedes while that area covers it. */
 private const val AREA_BACKGROUND_SCALE = 0.92f
 
 private val areaOffsetSpec = tween<IntOffset>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing)
-private val areaFadeSpec = tween<Float>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing)
 
 /**
  * Settings is an area of its own that covers the home screen, which stays composed and in place
@@ -250,6 +257,7 @@ private fun AreaSurface(
         modifier = Modifier
             .fillMaxSize()
             .graphicsLayer {
+                alpha = areaAlphaAt(progress.value)
                 clip = true
                 shape = RoundedCornerShape(AREA_CORNER_RADIUS * progress.value)
             }
@@ -258,14 +266,15 @@ private fun AreaSurface(
     }
 }
 
+/** Opacity and corner radius are not here — [AreaSurface] drives both from the same progress. */
 private val settingsAreaTransitions: Map<String, Any> =
     NavDisplay.transitionSpec {
-        slideInVertically(areaOffsetSpec) { height -> height / AREA_VERTICAL_TRAVEL } +
-                fadeIn(areaFadeSpec) togetherWith ExitTransition.None
+        slideInVertically(areaOffsetSpec) { height ->
+            height / AREA_VERTICAL_TRAVEL
+        } togetherWith ExitTransition.None
     } + NavDisplay.popTransitionSpec {
         EnterTransition.None togetherWith
-                slideOutVertically(areaOffsetSpec) { height -> height / AREA_VERTICAL_TRAVEL } +
-                fadeOut(areaFadeSpec)
+                slideOutVertically(areaOffsetSpec) { height -> height / AREA_VERTICAL_TRAVEL }
     } + NavDisplay.predictivePopTransitionSpec { swipeEdge ->
         // The same dismissal, seeked by the gesture, drifting towards the swiped edge as well.
         // Both offsets have to come from a single slide: combining two of them keeps only the first.
@@ -276,7 +285,7 @@ private val settingsAreaTransitions: Map<String, Any> =
                         x = edgeDirection * size.width / AREA_PREDICTIVE_EDGE_DRIFT,
                         y = size.height / AREA_VERTICAL_TRAVEL,
                     )
-                } + fadeOut(areaFadeSpec, targetAlpha = AREA_PREDICTIVE_MIN_ALPHA)
+                }
     }
 
 class ThemeWrapper: PreviewWrapperProvider {
