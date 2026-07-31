@@ -34,6 +34,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.blur.blurEffect
 import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import es.jvbabi.trails.ThemeWrapper
 import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.model.Snapshot
@@ -43,12 +45,9 @@ import es.jvbabi.trails.page.Screen
 import es.jvbabi.trails.page.devices.main.DevicesTab
 import es.jvbabi.trails.page.home.components.*
 import es.jvbabi.trails.page.shares.main.SharesScreen
-import es.jvbabi.trails.ui.components.LocalHazeState
 import es.jvbabi.trails.utils.IntPaddingValues
 import es.jvbabi.trails.utils.blendColor
 import es.jvbabi.trails.utils.padding
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.Month
@@ -76,7 +75,6 @@ fun HomeScreen(
         backStack = backstack,
         onEvent = viewModel::onEvent,
         onMapEvent = mapViewModel::onEvent,
-        semiExpandSheet = viewModel.semiExpandSheet,
     )
 
     val localDensity = LocalDensity.current
@@ -115,14 +113,11 @@ fun HomeContent(
     backStack: MutableList<Screen>,
     onEvent: (event: HomeEvent) -> Unit,
     onMapEvent: (event: MapEvent) -> Unit,
-    semiExpandSheet: Flow<Unit> = emptyFlow(),
 ) {
     val cardCollapsedHeight = 72.dp
     var fabHeight by remember { mutableStateOf(48.dp) }
 
-    // The map itself is rendered above the navigation display, so the sheet blurs it through the
-    // haze state provided there rather than through one of its own.
-    val hazeState = LocalHazeState.current
+    val hazeState = rememberHazeState()
     val scope = rememberCoroutineScope()
 
     BoxWithConstraints(
@@ -144,13 +139,23 @@ fun HomeContent(
             content = {
                 val density = LocalDensity.current
 
-                // Transparent so the map, which is rendered below the navigation display, shows
-                // through this destination.
-                Scaffold(containerColor = Color.Transparent) { scaffoldPadding ->
+                Scaffold { scaffoldPadding ->
                     val contentPadding = (draggableCardSheetState.backgroundContentPaddingValues + es.jvbabi.trails.utils.PaddingValues(top = scaffoldPadding.calculateTopPadding())).assureNonNegative()
                     Box(
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .hazeSource(hazeState)
                     ) {
+                        Box(Modifier.fillMaxSize())
+                        Map(
+                            state = mapState,
+                            onDeviceClick = { device ->
+                                scope.launch { draggableCardSheetState.semiExpand() }
+                                onEvent(HomeEvent.SelectTab(HomeState.Tab.MyDevices(es.jvbabi.trails.page.devices.Screen.Device(device.device.id))))
+                            },
+                            onUserDragStart = { onMapEvent(MapEvent.UserDragged) },
+                        )
+
                         Box(
                             modifier = Modifier
                                 .padding(contentPadding)
@@ -318,10 +323,6 @@ fun HomeContent(
 
         LaunchedEffect(intPaddingValues) {
             onMapEvent(MapEvent.OnMapContentAreaPadding(intPaddingValues))
-        }
-
-        LaunchedEffect(semiExpandSheet) {
-            semiExpandSheet.collect { draggableCardSheetState.semiExpand() }
         }
     }
 }

@@ -25,12 +25,9 @@ import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.Theme
 import es.jvbabi.trails.domain.repository.UiRepository
 import es.jvbabi.trails.page.Screen
-import es.jvbabi.trails.page.home.HomeEvent
 import es.jvbabi.trails.page.home.HomeScreen
 import es.jvbabi.trails.page.home.HomeViewModel
-import es.jvbabi.trails.page.home.MapEvent
 import es.jvbabi.trails.page.home.MapViewModel
-import es.jvbabi.trails.page.home.components.Map
 import es.jvbabi.trails.page.setings.SettingsScreen
 import es.jvbabi.trails.page.setings.SettingsViewModel
 import es.jvbabi.trails.ui.components.LocalHazeState
@@ -59,10 +56,8 @@ fun App(
 
     val keyValueRepository = koinInject<KeyValueRepository>()
 
-    // These are held here, above the navigation display, so their state is already loaded when the
-    // user reaches the destination that shows it. The map view model in particular keeps the map
-    // surface alive: it is rendered below the navigation display and would otherwise be torn down
-    // and rebuilt — renderer, style and camera — every time another area is opened on top of it.
+    // Held here so their state is already loaded when the user reaches the destination that shows
+    // it, rather than the screen arriving empty and filling in mid transition.
     val settingsViewModel = koinViewModel<SettingsViewModel>()
     val homeViewModel = koinViewModel<HomeViewModel>()
     val mapViewModel = koinViewModel<MapViewModel>()
@@ -95,47 +90,35 @@ fun App(
 
                 val currentSnackbar = uiRepository.currentSnackbar.collectAsStateWithLifecycle().value
 
-                val mapState by mapViewModel.state.collectAsStateWithLifecycle()
-                val hazeState = rememberHazeState()
+                // Home is rendered outside the navigation display and stays composed for the
+                // whole session, so the map keeps its renderer, style and camera no matter what
+                // is opened on top of it. Its entry below therefore draws nothing — anything
+                // full screen there would sit above the map and swallow its gestures.
+                HomeScreen(
+                    viewModel = homeViewModel,
+                    mapViewModel = mapViewModel,
+                    backstack = backstack,
+                )
 
-                CompositionLocalProvider(LocalHazeState provides hazeState) {
-                    // The map is the blur source the card sheet samples, so it carries hazeSource.
-                    Box(Modifier.fillMaxSize().hazeSource(hazeState)) {
-                        Map(
-                            state = mapState,
-                            onDeviceClick = { device ->
-                                homeViewModel.onEvent(HomeEvent.SelectDeviceOnMap(device.device.id))
-                            },
-                            onUserDragStart = { mapViewModel.onEvent(MapEvent.UserDragged) },
-                        )
-                    }
+                NavDisplay(
+                    backStack = backstack,
+                    onBack = { backstack.removeLastOrNull() },
+                    entryProvider = { key ->
+                        return@NavDisplay when (key) {
+                            is Screen.Home -> NavEntry(key = key) {}
 
-                    NavDisplay(
-                        backStack = backstack,
-                        onBack = { backstack.removeLastOrNull() },
-                        entryProvider = { key ->
-                            return@NavDisplay when (key) {
-                                is Screen.Home -> NavEntry(key = key) {
-                                    HomeScreen(
-                                        viewModel = homeViewModel,
-                                        mapViewModel = mapViewModel,
-                                        backstack = backstack,
-                                    )
-                                }
-
-                                is Screen.Settings -> NavEntry(
-                                    key = key,
-                                    metadata = settingsAreaTransitions,
-                                ) {
-                                    SettingsScreen(
-                                        viewModel = settingsViewModel,
-                                        onBack = remember { { backstack.removeLastOrNull() } }
-                                    )
-                                }
+                            is Screen.Settings -> NavEntry(
+                                key = key,
+                                metadata = settingsAreaTransitions,
+                            ) {
+                                SettingsScreen(
+                                    viewModel = settingsViewModel,
+                                    onBack = remember { { backstack.removeLastOrNull() } }
+                                )
                             }
                         }
-                    )
-                }
+                    }
+                )
 
                 AnimatedContent(
                     targetState = currentSnackbar,
@@ -162,41 +145,46 @@ fun App(
 
 private const val AREA_TRANSITION_DURATION_MILLIS = 250
 
-/** How far the surface behind the one being entered recedes, and vice versa on the way back. */
-private const val AREA_DISTANT_SCALE = 1.35f
-private const val AREA_NEAR_SCALE = 0.65f
+/** How far the leaving surface drifts sideways under a predictive back gesture. */
+private const val AREA_PREDICTIVE_EDGE_DRIFT = 8
 
-private val areaFloatSpec = tween<Float>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing)
 private val areaOffsetSpec = tween<IntOffset>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing)
+private val areaFadeInSpec = tween<Float>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing)
 
 /**
- * Holds the opacity up while the gesture is still early and only then accelerates it away, so
- * the surface being dismissed stays readable for most of the swipe.
+ * Holds the opacity up while the gesture is still early and only then accelerates it away, so the
+ * surface being dismissed stays readable for most of the travel.
  */
-private val areaPredictiveFadeOutSpec =
-    tween<Float>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutLinearInEasing)
+private val areaFadeOutSpec = tween<Float>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutLinearInEasing)
 
 /**
- * Settings is an area of its own rather than a peer of the home screen, so it enters and
- * leaves along the Z axis — the incoming surface grows in over the outgoing one, which
- * recedes. That reads as a change of level and keeps it distinguishable from the horizontal
- * push used for master/detail navigation inside the home tabs.
+ * Settings is an area of its own that covers the home screen, which stays composed and in place
+ * below it. So rather than the two trading places, the settings surface travels the full height of
+ * the display on its own — unmistakably a layer arriving over the map, and distinct from the
+ * horizontal push used for master/detail navigation inside the home tabs.
+ *
+ * Home carries no transition of its own here: its entry draws nothing, the real one sits below the
+ * navigation display and must not move.
  */
 private val settingsAreaTransitions: Map<String, Any> =
     NavDisplay.transitionSpec {
-        scaleIn(areaFloatSpec, initialScale = AREA_NEAR_SCALE) + fadeIn(areaFloatSpec) togetherWith
-                scaleOut(areaFloatSpec, targetScale = AREA_DISTANT_SCALE) + fadeOut(areaFloatSpec)
+        slideInVertically(areaOffsetSpec) { height -> height } + fadeIn(areaFadeInSpec) togetherWith
+                ExitTransition.None
     } + NavDisplay.popTransitionSpec {
-        scaleIn(areaFloatSpec, initialScale = AREA_DISTANT_SCALE) + fadeIn(areaFloatSpec) togetherWith
-                scaleOut(areaFloatSpec, targetScale = AREA_NEAR_SCALE) + fadeOut(areaFloatSpec)
+        EnterTransition.None togetherWith
+                slideOutVertically(areaOffsetSpec) { height -> height } + fadeOut(areaFadeOutSpec)
     } + NavDisplay.predictivePopTransitionSpec { swipeEdge ->
-        // Same motion as a regular pop, but seeked by the gesture. The settings surface also
-        // trails towards the edge being swiped so it follows the finger.
+        // The same dismissal, but seeked by the gesture and drifting towards the swiped edge so it
+        // follows the finger. Both offsets have to come from a single slide: combining two of them
+        // keeps only the first.
         val edgeDirection = if (swipeEdge == NavigationEvent.EDGE_RIGHT) -1 else 1
-        scaleIn(areaFloatSpec, initialScale = AREA_DISTANT_SCALE) + fadeIn(areaFloatSpec) togetherWith
-                scaleOut(areaFloatSpec, targetScale = AREA_NEAR_SCALE) +
-                slideOutHorizontally(areaOffsetSpec) { width -> edgeDirection * width / 6 } +
-                fadeOut(areaPredictiveFadeOutSpec)
+        EnterTransition.None togetherWith
+                slideOut(areaOffsetSpec) { size ->
+                    IntOffset(
+                        x = edgeDirection * size.width / AREA_PREDICTIVE_EDGE_DRIFT,
+                        y = size.height,
+                    )
+                } + fadeOut(areaFadeOutSpec)
     }
 
 class ThemeWrapper: PreviewWrapperProvider {

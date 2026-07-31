@@ -9,10 +9,8 @@ import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.domain.usecase.SetupNotificationsUseCase
 import es.jvbabi.trails.page.devices.Screen
 import kotlinx.coroutines.CoroutineName
-import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlin.uuid.Uuid
 
 class HomeViewModel(
     private val keyValueRepository: KeyValueRepository,
@@ -23,16 +21,6 @@ class HomeViewModel(
 
     val state: StateFlow<HomeState>
         field = MutableStateFlow(HomeState())
-
-    /**
-     * Requests that the card sheet moves to its semi expanded position. The sheet state lives in
-     * the composition, so the request is emitted rather than stored.
-     */
-    val semiExpandSheet = MutableSharedFlow<Unit>(
-        replay = 0,
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
-    )
 
     init {
         viewModelScope.launch(CoroutineName("Start service if user exists + update user data")) {
@@ -59,10 +47,6 @@ class HomeViewModel(
     fun onEvent(event: HomeEvent) {
         when (event) {
             is HomeEvent.SelectTab -> state.update { it.copy(selectedTab = event.tab) }
-            is HomeEvent.SelectDeviceOnMap -> {
-                state.update { it.copy(selectedTab = HomeState.Tab.MyDevices(Screen.Device(event.deviceId))) }
-                semiExpandSheet.tryEmit(Unit)
-            }
         }
     }
 }
@@ -85,7 +69,4 @@ data class HomeState(
 
 sealed class HomeEvent {
     data class SelectTab(val tab: HomeState.Tab) : HomeEvent()
-
-    /** A marker on the map was tapped: open that device's detail route and reveal the sheet. */
-    data class SelectDeviceOnMap(val deviceId: Uuid) : HomeEvent()
 }
