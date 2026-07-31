@@ -2,109 +2,238 @@
 @file:DependsOn("com.kgit2:kommand-jvm:2.3.0")
 @file:DependsOn("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
 
+import com.kgit2.kommand.io.Output
 import com.kgit2.kommand.process.Command
 import com.kgit2.kommand.process.Stdio
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import java.io.File
 
-val releaseName = args.firstOrNull()?.takeIf { it.isNotBlank() }
-    ?: System.getenv("RELEASE_NAME")?.takeIf { it.isNotBlank() }
-    ?: error("No release name. Pass it as the first argument or set RELEASE_NAME (e.g. v20260731_1812).")
+/**
+ * Builds the changelog for a release from the per-issue entries in
+ * docs/changelog/issues/<id>/changelog.json.
+ *
+ * Produces one JSON file per language plus an English markdown version for the
+ * release body. Nothing is written into the repository: everything lands in the
+ * output directory and is attached to the release as an artifact.
+ *
+ * Usage: generate_changelog.main.kts <release_name> [output_directory]
+ *        RELEASE_NAME / OUTPUT_DIR work as well.
+ */
 
-fun run(program: String, vararg arguments: String): String? = Command(program)
+fun execute(program: String, vararg arguments: String): Output = Command(program)
     .args(*arguments)
     .stdout(Stdio.Pipe)
     .output()
-    .stdout
-    ?.trim()
-    ?.takeIf { it.isNotEmpty() }
+
+fun capture(program: String, vararg arguments: String): String? {
+    val output = execute(program, *arguments)
+    if (output.status != 0) return null
+    return output.stdout?.trim()?.takeIf { it.isNotEmpty() }
+}
+
+fun warn(message: String) = println("::warning::$message")
+
+val releaseName = args.getOrNull(0)?.takeIf { it.isNotBlank() }
+    ?: System.getenv("RELEASE_NAME")?.takeIf { it.isNotBlank() }
+    ?: error("No release name. Pass it as the first argument or set RELEASE_NAME (e.g. v20260731_1812).")
 
 val repoRoot = File(
-    run("git", "rev-parse", "--show-toplevel")
-        ?: error("Not inside a git repository.")
+    capture("git", "rev-parse", "--show-toplevel") ?: error("Not inside a git repository.")
 )
 
+// A relative output directory is resolved against the repository root, so the
+// script does not depend on where it was started from.
+val outputDirectory = (args.getOrNull(1)?.takeIf { it.isNotBlank() }
+    ?: System.getenv("OUTPUT_DIR")?.takeIf { it.isNotBlank() })
+    ?.let { File(it).takeIf(File::isAbsolute) ?: File(repoRoot, it) }
+    ?: File(repoRoot, "build/changelog")
+
+fun File.displayPath(): String = runCatching { relativeTo(repoRoot).path }.getOrDefault(path)
+
+/** The category an entry ends up in, derived from the GitHub issue type. */
+enum class Category(val key: String, val heading: String) {
+    Feature("features", "Features"),
+    Fix("fixes", "Fixes"),
+    Task("tasks", "Other changes"),
+}
+
+fun categoryOf(issueType: String?): Category? = when (issueType?.lowercase()) {
+    "feature" -> Category.Feature
+    "bug" -> Category.Fix
+    "task" -> Category.Task
+    else -> null
+}
+
+/** Features carry a title and a description, fixes and tasks only a description. */
+data class Text(
+    val title: String?,
+    val description: String?,
+)
+
+data class Entry(
+    val issue: Int,
+    val category: Category,
+    val default: Text,
+    val localized: Map<String, Text>,
+) {
+    /** A localization overrides only the fields it actually provides. */
+    fun textFor(language: String?): Text {
+        if (language == null) return default
+        val localization = localized[language]
+        return Text(
+            title = localization?.title ?: default.title,
+            description = localization?.description ?: default.description,
+        )
+    }
+}
+
+// --- read the entries -----------------------------------------------------
+
 // The first release has no predecessor, so fall back to the full history.
-val latestRelease = run("gh", "release", "view", "--json", "tagName", "--jq", ".tagName")
+val latestRelease = capture("gh", "release", "view", "--json", "tagName", "--jq", ".tagName")
 val range = latestRelease?.let { "$it..HEAD" } ?: "HEAD"
 
-val issuesSinceLastRelease = run("git", "log", range, "--pretty=format:%s")
+val issues = capture("git", "log", range, "--pretty=format:%s")
     .orEmpty()
     .lines()
-    .mapNotNull { commitMessage -> Regex("#(\\d+)").find(commitMessage)?.groupValues?.get(1)?.toIntOrNull() }
+    .mapNotNull { subject -> Regex("#(\\d+)").find(subject)?.groupValues?.get(1)?.toIntOrNull() }
     .distinct()
     .sorted()
 
-data class IssueChangelog(
-    val issue: Int,
-    val title: String,
-    val description: String?,
-    val localized: Map<String, Localization>,
-) {
-    data class Localization(
-        val title: String?,
-        val description: String?,
-    )
+fun textOf(source: JsonObject?) = Text(
+    title = (source?.get("title") as? JsonPrimitive)?.takeIf { it.isString }?.content?.takeIf { it.isNotBlank() },
+    description = (source?.get("description") as? JsonPrimitive)?.takeIf { it.isString }?.content?.takeIf { it.isNotBlank() },
+)
 
-    /** A localization only overrides the fields it actually provides. */
-    fun titleFor(language: String?): String = language?.let { localized[it]?.title } ?: title
-
-    fun descriptionFor(language: String?): String? = language?.let { localized[it]?.description } ?: description
-}
-
-val json = Json { ignoreUnknownKeys = true }
-
-val changelogs = issuesSinceLastRelease.mapNotNull { issue ->
+val entries = issues.mapNotNull { issue ->
     val file = File(repoRoot, "docs/changelog/issues/$issue/changelog.json")
     if (!file.exists()) {
-        System.err.println("warning: no changelog for issue #$issue, skipping (${file.relativeTo(repoRoot)})")
+        warn("No changelog for issue #$issue, skipping it.")
         return@mapNotNull null
     }
 
-    val root = json.parseToJsonElement(file.readText()).jsonObject
-    val title = root["title"]?.jsonPrimitive?.contentOrNull
-        ?: error("${file.relativeTo(repoRoot)} has no \"title\".")
+    val root = Json.parseToJsonElement(file.readText()).jsonObject
+    val default = textOf(root)
 
-    IssueChangelog(
+    val issueType = capture("gh", "issue", "view", "$issue", "--json", "issueType", "--jq", ".issueType.name // \"\"")
+    val category = categoryOf(issueType) ?: run {
+        // Better a wrong section than a lost entry, and the pull request check
+        // already warns about issues without a type.
+        warn("Issue #$issue has no issue type, listing it under \"${Category.Task.heading}\".")
+        Category.Task
+    }
+
+    when (category) {
+        Category.Feature -> {
+            if (default.title == null) error("docs/changelog/issues/$issue/changelog.json needs a \"title\", #$issue is a Feature.")
+            if (default.description == null) error("docs/changelog/issues/$issue/changelog.json needs a \"description\", #$issue is a Feature.")
+        }
+
+        Category.Fix -> {
+            if (default.description == null) error("docs/changelog/issues/$issue/changelog.json needs a \"description\", #$issue is a Bug.")
+        }
+
+        // A description is optional for tasks, and without one there is nothing to show.
+        Category.Task -> if (default.description == null) {
+            warn("Issue #$issue has no description, leaving it out of the changelog.")
+            return@mapNotNull null
+        }
+    }
+
+    Entry(
         issue = issue,
-        title = title,
-        description = root["description"]?.jsonPrimitive?.contentOrNull,
-        localized = root["localized"]?.jsonObject.orEmpty().mapValues { (_, localization) ->
-            IssueChangelog.Localization(
-                title = localization.jsonObject["title"]?.jsonPrimitive?.contentOrNull,
-                description = localization.jsonObject["description"]?.jsonPrimitive?.contentOrNull,
-            )
+        category = category,
+        default = default,
+        localized = (root["localized"] as? JsonObject).orEmpty().mapValues { (_, localization) ->
+            textOf(localization as? JsonObject)
         },
     )
 }
 
-fun render(language: String?) = buildString {
-    appendLine("# $releaseName")
-    changelogs.forEach { changelog ->
-        appendLine()
-        appendLine("## ${changelog.titleFor(language)}")
-        changelog.descriptionFor(language)?.let {
-            appendLine()
-            appendLine(it)
+// --- render ---------------------------------------------------------------
+
+fun entriesOf(category: Category) = entries.filter { it.category == category }
+
+fun renderJson(language: String?) = buildJsonObject {
+    put("release", releaseName)
+    language?.let { put("language", it) }
+    Category.entries.forEach { category ->
+        put(
+            category.key,
+            buildJsonArray {
+                entriesOf(category).forEach { entry ->
+                    val text = entry.textFor(language)
+                    add(
+                        buildJsonObject {
+                            put("issue", entry.issue)
+                            if (category == Category.Feature) put("title", text.title)
+                            put("description", text.description)
+                        }
+                    )
+                }
+            },
+        )
+    }
+}
+
+fun renderMarkdown(language: String?) = buildString {
+    if (entries.isEmpty()) {
+        // The release still needs a body, and an empty one reads like a mistake.
+        appendLine("No user-facing changes.")
+        return@buildString
+    }
+
+    Category.entries.forEach { category ->
+        val categoryEntries = entriesOf(category)
+        if (categoryEntries.isEmpty()) return@forEach
+
+        if (isNotEmpty()) appendLine()
+        appendLine("## ${category.heading}")
+        if (category != Category.Feature) appendLine()
+
+        categoryEntries.forEach { entry ->
+            val text = entry.textFor(language)
+            if (category == Category.Feature) {
+                appendLine()
+                appendLine("### ${text.title}")
+                appendLine()
+                appendLine(text.description)
+            } else {
+                // Fixes and tasks are one-liners.
+                appendLine("- ${text.description}")
+            }
         }
     }
 }
 
-if (changelogs.isEmpty()) {
-    System.err.println("No changelog entries for $releaseName, nothing to write.")
-} else {
-    val outputDirectory = File(repoRoot, "docs/changelog/releases/$releaseName")
-    outputDirectory.mkdirs()
+// --- write ----------------------------------------------------------------
 
-    // null is the default file, every language found in any entry gets its own.
-    val languages = listOf(null) + changelogs.flatMap { it.localized.keys }.distinct().sorted()
-
-    languages.forEach { language ->
-        val file = File(outputDirectory, if (language == null) "CHANGELOG.md" else "CHANGELOG.$language.md")
-        file.writeText(render(language))
-        println("wrote ${file.relativeTo(repoRoot)}")
-    }
+if (entries.isEmpty()) {
+    warn("No changelog entries for $releaseName.")
 }
+
+outputDirectory.mkdirs()
+
+// null is the default (English), every language found in any entry gets its own file.
+val languages = listOf(null) + entries.flatMap { it.localized.keys }.distinct().sorted()
+val pretty = Json { prettyPrint = true }
+
+// Always written, even with no entries at all: the release attaches these files
+// and would otherwise fail on the missing ones.
+val written = languages.map { language ->
+    val file = File(outputDirectory, if (language == null) "changelog.json" else "changelog.$language.json")
+    file.writeText(pretty.encodeToString(JsonObject.serializer(), renderJson(language)) + "\n")
+    file
+} + File(outputDirectory, "CHANGELOG.md").apply {
+    // English only, this one becomes the release body.
+    writeText(renderMarkdown(null))
+}
+
+written.forEach { println("wrote ${it.displayPath()}") }
