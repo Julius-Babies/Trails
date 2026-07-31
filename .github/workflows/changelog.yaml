@@ -10,7 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      # write, because the report is posted as a self-updating pull request comment.
+      pull-requests: write
       issues: read
     env:
       KOTLIN_VERSION: '2.4.10'

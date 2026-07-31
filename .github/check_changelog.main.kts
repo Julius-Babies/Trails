@@ -43,12 +43,17 @@ val branch = System.getenv("BRANCH")?.takeIf { it.isNotBlank() }
     ?: capture("git", "rev-parse", "--abbrev-ref", "HEAD")
 
 val summaryFile = System.getenv("GITHUB_STEP_SUMMARY")?.takeIf { it.isNotBlank() }?.let(::File)
-val summary = StringBuilder()
 
+/** Identifies our own comment, and lets a human see where it came from. */
+val commentMarker = "<!-- changelog-check -->"
+
+val findings = StringBuilder()
+var warned = false
 var failed = false
 
 fun warn(message: String) {
     println("::warning::$message")
+    warned = true
 }
 
 fun fail(message: String) {
@@ -56,8 +61,48 @@ fun fail(message: String) {
     failed = true
 }
 
-fun finish(): Nothing {
-    summaryFile?.appendText(summary.toString())
+/**
+ * Writes the report to the step summary and to a single, self-updating pull
+ * request comment. Log annotations alone are not enough: without a file
+ * reference they only show up on the workflow run page, never in the pull
+ * request itself.
+ */
+fun finish(headline: String): Nothing {
+    val verdict = when {
+        failed -> "❌ $headline"
+        warned -> "⚠️ $headline"
+        else -> "✅ $headline"
+    }
+    val report = buildString {
+        appendLine(commentMarker)
+        appendLine("### Changelog")
+        appendLine()
+        appendLine(verdict)
+        if (findings.isNotEmpty()) {
+            appendLine()
+            append(findings)
+        }
+    }
+
+    summaryFile?.appendText(report)
+
+    if (pullRequest != null) {
+        val file = File.createTempFile("changelog-check", ".md")
+        try {
+            file.writeText(report)
+            val comment = execute(
+                "gh", "pr", "comment", pullRequest,
+                "--body-file", file.absolutePath,
+                "--edit-last", "--create-if-none",
+            )
+            if (comment.status != 0) {
+                println("::warning::Could not post the changelog report as a pull request comment.")
+            }
+        } finally {
+            file.delete()
+        }
+    }
+
     exitProcess(if (failed) 1 else 0)
 }
 
@@ -79,10 +124,7 @@ val issues = linkedIssues.ifEmpty {
 
 if (issues.isEmpty()) {
     warn("No linked issue found for this pull request (branch '$branch'), skipping the changelog check.")
-    summary.appendLine("### Changelog check skipped")
-    summary.appendLine()
-    summary.appendLine("This pull request closes no issue, so there is nothing to check.")
-    finish()
+    finish("This pull request closes no issue, so there is nothing to check.")
 }
 
 data class Changelog(
@@ -135,9 +177,6 @@ fun readChangelog(file: File): Changelog {
     )
 }
 
-summary.appendLine("### Changelog check")
-summary.appendLine()
-
 issues.forEach { issue ->
     val type = capture("gh", "issue", "view", "$issue", "--json", "issueType", "--jq", ".issueType.name // \"\"")
     val required = type.equals("Feature", ignoreCase = true)
@@ -147,17 +186,18 @@ issues.forEach { issue ->
 
     if (type == null) {
         warn("Issue #$issue has no issue type. Please set one (Feature, Bug or Task).")
+        findings.appendLine("- ⚠️ **#$issue** has no issue type. Please set one (Feature, Bug or Task).")
     }
 
     when {
         !file.exists() && required -> {
             fail("Issue #$issue is a Feature but has no changelog. Please add $relative.")
-            summary.appendLine("- ❌ **#$issue** (Feature): `$relative` is missing and required.")
+            findings.appendLine("- ❌ **#$issue** (Feature) needs a changelog. Please add `$relative`.")
         }
 
         !file.exists() -> {
             warn("Issue #$issue has no changelog ($relative). That is optional for type '${type ?: "unset"}'.")
-            summary.appendLine("- ⚠️ **#$issue** (${type ?: "no type"}): `$relative` is missing, which is optional.")
+            findings.appendLine("- ⚠️ **#$issue** (${type ?: "no type"}) has no changelog. `$relative` is optional for this type.")
         }
 
         else -> {
@@ -167,14 +207,21 @@ issues.forEach { issue ->
             val changelog = readChangelog(file)
             if (changelog.problems.isEmpty()) {
                 println("Issue #$issue (${type ?: "no type"}) has a changelog: ${changelog.title}")
-                summary.appendLine("- ✅ **#$issue** (${type ?: "no type"}): ${changelog.title}")
+                findings.appendLine("- ✅ **#$issue** (${type ?: "no type"}): ${changelog.title}")
             } else {
                 changelog.problems.forEach { fail("$relative: $it") }
-                summary.appendLine("- ❌ **#$issue** (${type ?: "no type"}): `$relative` is invalid:")
-                changelog.problems.forEach { summary.appendLine("  - $it") }
+                findings.appendLine("- ❌ **#$issue** (${type ?: "no type"}) has an invalid `$relative`:")
+                changelog.problems.forEach { findings.appendLine("  - $it") }
             }
         }
     }
 }
 
-finish()
+val checked = issues.joinToString(", ") { "#$it" }
+finish(
+    when {
+        failed -> "The changelog is not ready for $checked."
+        warned -> "The changelog needs a look for $checked."
+        else -> "Every issue in this pull request has a changelog ($checked)."
+    }
+)
