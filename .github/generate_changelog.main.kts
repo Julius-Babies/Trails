@@ -17,7 +17,7 @@ import java.io.File
 
 /**
  * Builds the changelog for a release from the per-issue entries in
- * docs/changelog/issues/<id>/changelog.json.
+ * docs/changelog/issues/<id>/changelog.<type>.json.
  *
  * Produces one JSON file per language plus an English markdown version for the
  * release body. Nothing is written into the repository: everything lands in the
@@ -58,18 +58,18 @@ val outputDirectory = (args.getOrNull(1)?.takeIf { it.isNotBlank() }
 fun File.displayPath(): String = runCatching { relativeTo(repoRoot).path }.getOrDefault(path)
 
 /** The category an entry ends up in, derived from the GitHub issue type. */
-enum class Category(val key: String, val heading: String) {
-    Feature("features", "Features"),
-    Fix("fixes", "Fixes"),
-    Task("tasks", "Other changes"),
+enum class Category(val issueType: String, val key: String, val heading: String) {
+    Feature(issueType = "feature", key = "features", heading = "Features"),
+    Fix(issueType = "bug", key = "fixes", heading = "Fixes"),
+    Task(issueType = "task", key = "tasks", heading = "Other changes"),
+    ;
+
+    /** The entry file carries its type in the name, e.g. changelog.feature.json. */
+    val fileName: String get() = "changelog.$issueType.json"
 }
 
-fun categoryOf(issueType: String?): Category? = when (issueType?.lowercase()) {
-    "feature" -> Category.Feature
-    "bug" -> Category.Fix
-    "task" -> Category.Task
-    else -> null
-}
+fun categoryOf(issueType: String?): Category? =
+    Category.entries.firstOrNull { it.issueType == issueType?.lowercase() }
 
 /** Features carry a title and a description, fixes and tasks only a description. */
 data class Text(
@@ -113,15 +113,6 @@ fun textOf(source: JsonObject?) = Text(
 )
 
 val entries = issues.mapNotNull { issue ->
-    val file = File(repoRoot, "docs/changelog/issues/$issue/changelog.json")
-    if (!file.exists()) {
-        warn("No changelog for issue #$issue, skipping it.")
-        return@mapNotNull null
-    }
-
-    val root = Json.parseToJsonElement(file.readText()).jsonObject
-    val default = textOf(root)
-
     val issueType = capture("gh", "issue", "view", "$issue", "--json", "issueType", "--jq", ".issueType.name // \"\"")
     val category = categoryOf(issueType) ?: run {
         // Better a wrong section than a lost entry, and the pull request check
@@ -130,14 +121,24 @@ val entries = issues.mapNotNull { issue ->
         Category.Task
     }
 
+    val relative = "docs/changelog/issues/$issue/${category.fileName}"
+    val file = File(repoRoot, relative)
+    if (!file.exists()) {
+        warn("No changelog for issue #$issue ($relative), skipping it.")
+        return@mapNotNull null
+    }
+
+    val root = Json.parseToJsonElement(file.readText()).jsonObject
+    val default = textOf(root)
+
     when (category) {
         Category.Feature -> {
-            if (default.title == null) error("docs/changelog/issues/$issue/changelog.json needs a \"title\", #$issue is a Feature.")
-            if (default.description == null) error("docs/changelog/issues/$issue/changelog.json needs a \"description\", #$issue is a Feature.")
+            if (default.title == null) error("$relative needs a \"title\", #$issue is a Feature.")
+            if (default.description == null) error("$relative needs a \"description\", #$issue is a Feature.")
         }
 
         Category.Fix -> {
-            if (default.description == null) error("docs/changelog/issues/$issue/changelog.json needs a \"description\", #$issue is a Bug.")
+            if (default.description == null) error("$relative needs a \"description\", #$issue is a Bug.")
         }
 
         // A description is optional for tasks, and without one there is nothing to show.

@@ -161,6 +161,10 @@ enum class Shape(val titled: Boolean, val descriptionRequired: Boolean) {
     Feature(titled = true, descriptionRequired = true),
     Bug(titled = false, descriptionRequired = true),
     Task(titled = false, descriptionRequired = false),
+    ;
+
+    /** The entry file carries its type in the name, e.g. changelog.feature.json. */
+    val fileName: String get() = "changelog.${name.lowercase()}.json"
 }
 
 fun shapeOf(issueType: String?): Shape? = when (issueType?.lowercase()) {
@@ -242,9 +246,6 @@ issues.forEach { issue ->
     val type = capture("gh", "issue", "view", "$issue", "--json", "issueType", "--jq", ".issueType.name // \"\"")
     val required = type.equals("Feature", ignoreCase = true)
 
-    val relative = "docs/changelog/issues/$issue/changelog.json"
-    val file = File(repoRoot, relative)
-
     if (type == null) {
         warn("Issue #$issue has no issue type. Please set one (Feature, Bug or Task).")
         findings.appendLine("- ⚠️ **#$issue** has no issue type. Please set one (Feature, Bug or Task).")
@@ -254,7 +255,29 @@ issues.forEach { issue ->
     // so validate it against the shape it would actually be rendered with.
     val shape = shapeOf(type) ?: Shape.Task
 
+    val directory = File(repoRoot, "docs/changelog/issues/$issue")
+    val relative = "docs/changelog/issues/$issue/${shape.fileName}"
+    val file = File(directory, shape.fileName)
+
+    // A file named for another type is a rename away from being correct, which is
+    // worth saying instead of reporting the expected one as simply missing.
+    val misnamed = if (file.exists()) emptyList()
+    else Shape.entries.filter { it != shape && File(directory, it.fileName).exists() }
+
+    val legacy = !file.exists() && File(directory, "changelog.json").exists()
+
     when {
+        misnamed.isNotEmpty() -> {
+            val found = misnamed.joinToString(", ") { it.fileName }
+            fail("Issue #$issue is a ${type ?: "Task"}, so its changelog must be named ${shape.fileName}, but found $found.")
+            findings.appendLine("- ❌ **#$issue** (${type ?: "no type"}): found `$found`, expected `${shape.fileName}`. Please rename it.")
+        }
+
+        legacy -> {
+            fail("Issue #$issue still uses changelog.json. Please rename it to ${shape.fileName}.")
+            findings.appendLine("- ❌ **#$issue** (${type ?: "no type"}): `changelog.json` is no longer read, rename it to `${shape.fileName}`.")
+        }
+
         !file.exists() && required -> {
             fail("Issue #$issue is a Feature but has no changelog. Please add $relative.")
             findings.appendLine("- ❌ **#$issue** (Feature) needs a changelog. Please add `$relative`.")
