@@ -126,9 +126,9 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          # A manual run still builds the image to prove it builds, but never
-          # overwrites :latest with something that is not on main.
-          push: ${{ github.event_name == 'push' }}
+          # A draft run still builds the image to prove it builds, but does not
+          # overwrite :latest. On a push to main there is no input, so this is true.
+          push: ${{ !inputs.draft }}
           tags: ghcr.io/julius-babies/trails:latest
 
   build-android:
