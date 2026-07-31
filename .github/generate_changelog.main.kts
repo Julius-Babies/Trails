@@ -78,13 +78,11 @@ data class Text(
 data class Entry(
     val issue: Int,
     val category: Category,
-    val pullRequests: List<Int>,
     val default: Text,
     val localized: Map<String, Text>,
 ) {
-    /** Rendered as "(#18)" behind an entry, so a reader can jump to the change. */
-    val pullRequestReference: String
-        get() = pullRequests.takeIf { it.isNotEmpty() }?.joinToString(", ", " (", ")") { "#$it" }.orEmpty()
+    /** Rendered as "(#17)" behind an entry, so a reader can jump to the issue. */
+    val issueReference: String get() = " (#$issue)"
 
     /** A localization overrides only the fields it actually provides. */
     fun textFor(language: String?): Text {
@@ -154,14 +152,6 @@ val entries = issues.mapNotNull { issue ->
     Entry(
         issue = issue,
         category = category,
-        pullRequests = capture(
-            "gh", "issue", "view", "$issue",
-            "--json", "closedByPullRequestsReferences",
-            "--jq", ".closedByPullRequestsReferences[].number",
-        )
-            ?.lines()
-            ?.mapNotNull { it.trim().toIntOrNull() }
-            .orEmpty(),
         default = default,
         localized = (root["localized"] as? JsonObject).orEmpty().mapValues { (_, localization) ->
             textOf(localization as? JsonObject)
@@ -215,12 +205,12 @@ fun renderMarkdown(language: String?) = buildString {
             val text = entry.textFor(language)
             if (category == Category.Feature) {
                 appendLine()
-                appendLine("### ${text.title}${entry.pullRequestReference}")
+                appendLine("### ${text.title}${entry.issueReference}")
                 appendLine()
                 appendLine(text.description)
             } else {
                 // Fixes and tasks are one-liners.
-                appendLine("- ${text.description}${entry.pullRequestReference}")
+                appendLine("- ${text.description}${entry.issueReference}")
             }
         }
     }
