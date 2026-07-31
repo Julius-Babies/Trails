@@ -13,6 +13,7 @@ import es.jvbabi.trails.domain.extension.Settings
 import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.domain.usecase.SetupNotificationsUseCase
 import es.jvbabi.trails.domain.usecase.app.CheckAppIsLatestVersionUseCase
+import es.jvbabi.trails.domain.usecase.app.GetReleaseChangelogsUseCase
 import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
 import es.jvbabi.trails.domain.usecase.auth.LoginUseCase
 import es.jvbabi.trails.domain.usecase.communication.StartExternalConnectionsUseCase
@@ -131,6 +132,7 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
 
         singleOf(::SetupNotificationsUseCase)
         singleOf(::CheckAppIsLatestVersionUseCase)
+        singleOf(::GetReleaseChangelogsUseCase)
 
         singleOf(::HandleDeepLinkUseCase)
         singleOf(::LoginUseCase)

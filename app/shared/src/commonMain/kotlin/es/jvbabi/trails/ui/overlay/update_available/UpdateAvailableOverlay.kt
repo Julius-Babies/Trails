@@ -10,15 +10,27 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import es.jvbabi.trails.ThemeWrapper
+import es.jvbabi.trails.domain.model.AppVersions
+import es.jvbabi.trails.domain.model.Changelog
+import es.jvbabi.trails.domain.model.issueUrl
+import es.jvbabi.trails.ui.components.ProgressiveBlurScrim
+import es.jvbabi.trails.ui.components.ScrimEdge
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import trails.app.shared.generated.resources.Res
@@ -63,12 +75,32 @@ fun UpdateAvailableOverlayContent(
     onEvent: (event: UpdateAvailableEvent) -> Unit,
     state: UpdateAvailableState,
 ) {
+    // A version without a single entry has nothing to show, and neither has a changelog that only
+    // consists of those - in that case the overlay stays exactly the prompt it was.
+    val versions = state.changelog?.versions?.filterNot { it.isEmpty }.orEmpty()
+
+    // The list is the only part that wants all the room it can get, so it takes over the slack the
+    // prompt otherwise spends on centring itself.
+    val showsChangelog = !state.areChangelogsLoading && versions.isNotEmpty()
+
+    val density = LocalDensity.current
+    val hazeState = rememberHazeState()
+
+    // Measured rather than guessed: the buttons float above the changelog, so the list needs to know
+    // how much room to leave below its last entry. A hard-coded value would break as soon as the
+    // button text wraps or the font scale changes.
+    var buttonsHeight by remember { mutableStateOf(0.dp) }
+
+    Box(Modifier.fillMaxSize()) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .hazeSource(hazeState)
+            // No bottom padding: the changelog runs to the very bottom of the sheet and under the
+            // scrim, which brings its own padding.
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp)
     ) {
-        Spacer(Modifier.weight(.5f))
+        if (showsChangelog) Spacer(Modifier.height(8.dp)) else Spacer(Modifier.weight(.5f))
         Row(
             modifier = Modifier
                 .padding(horizontal = 16.dp)
@@ -84,7 +116,7 @@ fun UpdateAvailableOverlayContent(
                     .size(108.dp),
             )
         }
-        Spacer(Modifier.weight(.4f))
+        if (showsChangelog) Spacer(Modifier.height(24.dp)) else Spacer(Modifier.weight(.4f))
         Text(
             text = "Update verfügbar",
             style = MaterialTheme.typography.displayMedium,
@@ -110,7 +142,7 @@ fun UpdateAvailableOverlayContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = state.currentVersion,
+                text = AppVersions.tagOf(state.currentVersion),
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Right,
@@ -129,7 +161,7 @@ fun UpdateAvailableOverlayContent(
             ) { latestVersion ->
                 if (latestVersion != null) {
                     Text(
-                        text = latestVersion,
+                        text = AppVersions.tagOf(latestVersion),
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Left,
                     )
@@ -138,25 +170,71 @@ fun UpdateAvailableOverlayContent(
                 }
             }
         }
-        Spacer(Modifier.weight(1.25f))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedButton(
-                onClick = { onEvent(UpdateAvailableEvent.RequestDismiss) },
-                modifier = Modifier.weight(1f),
-            ) {
-                Text(
-                    text = "Jetzt nicht"
+        when {
+            // Runs to the bottom of the sheet and scrolls under the buttons, which float above it
+            // on a blurred scrim. The room they take is added below the last entry instead.
+            showsChangelog -> {
+                Spacer(Modifier.height(24.dp))
+                ChangelogList(
+                    versions = versions,
+                    onIssueClick = { issue ->
+                        onEvent(UpdateAvailableEvent.OpenIssue(issueUrl(issue)))
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    bottomPadding = buttonsHeight,
                 )
             }
-            Button(
-                onClick = { onEvent(UpdateAvailableEvent.Install) },
-                modifier = Modifier.weight(1f),
+
+            state.areChangelogsLoading -> {
+                Spacer(Modifier.height(24.dp))
+                ChangelogLoadingPlaceholder(Modifier.fillMaxWidth())
+                Spacer(Modifier.weight(1.25f))
+                // Nothing scrolls here, so the prompt has to keep clear of the buttons itself.
+                Spacer(Modifier.height(buttonsHeight))
+            }
+
+            else -> {
+                Spacer(Modifier.weight(1.25f))
+                Spacer(Modifier.height(buttonsHeight))
+            }
+            }
+        }
+
+        ProgressiveBlurScrim(
+            hazeState = hazeState,
+            edge = ScrimEdge.Bottom,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .onSizeChanged { size ->
+                    buttonsHeight = with(density) { size.height.toDp() }
+                },
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(text = "Installieren")
+                OutlinedButton(
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
+                    onClick = { onEvent(UpdateAvailableEvent.RequestDismiss) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(
+                        text = "Jetzt nicht"
+                    )
+                }
+                Button(
+                    onClick = { onEvent(UpdateAvailableEvent.Install) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(text = "Installieren")
+                }
             }
         }
     }
@@ -170,8 +248,40 @@ private fun UpdateAvailableOverlayPreview() {
         onEvent = {},
         state = UpdateAvailableState(
             isDismissed = false,
-            currentVersion = "1.0.0",
-            latestVersion = "1.1.0"
+            currentVersion = "20260714_0930",
+            latestVersion = "20260731_1812",
+            changelog = Changelog(versions = previewChangelogVersions),
+            areChangelogsLoading = false,
+        )
+    )
+}
+
+@Preview(showBackground = true)
+@PreviewWrapper(wrapper = ThemeWrapper::class)
+@Composable
+private fun UpdateAvailableOverlayLoadingChangelogPreview() {
+    UpdateAvailableOverlayContent(
+        onEvent = {},
+        state = UpdateAvailableState(
+            isDismissed = false,
+            currentVersion = "20260714_0930",
+            latestVersion = "20260731_1812",
+            areChangelogsLoading = true,
+        )
+    )
+}
+
+@Preview(showBackground = true)
+@PreviewWrapper(wrapper = ThemeWrapper::class)
+@Composable
+private fun UpdateAvailableOverlayWithoutChangelogPreview() {
+    UpdateAvailableOverlayContent(
+        onEvent = {},
+        state = UpdateAvailableState(
+            isDismissed = false,
+            currentVersion = "20260714_0930",
+            latestVersion = "20260731_1812",
+            areChangelogsLoading = false,
         )
     )
 }

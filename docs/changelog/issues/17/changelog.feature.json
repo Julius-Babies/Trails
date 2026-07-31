@@ -1,0 +1,10 @@
+{
+  "title": "Add changelog support",
+  "description": "Issues now have a changelog section.",
+  "localized": {
+    "de": {
+      "title": "Changelog-Unterstützung",
+      "description": "Issues haben jetzt eine Changelog-Sektion."
+    }
+  }
+}

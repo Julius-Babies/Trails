@@ -1,7 +1,27 @@
+name: Deploy
+
+# run-name only has the github, inputs and vars contexts, so it cannot use the
+# build tag from the setup job. It names the trigger and the thing being shipped,
+# which is what tells two runs apart in the Actions list.
+run-name: >-
+  ${{ github.event_name == 'workflow_dispatch'
+      && (inputs.draft
+          && format('Rehearsal (draft) · {0} · @{1}', github.ref_name, github.actor)
+          || format('Manual release · {0} · @{1}', github.ref_name, github.actor))
+      || format('Release · {0}', github.event.head_commit.message) }}
+
 on:
   push:
     branches:
       - main
+  # Manual runs exist to rehearse a release without publishing anything:
+  # they can produce a draft and never push the Docker image.
+  workflow_dispatch:
+    inputs:
+      draft:
+        description: Create the release as a draft
+        type: boolean
+        default: true
 jobs:
   setup:
     runs-on: ubuntu-latest
@@ -118,7 +138,9 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          push: true
+          # A draft run still builds the image to prove it builds, but does not
+          # overwrite :latest. On a push to main there is no input, so this is true.
+          push: ${{ !inputs.draft }}
           tags: ghcr.io/julius-babies/trails:latest
 
   build-android:
@@ -157,11 +179,53 @@ jobs:
     permissions:
       packages: write
       contents: write
+      issues: read
+    env:
+      KOTLIN_VERSION: '2.4.10'
     steps:
       - uses: actions/checkout@v5
         name: Checkout code
+        with:
+          # The changelog is built from the commits since the last release,
+          # which needs the history and the tags, not just the tip.
+          fetch-depth: 0
 
+      - name: Setup JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
 
+      # The runner image ships no kotlinc, so pin the compiler instead of
+      # depending on a third party action.
+      - name: Cache Kotlin compiler
+        uses: actions/cache@v4
+        with:
+          path: ~/.kotlin-compiler
+          key: kotlin-compiler-${{ env.KOTLIN_VERSION }}
+
+      - name: Set up Kotlin
+        run: |
+          if [ ! -x "$HOME/.kotlin-compiler/kotlinc/bin/kotlin" ]; then
+            curl -sSLf -o /tmp/kotlin-compiler.zip \
+              "https://github.com/JetBrains/kotlin/releases/download/v$KOTLIN_VERSION/kotlin-compiler-$KOTLIN_VERSION.zip"
+            mkdir -p "$HOME/.kotlin-compiler"
+            unzip -q /tmp/kotlin-compiler.zip -d "$HOME/.kotlin-compiler"
+          fi
+          echo "$HOME/.kotlin-compiler/kotlinc/bin" >> "$GITHUB_PATH"
+
+      - name: Cache changelog script dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: changelog-script-${{ hashFiles('.github/generate_changelog.main.kts') }}
+          restore-keys: changelog-script-
+
+      - name: Generate changelog
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_NAME: v${{ needs.setup.outputs.build_tag }}
+        run: kotlin .github/generate_changelog.main.kts
 
       - name: Download Android APK artifacts
         uses: actions/download-artifact@v8
@@ -180,10 +244,13 @@ jobs:
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          files: apks/Trails*
-          draft: false
+          files: |
+            apks/Trails*
+            build/changelog/changelog*.json
+          body_path: build/changelog/CHANGELOG.md
+          draft: ${{ inputs.draft || false }}
           prerelease: false
-          make_latest: true
+          make_latest: ${{ !inputs.draft }}
           name: Trails (${{ needs.setup.outputs.date_formatted }})
           fail_on_unmatched_files: true
           tag_name: v${{ needs.setup.outputs.build_tag }}
