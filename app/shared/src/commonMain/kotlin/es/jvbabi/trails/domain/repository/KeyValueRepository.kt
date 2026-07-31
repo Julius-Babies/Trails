@@ -1,5 +1,6 @@
 package es.jvbabi.trails.domain.repository
 
+import io.ktor.util.StringValues
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
@@ -15,6 +16,8 @@ sealed class Key<VALUE>(val key: String) {
     abstract fun toValue(value: String): VALUE
     abstract fun fromValue(value: VALUE): String
 
+    open val defaultValue: VALUE? = null
+
     abstract class SerializableKey<T>(
         key: String,
         private val serializer: KSerializer<T>
@@ -28,6 +31,11 @@ sealed class Key<VALUE>(val key: String) {
         override fun fromValue(value: String): String = value
     }
 
+    abstract class IntKey(key: String): Key<Int>(key) {
+        override fun toValue(value: String): Int = value.toInt()
+        override fun fromValue(value: Int): String = value.toString()
+    }
+
     abstract class UuidKey(key: String): Key<Uuid>(key) {
         override fun toValue(value: String): Uuid = Uuid.parse(value)
         override fun fromValue(value: Uuid): String = value.toString()
@@ -37,6 +45,10 @@ sealed class Key<VALUE>(val key: String) {
     data object UserId: UuidKey("trails.userId")
     data object Host: StringKey("trails.host")
     data object Token: StringKey("trails.token")
+
+    data object MinimumMovementDistanceToNextSnapshot: IntKey("trails.minimumMovementDistanceToNextSnapshot") {
+        override val defaultValue: Int = 10
+    }
 
     data object Theme: Key<es.jvbabi.trails.domain.repository.Theme>("app.theme") {
         override fun fromValue(value: es.jvbabi.trails.domain.repository.Theme): String = value.name
