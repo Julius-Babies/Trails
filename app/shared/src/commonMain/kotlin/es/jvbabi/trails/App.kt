@@ -1,7 +1,6 @@
 package es.jvbabi.trails
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -177,10 +176,15 @@ fun App(
 private const val AREA_TRANSITION_DURATION_MILLIS = 250
 
 /**
- * Fractions of the surface's own size that it travels. The vertical offset stays small on purpose:
- * the surface is dismissed by fading and rounding away, not by sliding off the display.
+ * Fractions of the surface's own size that it travels. Enough to read as leaving, not so much that
+ * it slides off the display — it is dismissed by fading and rounding away as well.
+ *
+ * Pressing back and swiping it away use the same distance and the same easing on purpose. When a
+ * gesture ends, Navigation3 stops using the predictive spec and settles the remaining fraction with
+ * the pop spec, so the two have to describe the same motion or the surface jumps as the finger
+ * lifts. Only the alpha floor and the sideways drift are particular to the gesture.
  */
-private const val AREA_VERTICAL_TRAVEL = 8
+private const val AREA_VERTICAL_TRAVEL = 4
 private const val AREA_PREDICTIVE_EDGE_DRIFT = 12
 
 /**
@@ -194,13 +198,7 @@ private const val AREA_PREDICTIVE_MIN_ALPHA = 0.5f
 private const val AREA_BACKGROUND_SCALE = 0.92f
 
 private val areaOffsetSpec = tween<IntOffset>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing)
-private val areaFadeInSpec = tween<Float>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing)
-
-/**
- * Holds the opacity up while the gesture is still early and only then accelerates it away, so the
- * surface being dismissed stays readable for most of the travel.
- */
-private val areaFadeOutSpec = tween<Float>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutLinearInEasing)
+private val areaFadeSpec = tween<Float>(AREA_TRANSITION_DURATION_MILLIS, easing = FastOutSlowInEasing)
 
 /**
  * Settings is an area of its own that covers the home screen, which stays composed and in place
@@ -263,11 +261,11 @@ private fun AreaSurface(
 private val settingsAreaTransitions: Map<String, Any> =
     NavDisplay.transitionSpec {
         slideInVertically(areaOffsetSpec) { height -> height / AREA_VERTICAL_TRAVEL } +
-                fadeIn(areaFadeInSpec) togetherWith ExitTransition.None
+                fadeIn(areaFadeSpec) togetherWith ExitTransition.None
     } + NavDisplay.popTransitionSpec {
         EnterTransition.None togetherWith
                 slideOutVertically(areaOffsetSpec) { height -> height / AREA_VERTICAL_TRAVEL } +
-                fadeOut(areaFadeOutSpec)
+                fadeOut(areaFadeSpec)
     } + NavDisplay.predictivePopTransitionSpec { swipeEdge ->
         // The same dismissal, seeked by the gesture, drifting towards the swiped edge as well.
         // Both offsets have to come from a single slide: combining two of them keeps only the first.
@@ -278,7 +276,7 @@ private val settingsAreaTransitions: Map<String, Any> =
                         x = edgeDirection * size.width / AREA_PREDICTIVE_EDGE_DRIFT,
                         y = size.height / AREA_VERTICAL_TRAVEL,
                     )
-                } + fadeOut(areaFadeOutSpec, targetAlpha = AREA_PREDICTIVE_MIN_ALPHA)
+                } + fadeOut(areaFadeSpec, targetAlpha = AREA_PREDICTIVE_MIN_ALPHA)
     }
 
 class ThemeWrapper: PreviewWrapperProvider {
