@@ -1,0 +1,9 @@
+<resources>
+    <string name="home_tab_devices">Geräte</string>
+    <string name="home_tab_things">Gegenstände</string>
+    <string name="home_tab_shares">Freigaben</string>
+    <string name="home_things_placeholder">Hier könnten deine Gegenstände sein!</string>
+    <string name="home_map_overview">Übersicht</string>
+    <string name="home_map_own_location">Mein Standort</string>
+    <string name="home_map_compass">Kompass</string>
+</resources>

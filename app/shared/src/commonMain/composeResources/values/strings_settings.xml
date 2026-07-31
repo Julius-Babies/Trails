@@ -1,0 +1,31 @@
+<resources>
+    <string name="settings_title">Settings</string>
+
+    <string name="settings_section_interface">Interface</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_auto">Auto</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+
+    <string name="settings_section_tracking">Tracking</string>
+    <string name="settings_minimum_movement_title">Minimum required movement</string>
+    <string name="settings_minimum_movement_description">The minimum distance that has to be travelled before a new point is recorded.</string>
+
+    <string name="settings_request_location_permissions">Request location permissions</string>
+    <string name="settings_request_notification_permissions">Allow notifications</string>
+    <string name="settings_request_fullscreen_permissions">Allow full-screen activities</string>
+    <string name="settings_disable_battery_optimizations">Lift battery optimisations</string>
+    <string name="settings_ring_device">Ring device</string>
+    <string name="settings_start_tracking">Start tracking</string>
+    <string name="settings_stop_tracking">Stop tracking</string>
+
+    <string name="settings_login">Sign in</string>
+    <string name="settings_login_homeserver_label">Home server domain</string>
+
+    <string name="settings_debug_server">Trails server: %1$s</string>
+    <string name="settings_debug_device">Trails device: %1$s %2$s</string>
+    <string name="settings_debug_user_id">Trails user ID: %1$s</string>
+    <string name="settings_debug_unsynced_snapshots">Unsynced snapshots: %1$s</string>
+    <!-- Shown instead of a count that is not known yet. -->
+    <string name="settings_debug_unknown_count">–</string>
+</resources>

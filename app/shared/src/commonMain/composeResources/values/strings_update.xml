@@ -1,0 +1,13 @@
+<resources>
+    <string name="update_title">Update available</string>
+    <string name="update_message">An update for Trails is available. Please install it to get the latest features.</string>
+    <string name="update_not_now">Not now</string>
+    <string name="update_install">Install</string>
+
+    <string name="update_changelog_loading">Loading changes…</string>
+    <string name="update_changelog_features">New features</string>
+    <string name="update_changelog_fixes">Fixes</string>
+    <string name="update_changelog_tasks">Other changes</string>
+    <!-- Link to the issue an entry was tracked in, e.g. "#17". -->
+    <string name="update_changelog_issue">#%1$s</string>
+</resources>

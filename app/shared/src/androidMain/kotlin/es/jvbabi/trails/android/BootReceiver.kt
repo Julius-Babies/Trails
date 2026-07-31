@@ -22,9 +22,9 @@ class BootReceiver : BroadcastReceiver() {
                 context.startService(serviceIntent)
             }
         } catch (e: Exception) {
-            // Ab Android 12 ist der Start eines location-Foreground-Service aus dem
-            // Hintergrund (auch nach BOOT_COMPLETED) verboten. Nicht abstürzen.
-            logger.w { "Konnte Service nach Boot nicht starten: $e" }
+            // From Android 12 on, starting a location foreground service from the background
+            // is forbidden (even after BOOT_COMPLETED). Don't crash.
+            logger.w { "Could not start the service after boot: $e" }
         }
     }
 }

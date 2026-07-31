@@ -1,0 +1,8 @@
+<resources>
+    <string name="connection_events_title">Connection events</string>
+    <!-- %1$s is the server's domain. -->
+    <string name="connection_events_subtitle_connected">%1$s – connected</string>
+    <string name="connection_events_subtitle_disconnected">%1$s – not connected</string>
+    <string name="connection_events_connected">Connected</string>
+    <string name="connection_events_disconnected">Disconnected</string>
+</resources>

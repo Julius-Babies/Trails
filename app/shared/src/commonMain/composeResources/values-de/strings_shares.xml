@@ -1,0 +1,29 @@
+<resources>
+    <string name="shares_enter_link">Link eingeben</string>
+    <string name="shares_add">Freigabe hinzufügen</string>
+
+    <string name="shares_add_title">Freigabelink hinzufügen</string>
+
+    <string name="shares_new_title">Neue Freigabe erstellen</string>
+    <string name="shares_new_hint">Du wirst den Standort für dieses Gerät teilen.</string>
+
+    <string name="shares_location_history">Standortverlauf</string>
+    <string name="shares_location_history_none">Nur aktuellen Standort</string>
+    <string name="shares_location_history_one_hour">Standortverlauf der letzten Stunde</string>
+    <string name="shares_location_history_six_hours">Standortverlauf der letzten 6 Stunden</string>
+    <string name="shares_location_history_one_day">Standortverlauf des letzten Tages</string>
+    <string name="shares_location_history_one_week">Standortverlauf der letzten Woche</string>
+    <string name="shares_location_history_infinite">Vollständiger Standortverlauf</string>
+
+    <string name="shares_share_battery_level">Batteriestand teilen</string>
+    <string name="shares_name_title">Freigabe benennen</string>
+    <string name="shares_name_placeholder">z.B. "Freigabe für Familie"</string>
+    <string name="shares_name_empty_error">Der Freigabename darf nicht leer sein.</string>
+    <string name="shares_name_taken_error">Du hast bereits eine Freigabe mit diesem Namen.</string>
+    <string name="shares_allow_multiuse">Mehrfachnutzung zulassen</string>
+    <string name="shares_share_link">Link teilen</string>
+
+    <string name="shares_creating">Freigabe wird erstellt…</string>
+    <string name="shares_created">Freigabe erstellt</string>
+    <string name="shares_share_sheet_title">Trails Standortfreigabe für %1$s</string>
+</resources>

@@ -29,10 +29,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import es.jvbabi.trails.getClipboardText
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
-import trails.app.shared.generated.resources.Res
-import trails.app.shared.generated.resources.clipboard
-import trails.app.shared.generated.resources.link
+import trails.app.shared.generated.resources.*
 
 @Composable
 fun AddShareScreen(
@@ -68,7 +67,7 @@ fun AddScreenContent(
             )
         },
         title = {
-            Text("Freigabelink hinzufügen")
+            Text(stringResource(Res.string.shares_add_title))
         },
         text = {
             Column {
@@ -78,7 +77,7 @@ fun AddScreenContent(
                     singleLine = true,
                     placeholder = {
                         Text(
-                            text = "trailsapp://application/.../share/...",
+                            text = stringResource(Res.string.shares_add_url_placeholder),
                             maxLines = 1,
                             overflow = TextOverflow.MiddleEllipsis
                         )
@@ -97,7 +96,7 @@ fun AddScreenContent(
                         ) {
                             Icon(
                                 painter = painterResource(Res.drawable.clipboard),
-                                contentDescription = "Einfügen",
+                                contentDescription = stringResource(Res.string.common_paste),
                                 modifier = Modifier.size(24.dp),
                             )
                         }
@@ -113,7 +112,7 @@ fun AddScreenContent(
                 else TextButton(
                     onClick = { onEvent(AddShareEvent.AddShare) }
                 ) {
-                    Text("Weiter")
+                    Text(stringResource(Res.string.common_continue))
                 }
             }
         },
@@ -121,7 +120,7 @@ fun AddScreenContent(
             TextButton(
                 onClick = onBack,
             ) {
-                Text("Abbrechen")
+                Text(stringResource(Res.string.common_cancel))
             }
         },
     )

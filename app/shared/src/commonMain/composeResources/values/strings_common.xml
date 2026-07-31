@@ -1,0 +1,17 @@
+<resources>
+    <string name="common_back">Back</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_close">Close</string>
+    <string name="common_continue">Continue</string>
+    <string name="common_delete">Delete</string>
+    <string name="common_ok">OK</string>
+    <string name="common_paste">Paste</string>
+    <string name="common_save">Save</string>
+    <string name="common_share">Share</string>
+    <string name="common_more_actions">More actions</string>
+    <string name="common_unknown">Unknown</string>
+    <string name="common_unknown_error">Unknown error</string>
+    <string name="common_error">An error occurred</string>
+    <string name="common_error_with_message">An error occurred: %1$s</string>
+    <string name="common_percentage">%1$s%</string>
+</resources>

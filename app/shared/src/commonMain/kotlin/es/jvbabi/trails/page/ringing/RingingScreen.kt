@@ -32,9 +32,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import es.jvbabi.trails.ThemeWrapper
 import es.jvbabi.trails.ui.theme.AppTheme
+import nl.jacobras.humanreadable.HumanReadable
 import org.jetbrains.compose.resources.painterResource
-import trails.app.shared.generated.resources.Res
-import trails.app.shared.generated.resources.smartphone_nfc
+import org.jetbrains.compose.resources.stringResource
+import trails.app.shared.generated.resources.*
 
 @Composable
 fun RingingScreen(
@@ -161,7 +162,7 @@ fun RingingContent(
             Spacer(Modifier.height(24.dp))
 
             Text(
-                text = "Dein Gerät wird gesucht",
+                text = stringResource(Res.string.ringing_title),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
@@ -170,11 +171,7 @@ fun RingingContent(
             Spacer(Modifier.height(8.dp))
 
             Text(
-                text = buildString {
-                    append("Dein ")
-                    append(state.searchedByDeviceName)
-                    append(" sucht dieses Gerät")
-                },
+                text = stringResource(Res.string.ringing_searched_by, state.searchedByDeviceName),
                 textAlign = TextAlign.Center,
             )
 
@@ -185,7 +182,11 @@ fun RingingContent(
             val minutes = state.elapsedSeconds / 60
             val seconds = state.elapsedSeconds % 60
             Text(
-                text = "${minutes}:${seconds.toString().padStart(2, '0')}",
+                text = stringResource(
+                    Res.string.ringing_elapsed,
+                    HumanReadable.number(minutes),
+                    seconds.toString().padStart(2, '0'),
+                ),
                 style = MaterialTheme.typography.displaySmall,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
@@ -206,7 +207,7 @@ fun RingingContent(
                     modifier = Modifier.size(width = 200.dp, height = 56.dp),
                 ) {
                     Text(
-                        text = "Stop",
+                        text = stringResource(Res.string.ringing_stop),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                     )

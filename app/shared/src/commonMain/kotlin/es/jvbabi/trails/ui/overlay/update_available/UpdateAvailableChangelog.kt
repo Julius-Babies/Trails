@@ -23,6 +23,9 @@ import es.jvbabi.trails.ThemeWrapper
 import es.jvbabi.trails.domain.model.AppVersions
 import es.jvbabi.trails.domain.model.Feature
 import es.jvbabi.trails.domain.model.Version
+import nl.jacobras.humanreadable.HumanReadable
+import org.jetbrains.compose.resources.stringResource
+import trails.app.shared.generated.resources.*
 
 /** Corner radius of the block the changelog sits in, matching the app icon above it. */
 private val ChangelogCornerSize = 16.dp
@@ -98,7 +101,7 @@ fun ChangelogLoadingPlaceholder(modifier: Modifier = Modifier) {
             strokeWidth = 2.dp,
         )
         Text(
-            text = "Änderungen werden geladen …",
+            text = stringResource(Res.string.update_changelog_loading),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -117,7 +120,7 @@ private fun ChangelogVersion(
             style = MaterialTheme.typography.titleMedium,
         )
 
-        if (version.features.isNotEmpty()) ChangelogGroup(title = "Neue Funktionen") {
+        if (version.features.isNotEmpty()) ChangelogGroup(title = stringResource(Res.string.update_changelog_features)) {
             version.features.forEach { (issue, feature) ->
                 ChangelogEntry(issue = issue, onIssueClick = onIssueClick) {
                     Text(
@@ -133,7 +136,7 @@ private fun ChangelogVersion(
             }
         }
 
-        if (version.bugfixes.isNotEmpty()) ChangelogGroup(title = "Fehlerbehebungen") {
+        if (version.bugfixes.isNotEmpty()) ChangelogGroup(title = stringResource(Res.string.update_changelog_fixes)) {
             version.bugfixes.forEach { (issue, description) ->
                 ChangelogEntry(issue = issue, onIssueClick = onIssueClick) {
                     Text(
@@ -144,7 +147,7 @@ private fun ChangelogVersion(
             }
         }
 
-        if (version.tasks.isNotEmpty()) ChangelogGroup(title = "Weitere Änderungen") {
+        if (version.tasks.isNotEmpty()) ChangelogGroup(title = stringResource(Res.string.update_changelog_tasks)) {
             version.tasks.forEach { (issue, description) ->
                 ChangelogEntry(issue = issue, onIssueClick = onIssueClick) {
                     Text(
@@ -205,7 +208,7 @@ private fun IssueLink(
     onClick: () -> Unit,
 ) {
     Text(
-        text = "#$issue",
+        text = stringResource(Res.string.update_changelog_issue, HumanReadable.number(issue)),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.primary,
         textDecoration = TextDecoration.Underline,
@@ -236,35 +239,35 @@ internal val previewChangelogVersions = listOf(
         name = "20260731_1812",
         features = mapOf(
             17 to Feature(
-                title = "Änderungen im Update-Hinweis",
-                description = "Der Update-Hinweis zeigt jetzt, was sich seit deiner Version geändert hat.",
+                title = "Changes in the update prompt",
+                description = "The update prompt now shows what changed since your version.",
             ),
             15 to Feature(
-                title = "Mindestbewegung einstellbar",
-                description = "Standortdaten werden erst gesendet, wenn du dich weit genug bewegt hast.",
+                title = "Configurable minimum movement",
+                description = "Location data is only sent once you have moved far enough.",
             ),
         ),
         bugfixes = mapOf(
-            16 to "Die Akkuanzeige eines Geräts wird nach dem Teilen sofort aktualisiert.",
+            16 to "A device's battery level is updated right after sharing it.",
         ),
         tasks = mapOf(
-            14 to "Abhängigkeiten aktualisiert.",
+            14 to "Updated dependencies.",
         ),
     ),
     Version(
         name = "20260714_0930",
         features = mapOf(
             13 to Feature(
-                title = "Automatische Updates",
-                description = "Die App prüft beim Start, ob eine neuere Version verfügbar ist.",
+                title = "Automatic updates",
+                description = "The app checks for a newer version on startup.",
             ),
         ),
         bugfixes = mapOf(
-            11 to "Karte springt nicht mehr zurück, während du sie verschiebst.",
-            9 to "Verbindungsereignisse werden in der richtigen Reihenfolge angezeigt.",
+            11 to "The map no longer jumps back while you drag it.",
+            9 to "Connection events are shown in the right order.",
         ),
         tasks = mapOf(
-            8 to "Interne Aufräumarbeiten an der Datenbank.",
+            8 to "Internal database cleanup.",
         ),
     ),
 )

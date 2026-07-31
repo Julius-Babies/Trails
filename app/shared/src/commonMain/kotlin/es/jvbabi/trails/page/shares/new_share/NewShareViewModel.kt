@@ -27,6 +27,8 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.getString
+import trails.app.shared.generated.resources.*
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
@@ -113,7 +115,7 @@ class NewShareViewModel(
                                 shareCreationState = NewShareState.ShareCreationState.Success(
                                     shareId = result.shareId,
                                     homeserver = result.homeServer,
-                                    username = state.value.currentDevice?.owner?.username ?: "Unbekannt",
+                                    username = state.value.currentDevice?.owner?.username,
                                 ),
                             )
                             // A taken name is an input error: report it on the text field
@@ -129,7 +131,7 @@ class NewShareViewModel(
                     } catch (e: Exception) {
                         Logger.e(e) { "Failed to create share" }
                         state.value = state.value.copy(
-                            shareCreationState = NewShareState.ShareCreationState.Error(e.message ?: "Unknown error"),
+                            shareCreationState = NewShareState.ShareCreationState.Error(e.message ?: getString(Res.string.common_unknown_error)),
                         )
                     }
                 }
@@ -175,14 +177,17 @@ data class NewShareState(
     sealed class ShareCreationState {
         object Idle: ShareCreationState()
         object Loading: ShareCreationState()
-        class Success(val shareId: Uuid, val homeserver: String, username: String): ShareCreationState() {
+        /**
+         * @param username the user the share belongs to, `null` when it is not known. The share
+         *   sheet's title is built from it where the strings are available, not here.
+         */
+        class Success(val shareId: Uuid, val homeserver: String, val username: String?): ShareCreationState() {
             val url = URLBuilder().apply {
                 protocol = URLProtocol("trailsapp", -1)
                 host = "application"
                 appendPathSegments(homeserver)
                 appendPathSegments("share", shareId.toHexString())
             }
-            val title = "Trails Standortfreigabe für $username"
         }
         data class Error(val errorMessage: String): ShareCreationState()
     }

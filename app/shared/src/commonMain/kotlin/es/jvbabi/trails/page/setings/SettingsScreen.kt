@@ -17,7 +17,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import es.jvbabi.trails.domain.repository.Theme
 import es.jvbabi.trails.ui.components.SteppedSlider
+import nl.jacobras.humanreadable.DistanceUnit
+import nl.jacobras.humanreadable.HumanReadable
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import trails.app.shared.generated.resources.*
 import kotlin.math.abs
 
@@ -57,12 +60,12 @@ fun SettingsContent(
         },
         topBar = {
             LargeTopAppBar(
-                title = { Text("Einstellungen") },
+                title = { Text(stringResource(Res.string.settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             painter = painterResource(Res.drawable.arrow_left),
-                            contentDescription = "Back"
+                            contentDescription = stringResource(Res.string.common_back)
                         )
                     }
                 },
@@ -79,7 +82,7 @@ fun SettingsContent(
         ) {
 
             Text(
-                text = "Oberfläche".uppercase(),
+                text = stringResource(Res.string.settings_section_interface).uppercase(),
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier
                     .padding(horizontal = 16.dp)
@@ -100,13 +103,13 @@ fun SettingsContent(
                         ) { isSelected ->
                             Icon(
                                 painter = painterResource(if (!isSelected) Res.drawable.sun_moon else Res.drawable.check),
-                                contentDescription = "System",
+                                contentDescription = stringResource(Res.string.settings_theme_system),
                                 modifier = Modifier.size(16.dp),
                             )
                         }
                     },
                     label = {
-                        Text("Auto")
+                        Text(stringResource(Res.string.settings_theme_auto))
                     },
                     shape = SegmentedButtonDefaults.itemShape(0, 3),
                 )
@@ -119,13 +122,13 @@ fun SettingsContent(
                         ) { isSelected ->
                             Icon(
                                 painter = painterResource(if (!isSelected) Res.drawable.sun else Res.drawable.check),
-                                contentDescription = "Hell",
+                                contentDescription = stringResource(Res.string.settings_theme_light),
                                 modifier = Modifier.size(16.dp),
                             )
                         }
                     },
                     label = {
-                        Text("Hell")
+                        Text(stringResource(Res.string.settings_theme_light))
                     },
                     shape = SegmentedButtonDefaults.itemShape(1, 3),
                 )
@@ -138,20 +141,20 @@ fun SettingsContent(
                         ) { isSelected ->
                             Icon(
                                 painter = painterResource(if (!isSelected) Res.drawable.moon else Res.drawable.check),
-                                contentDescription = "Dunkel",
+                                contentDescription = stringResource(Res.string.settings_theme_dark),
                                 modifier = Modifier.size(16.dp),
                             )
                         }
                     },
                     label = {
-                        Text("Dunkel")
+                        Text(stringResource(Res.string.settings_theme_dark))
                     },
                     shape = SegmentedButtonDefaults.itemShape(2, 3),
                 )
             }
 
             Text(
-                text = "Tracking".uppercase(),
+                text = stringResource(Res.string.settings_section_tracking).uppercase(),
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier
                     .padding(horizontal = 16.dp)
@@ -179,11 +182,11 @@ fun SettingsContent(
                 )
                 Column {
                     Text(
-                        text = "Minimal erforderliche Bewegung",
+                        text = stringResource(Res.string.settings_minimum_movement_title),
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = "Die minimale Distanz, die zurückgelegt werden muss, bevor ein neuer Punkt erstellt wird.",
+                        text = stringResource(Res.string.settings_minimum_movement_description),
                         style = MaterialTheme.typography.bodyMedium,
                     )
 
@@ -194,7 +197,7 @@ fun SettingsContent(
                         onSelectedIndexChange = { index ->
                             onEvent(SettingsEvent.UpdateMinimumMovementMeters(meterValues[index]))
                         },
-                        thumbLabel = { index -> "${meterValues[index]}m" },
+                        thumbLabel = { index -> HumanReadable.distance(meterValues[index], DistanceUnit.Meter) },
                     )
                 }
             }
@@ -205,43 +208,47 @@ fun SettingsContent(
                 onClick = { onEvent(SettingsEvent.RequestLocationPermissions) },
                 enabled = state.hasLocationPermissions == false
             ) {
-                Text("Standortberechtigungen anfordern")
+                Text(stringResource(Res.string.settings_request_location_permissions))
             }
 
             Button(
                 onClick = { onEvent(SettingsEvent.RequestNotificationPermissions) },
                 enabled = state.hasNotificationPermissions == false
             ) {
-                Text("Benachrichtigungen erlauben")
+                Text(stringResource(Res.string.settings_request_notification_permissions))
             }
 
             Button(
                 onClick = { onEvent(SettingsEvent.RequestFullscreenIntentPermissions) },
                 enabled = state.hasFullscreenIntentPermissions == false
             ) {
-                Text("Vollbildaktivitäten erlauben")
+                Text(stringResource(Res.string.settings_request_fullscreen_permissions))
             }
 
             Button(
                 onClick = { onEvent(SettingsEvent.RequestUnrestrictedBatteryBackgroundUsage) },
                 enabled = state.hasUnrestrictedBatteryBackgroundUsage == false
             ) {
-                Text("Batterieoptimierungen aufheben")
+                Text(stringResource(Res.string.settings_disable_battery_optimizations))
             }
 
             Button(onClick = { onEvent(SettingsEvent.OpenLoginDialog) }) {
-                Text("Anmelden")
+                Text(stringResource(Res.string.settings_login))
             }
 
-            Text("Trails Server: ${state.currentHomeserverUrl}")
-            Text("Trails Device: ${state.thisDeviceId} ${state.thisDevice?.displayName}")
-            Text("Trails User ID: ${state.userId}")
-            Text("Nicht synchronisierte Snapshots: ${state.unsyncedSnapshotCount ?: "–"}")
+            Text(stringResource(Res.string.settings_debug_server, state.currentHomeserverUrl.toString()))
+            Text(stringResource(Res.string.settings_debug_device, state.thisDeviceId.toString(), state.thisDevice?.displayName.toString()))
+            Text(stringResource(Res.string.settings_debug_user_id, state.userId.toString()))
+            Text(stringResource(
+                Res.string.settings_debug_unsynced_snapshots,
+                state.unsyncedSnapshotCount?.let { HumanReadable.number(it) }
+                    ?: stringResource(Res.string.settings_debug_unknown_count),
+            ))
 
             Button(
                 onClick = { onEvent(SettingsEvent.RingDevice) }
             ) {
-                Text("Device klingeln")
+                Text(stringResource(Res.string.settings_ring_device))
             }
 
             Button(
@@ -250,7 +257,7 @@ fun SettingsContent(
                     else onEvent(SettingsEvent.StartTracking)
                 }
             ) {
-                Text(if (state.isBackgroundTrackingServiceRunning) "Tracking stoppen" else "Tracking starten")
+                Text(stringResource(if (state.isBackgroundTrackingServiceRunning) Res.string.settings_stop_tracking else Res.string.settings_start_tracking))
             }
         }
     }
@@ -258,13 +265,13 @@ fun SettingsContent(
     if (state.showLoginDialog) {
         AlertDialog(
             onDismissRequest = { onEvent(SettingsEvent.CloseLoginDialog) },
-            title = { Text("Anmelden") },
+            title = { Text(stringResource(Res.string.settings_login)) },
             text = {
                 Column {
                     TextField(
                         value = state.homeServerUrl,
                         onValueChange = { onEvent(SettingsEvent.UpdateHomeServerUrl(it)) },
-                        label = { Text("Home Server Domain") }
+                        label = { Text(stringResource(Res.string.settings_login_homeserver_label)) }
                     )
                 }
             },
@@ -272,7 +279,7 @@ fun SettingsContent(
                 Button(onClick = {
                     onEvent(SettingsEvent.Login)
                 }) {
-                    Text("OK")
+                    Text(stringResource(Res.string.common_ok))
                 }
             }
         )

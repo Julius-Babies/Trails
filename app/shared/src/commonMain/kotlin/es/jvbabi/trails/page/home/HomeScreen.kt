@@ -52,10 +52,8 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.Month
 import org.jetbrains.compose.resources.painterResource
-import trails.app.shared.generated.resources.Res
-import trails.app.shared.generated.resources.locate_fixed
-import trails.app.shared.generated.resources.maximize
-import trails.app.shared.generated.resources.settings
+import org.jetbrains.compose.resources.stringResource
+import trails.app.shared.generated.resources.*
 import kotlin.uuid.Uuid
 
 const val DEBUG = false
@@ -176,16 +174,16 @@ fun HomeContent(
                                 ) {
                                     Icon(
                                         painter = painterResource(Res.drawable.settings),
-                                        contentDescription = "Settings"
+                                        contentDescription = stringResource(Res.string.settings_title)
                                     )
                                 }
                             }
 
-                            val trackingLabel = when (mapState.trackingMode) {
-                                MapState.TrackingMode.None -> "Übersicht"
-                                MapState.TrackingMode.Overview -> "Mein Standort"
-                                MapState.TrackingMode.OwnLocation -> "Übersicht"
-                            }
+                            val trackingLabel = stringResource(when (mapState.trackingMode) {
+                                MapState.TrackingMode.None -> Res.string.home_map_overview
+                                MapState.TrackingMode.Overview -> Res.string.home_map_own_location
+                                MapState.TrackingMode.OwnLocation -> Res.string.home_map_overview
+                            })
 
                             Column(
                                 Modifier
@@ -275,7 +273,7 @@ fun HomeContent(
                                         }
                                     }
                                 )
-                                HomeState.Tab.Things -> Text("Hier könnten deine Gegenstände sein!")
+                                HomeState.Tab.Things -> Text(stringResource(Res.string.home_things_placeholder))
                                 HomeState.Tab.Shares -> SharesScreen(
                                     nestedScrollConnection = draggableCardSheetState.nestedScrollConnection,
                                     onExpandCard = { scope.launch { draggableCardSheetState.expand() } },
