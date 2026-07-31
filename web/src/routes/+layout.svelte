@@ -13,8 +13,17 @@
     import {page} from "$app/state";
     import {beforeNavigate} from "$app/navigation";
     import {cubicOut} from "svelte/easing";
+    import {locale} from "svelte-i18n";
 
     let { children } = $props();
+
+    // `<html lang>` is server-rendered from Accept-Language (see hooks.server.ts);
+    // the browser may prefer a different language, so keep the attribute honest
+    // once the client-side locale is in place.
+    $effect(() => {
+        const active = $locale;
+        if (active) document.documentElement.lang = active;
+    });
 
     let cardEl: HTMLDivElement | null = $state(null);
 

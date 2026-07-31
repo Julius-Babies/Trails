@@ -11,6 +11,7 @@
     import {CircleNotchIcon} from "phosphor-svelte";
     import {goto} from "$app/navigation";
     import {DeviceRepository} from "$lib/api/devices/device_repository";
+    import {_} from "svelte-i18n";
 
     let {
         open = $bindable(),
@@ -40,19 +41,19 @@
 <Dialog bind:open={open}>
     <DialogContent>
         <DialogHeader>
-            <DialogTitle>Gerät löschen</DialogTitle>
+            <DialogTitle>{$_("devices.deleteTitle")}</DialogTitle>
             <DialogDescription>
-                Möchtest du „{deviceName}“ wirklich löschen? Bestehende Freigaben dieses Geräts werden ungültig. Diese Aktion kann nicht rückgängig gemacht werden.
+                {$_("devices.deleteDescription", {values: {name: deviceName}})}
             </DialogDescription>
         </DialogHeader>
 
         <DialogFooter>
-            <Button variant="secondary" onclick={() => open = false} disabled={deleting}>Abbrechen</Button>
+            <Button variant="secondary" onclick={() => open = false} disabled={deleting}>{$_("common.cancel")}</Button>
             <Button variant="destructive" onclick={confirmDelete} disabled={deleting}>
                 {#if deleting}
                     <CircleNotchIcon class="size-4 animate-spin" />
                 {/if}
-                Löschen
+                {$_("common.delete")}
             </Button>
         </DialogFooter>
     </DialogContent>

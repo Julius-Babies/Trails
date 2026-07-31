@@ -26,6 +26,7 @@
     import InputGroupInput from "$lib/components/ui/input-group/input-group-input.svelte";
     import InputGroupButton from "$lib/components/ui/input-group/input-group-button.svelte";
     import InputGroupAddon from "$lib/components/ui/input-group/input-group-addon.svelte";
+    import {_} from "svelte-i18n";
 
     let shareId = $derived(page.params.shareId);
 
@@ -142,7 +143,7 @@
                     <span class="text-lg font-semibold truncate leading-tight">{share.name}</span>
                     <span class="text-sm font-light text-muted-foreground truncate">{share.device_display_name}</span>
                     <span class="text-xs font-light text-muted-foreground truncate">
-                        Erstellt {dayjs(share.created_at).fromNow()}
+                        {$_("emittedShares.createdAt", {values: {when: dayjs(share.created_at).fromNow()}})}
                     </span>
                 </div>
             </div>
@@ -150,12 +151,12 @@
             <div class="flex flex-row flex-wrap gap-x-3 gap-y-0.5 px-1 text-xs text-muted-foreground">
                 <span class="inline-flex items-center gap-1">
                     <UsersIcon class="size-3.5"/>
-                    {share.allow_multiuse ? "Mehrfach einlösbar" : "Einmalig einlösbar"}
+                    {$_(share.allow_multiuse ? "emittedShares.multiuse" : "emittedShares.singleUse")}
                 </span>
                 {#if share.is_locked}
                     <span class="inline-flex items-center gap-1">
                         <LockIcon class="size-3.5"/>
-                        Gesperrt
+                        {$_("emittedShares.lockedBadge")}
                     </span>
                 {/if}
             </div>
@@ -164,13 +165,11 @@
                 <div class="flex flex-col gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-4">
                     <div class="flex flex-row items-center gap-2">
                         <LinkIcon class="size-4 shrink-0 text-primary"/>
-                        <span class="text-sm font-semibold text-accent-foreground">Freigabe-Link</span>
+                        <span class="text-sm font-semibold text-accent-foreground">{$_("emittedShares.linkTitle")}</span>
                     </div>
 
                     <p class="text-xs text-muted-foreground">
-                        {share.allow_multiuse
-                            ? "Wer den Link mit Trails öffnet, kann das Gerät sehen. Er lässt sich mehrfach einlösen."
-                            : "Wer den Link mit Trails öffnet, kann das Gerät sehen. Er lässt sich nur einmal einlösen."}
+                        {$_(share.allow_multiuse ? "emittedShares.linkMultiuse" : "emittedShares.linkSingleUse")}
                     </p>
 
                     <InputGroup class="bg-background">
@@ -188,10 +187,10 @@
                             >
                                 {#if copiedShareUrl}
                                     <CheckIcon />
-                                    Kopiert
+                                    {$_("common.copied")}
                                 {:else}
                                     <ClipboardIcon />
-                                    Kopieren
+                                    {$_("common.copy")}
                                 {/if}
                             </InputGroupButton>
                         </InputGroupAddon>
@@ -202,7 +201,7 @@
             {#if saveFailed}
                 <Alert variant="destructive">
                     <AlertDescription>
-                        Die Änderung konnte nicht gespeichert werden. Bitte versuche es erneut.
+                        {$_("emittedShares.saveFailed")}
                     </AlertDescription>
                 </Alert>
             {/if}
@@ -211,7 +210,7 @@
                 <Field>
                     <FieldTitle>
                         <ClockCounterClockwiseIcon class="size-4"/>
-                        Standortverlauf
+                        {$_("emittedShares.historyTitle")}
                     </FieldTitle>
                     <Select
                             type="single"
@@ -228,7 +227,7 @@
                         </SelectContent>
                     </Select>
                     <FieldDescription>
-                        Wie weit Empfänger in den Standortverlauf dieses Geräts zurücksehen können.
+                        {$_("emittedShares.historyDescription")}
                     </FieldDescription>
                 </Field>
 
@@ -236,10 +235,10 @@
                     <FieldContent>
                         <FieldTitle>
                             <BatteryVerticalHighIcon class="size-4"/>
-                            Akkustand teilen
+                            {$_("emittedShares.batteryTitle")}
                         </FieldTitle>
                         <FieldDescription>
-                            Empfänger sehen den Ladezustand und ob das Gerät lädt.
+                            {$_("emittedShares.batteryDescription")}
                         </FieldDescription>
                     </FieldContent>
                     <Checkbox
@@ -251,11 +250,11 @@
 
             <div class="flex flex-col gap-2">
                 <h2 class="text-sm font-semibold text-accent-foreground">
-                    Einlösungen ({share.active_shares.length})
+                    {$_("emittedShares.redemptionsHeading", {values: {count: share.active_shares.length}})}
                 </h2>
 
                 {#if share.active_shares.length === 0}
-                    <p class="text-sm text-muted-foreground">Diese Freigabe wurde noch nicht eingelöst.</p>
+                    <p class="text-sm text-muted-foreground">{$_("emittedShares.noRedemptions")}</p>
                 {:else}
                     <div class="flex flex-col rounded-2xl bg-card overflow-hidden">
                         {#each share.active_shares as activeShare, index (activeShare.id)}
@@ -268,10 +267,14 @@
                                 <LinkIcon class="size-4 shrink-0 text-muted-foreground"/>
                                 <div class="flex flex-col min-w-0">
                                     <span class="text-sm truncate">
-                                        Eingelöst {dayjs(activeShare.created_at).fromNow()}
+                                        {$_("emittedShares.redeemedAt", {
+                                            values: {when: dayjs(activeShare.created_at).fromNow()},
+                                        })}
                                     </span>
                                     <span class="text-xs font-light text-muted-foreground truncate">
-                                        {dayjs(activeShare.created_at).format("DD.MM.YYYY, HH:mm")}
+                                        <!-- L/LT are dayjs' localized date/time patterns, so this
+                                             follows the active locale instead of a fixed format. -->
+                                        {dayjs(activeShare.created_at).format("L, LT")}
                                     </span>
                                 </div>
                             </div>
@@ -281,8 +284,8 @@
             </div>
         </div>
     {:else if share === null}
-        <p class="px-2 mt-4 text-sm text-muted-foreground">Freigabe nicht gefunden.</p>
+        <p class="px-2 mt-4 text-sm text-muted-foreground">{$_("emittedShares.notFound")}</p>
     {:else}
-        <p class="px-2 mt-4 text-sm text-muted-foreground">Wird geladen …</p>
+        <p class="px-2 mt-4 text-sm text-muted-foreground">{$_("common.loading")}</p>
     {/if}
 </div>

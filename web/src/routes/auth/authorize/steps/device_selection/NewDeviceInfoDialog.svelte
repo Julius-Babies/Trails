@@ -14,6 +14,10 @@
     import {Field, FieldDescription, FieldError, FieldLabel, FieldSet} from "$lib/components/ui/field";
     import {slide} from "svelte/transition";
     import type {NewDeviceNameResult} from "./DeviceSelectionPlugin.svelte.ts";
+    import {_} from "svelte-i18n";
+
+    /** Shortest name the server accepts for a new device. */
+    const MIN_NAME_LENGTH = 5;
 
     let {
         onDismiss,
@@ -42,7 +46,7 @@
 
     function submit() {
         if (isLoading) return;
-        if (deviceName.length < 5) {
+        if (deviceName.length < MIN_NAME_LENGTH) {
             error = "name_too_short";
             if (deviceNameInput) deviceNameInput.focus();
             return;
@@ -60,18 +64,13 @@
 <Dialog bind:open={open} onOpenChangeComplete={(to) => { if (!to) onDismiss(); }}>
     <DialogContent>
         <DialogHeader>
-            <DialogTitle>Neues Gerät verknüpfen</DialogTitle>
+            <DialogTitle>{$_("deviceSelection.newTitle")}</DialogTitle>
             <DialogDescription>
                 <Alert class="mt-2" variant="warning">
                     <TriangleAlert />
-                    <AlertTitle>Hinweis für neue Geräte</AlertTitle>
+                    <AlertTitle>{$_("deviceSelection.newHintTitle")}</AlertTitle>
                     <AlertDescription>
-                        Du hast bereits ein Gerät des gleichen Modells in deinem Trails-Account.
-                        Falls du die App oder dein Handy zurückgesetzt hast, gehe zurück und verknüpfe
-                        diese Anmeldung mit dem bestehenden Gerät, sodass Freigaben und Standortdaten nahtlos
-                        mit dem Gerät verknüpft werden. Fahre fort, wenn du mehrere Geräte des gleichen Modells
-                        in deinem Trails-Account anmelden möchtest. Zur besseren Unterscheidbarkeit musst du diesem
-                        Gerät einen Namen geben.
+                        {$_("deviceSelection.newHint")}
                     </AlertDescription>
                 </Alert>
             </DialogDescription>
@@ -82,24 +81,24 @@
                 <Field>
                     <FieldLabel
                             for="device-name-field-{componentId}"
-                    >Gerätenamen</FieldLabel>
+                    >{$_("deviceSelection.nameLabel")}</FieldLabel>
                     <Input
                             id="device-name-field-{componentId}"
-                            placeholder="z.B. Andys iPhone 12 (dienstlich)"
+                            placeholder={$_("deviceSelection.namePlaceholder")}
                             bind:value={deviceName}
                             bind:ref={deviceNameInput}
                     />
-                    <FieldDescription>Der Name wird anstelle des Gerätemodells bevorzugt angezeigt.</FieldDescription>
+                    <FieldDescription>{$_("deviceSelection.nameDescription")}</FieldDescription>
                     <div>
                         {#if error}
                             <div transition:slide>
                                 <FieldError>
                                     {#if error === "name_too_short"}
-                                        Der Name muss mindestens 5 Zeichen umfassen.
+                                        {$_("deviceSelection.nameTooShort", {values: {min: MIN_NAME_LENGTH}})}
                                     {:else if error === "name_already_exists"}
-                                        Dieser Name wird bereits verwendet.
+                                        {$_("deviceSelection.nameTaken")}
                                     {:else if error === "unknown_error"}
-                                        Es ist ein unbekannter Fehler aufgetreten.
+                                        {$_("common.unknownError")}
                                     {/if}
                                 </FieldError>
                             </div>
@@ -113,7 +112,7 @@
             <Button
                     variant="secondary"
                     onclick={() => open = false}
-            >Abbrechen</Button>
+            >{$_("common.cancel")}</Button>
             <Button
                     variant="default"
                     onclick={submit}
@@ -124,7 +123,7 @@
                         <Loader class="animate-spin" />
                     </div>
                 {/if}
-                Speichern
+                {$_("common.save")}
             </Button>
         </DialogFooter>
     </DialogContent>

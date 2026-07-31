@@ -7,6 +7,7 @@
     import {ShareSubscription, shareOriginBase} from "$lib/state/share_socket.svelte";
     import {loadHistory} from "$lib/state/history.svelte";
     import {setMapTrail} from "$lib/state/map_trail.svelte";
+    import {_} from "svelte-i18n";
 
     let shareId = $derived(page.params.shareId);
     // The share's origin homeserver. Absent for same-server shares → current origin.
@@ -90,8 +91,8 @@
             />
         </div>
     {:else if share === null}
-        <p class="px-2 mt-4 text-sm text-muted-foreground">Freigabe nicht gefunden.</p>
+        <p class="px-2 mt-4 text-sm text-muted-foreground">{$_("shares.notFound")}</p>
     {:else}
-        <p class="px-2 mt-4 text-sm text-muted-foreground">Wird geladen …</p>
+        <p class="px-2 mt-4 text-sm text-muted-foreground">{$_("common.loading")}</p>
     {/if}
 </div>

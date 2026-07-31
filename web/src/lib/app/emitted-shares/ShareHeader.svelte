@@ -5,6 +5,7 @@
     import DeleteShareDialog from "$lib/app/emitted-shares/DeleteShareDialog.svelte";
     import RenameShareDialog from "$lib/app/emitted-shares/RenameShareDialog.svelte";
     import type {EmittedShare} from "$lib/state/webapp_socket.svelte";
+    import {_} from "svelte-i18n";
 
     let {
         share,
@@ -25,7 +26,7 @@
             class="flex flex-row grow items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
     >
         <ArrowLeftIcon class="size-4"/>
-        Meine Freigaben
+        {$_("emittedShares.title")}
     </a>
 
     {#if share}
@@ -40,12 +41,12 @@
                 <DropdownMenuGroup>
                     <DropdownMenuItem class="text-destructive" onclick={() => showDeleteDialog = true}>
                         <TrashIcon/>
-                        Löschen
+                        {$_("common.delete")}
                     </DropdownMenuItem>
 
                     <DropdownMenuItem onclick={() => showRenameDialog = true}>
                         <PencilIcon/>
-                        Umbenennen
+                        {$_("common.rename")}
                     </DropdownMenuItem>
                 </DropdownMenuGroup>
             </DropdownMenuContent>
