@@ -30,10 +30,8 @@ import es.jvbabi.trails.page.devices.Screen
 import es.jvbabi.trails.page.home.HomeState
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
-import trails.app.shared.generated.resources.Res
-import trails.app.shared.generated.resources.shapes
-import trails.app.shared.generated.resources.smartphone
-import trails.app.shared.generated.resources.users
+import org.jetbrains.compose.resources.stringResource
+import trails.app.shared.generated.resources.*
 
 @Composable
 fun NavigationBar(
@@ -55,7 +53,7 @@ fun NavigationBar(
         ) {
             Item(
                 icon = painterResource(Res.drawable.smartphone),
-                label = "Geräte",
+                label = stringResource(Res.string.home_tab_devices),
                 isSelected = selectedTab is HomeState.Tab.MyDevices,
                 draggableCardSheetState = draggableCardSheetState,
                 onSelect = { onSelect(HomeState.Tab.MyDevices(Screen.Main)) }
@@ -63,7 +61,7 @@ fun NavigationBar(
 
             Item(
                 icon = painterResource(Res.drawable.shapes),
-                label = "Gegenstände",
+                label = stringResource(Res.string.home_tab_things),
                 isSelected = selectedTab == HomeState.Tab.Things,
                 draggableCardSheetState = draggableCardSheetState,
                 onSelect = { onSelect(HomeState.Tab.Things) }
@@ -71,7 +69,7 @@ fun NavigationBar(
 
             Item(
                 icon = painterResource(Res.drawable.users),
-                label = "Freigaben",
+                label = stringResource(Res.string.home_tab_shares),
                 isSelected = selectedTab == HomeState.Tab.Shares,
                 draggableCardSheetState = draggableCardSheetState,
                 onSelect = { onSelect(HomeState.Tab.Shares) }
