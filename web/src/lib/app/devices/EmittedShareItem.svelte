@@ -8,6 +8,7 @@
         LockIcon,
         UsersIcon,
     } from "phosphor-svelte";
+    import {_} from "svelte-i18n";
 
     let {
         share,
@@ -52,19 +53,19 @@
             {#if share.share_battery_state}
                 <span class="inline-flex items-center gap-1">
                     <BatteryVerticalHighIcon class="size-3.5"/>
-                    Akkustand
+                    {$_("emittedShares.batteryBadge")}
                 </span>
             {/if}
             {#if share.allow_multiuse}
                 <span class="inline-flex items-center gap-1">
                     <UsersIcon class="size-3.5"/>
-                    Mehrfach
+                    {$_("emittedShares.multiuseBadge")}
                 </span>
             {/if}
             {#if share.is_locked}
                 <span class="inline-flex items-center gap-1">
                     <LockIcon class="size-3.5"/>
-                    Gesperrt
+                    {$_("emittedShares.lockedBadge")}
                 </span>
             {/if}
         </div>
@@ -73,7 +74,7 @@
     <div class="flex flex-col items-end shrink-0">
         <span class="text-lg font-bold leading-none">{share.redemption_count}</span>
         <span class="text-xs font-light text-muted-foreground">
-            {share.redemption_count === 1 ? "Einlösung" : "Einlösungen"}
+            {$_("emittedShares.redemptions", {values: {count: share.redemption_count}})}
         </span>
     </div>
 </a>
