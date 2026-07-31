@@ -20,7 +20,7 @@ class KeyValueRepositoryImpl(
 
     override fun <T> get(key: Key<T>): Flow<T?> {
         return database.keyValueDao.getValue(key.key).map {
-            it?.let(key::toValue)
+            it?.let(key::toValue) ?: key.defaultValue
         }
     }
 }

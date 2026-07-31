@@ -7,17 +7,19 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import es.jvbabi.trails.domain.repository.Theme
+import es.jvbabi.trails.ui.components.SteppedSlider
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import trails.app.shared.generated.resources.*
+import kotlin.math.abs
 
 @Composable
 fun SettingsScreen(
@@ -25,6 +27,8 @@ fun SettingsScreen(
 ) {
     val viewModel = koinViewModel<SettingsViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    if (state.minimumMovementMeters == null) return
 
     SettingsContent(
         state = state,
@@ -137,6 +141,55 @@ fun SettingsContent(
                 )
             }
 
+            Text(
+                text = "Tracking".uppercase(),
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 16.dp, bottom = 4.dp)
+            )
+
+            val meterValues = SettingsState.DEFAULT_MINIMUM_MOVEMENT_METER_VALUES
+
+            // Nearest default to the persisted value, so a value outside the list still maps to a step.
+            val selectedIndex = remember(state.minimumMovementMeters) {
+                val persisted = state.minimumMovementMeters ?: meterValues.first()
+                meterValues.indices.minBy { abs(meterValues[it] - persisted) }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.route),
+                    contentDescription = null,
+                )
+                Column {
+                    Text(
+                        text = "Minimal erforderliche Bewegung",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = "Die minimale Distanz, die zurückgelegt werden muss, bevor ein neuer Punkt erstellt wird.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+
+                    SteppedSlider(
+                        modifier = Modifier.padding(top = 8.dp),
+                        stepCount = meterValues.size,
+                        selectedIndex = selectedIndex,
+                        onSelectedIndexChange = { index ->
+                            onEvent(SettingsEvent.UpdateMinimumMovementMeters(meterValues[index]))
+                        },
+                        thumbLabel = { index -> "${meterValues[index]}m" },
+                    )
+                }
+            }
+
             Spacer(Modifier.height(16.dp))
 
             Button(
@@ -226,7 +279,9 @@ private fun SettingsPreview() {
             showLoginDialog = false,
             homeServerUrl = "https://trails.werkbank.space",
             hasLocationPermissions = true,
+
             appTheme = Theme.Light,
+            minimumMovementMeters = 10,
         ),
         onEvent = {}
     )

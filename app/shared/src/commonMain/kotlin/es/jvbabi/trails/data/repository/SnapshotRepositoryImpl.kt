@@ -7,6 +7,8 @@ import es.jvbabi.trails.data.database.entity.DbDataSnapshot
 import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.model.Snapshot
 import es.jvbabi.trails.domain.repository.*
+import es.jvbabi.trails.utils.Location
+import es.jvbabi.trails.utils.distanceTo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
@@ -40,8 +42,20 @@ class SnapshotRepositoryImpl(
             .flatMapLatest { id -> devicesRepository.getDeviceById(id) }
             .filterNotNull()
 
+        val locationFlow = keyValueRepository
+            .get(Key.MinimumMovementDistanceToNextSnapshot)
+            .map { it!! } // Should never be null
+            .flatMapLatest { minimumDistanceInMeters ->
+                locationRepository
+                    .getCurrentLocation()
+                    .filterNotNull()
+                    .distinctUntilChanged { old, new ->
+                        Location(latitude = old.latitude, longitude = old.longitude) distanceTo Location(latitude = new.latitude, longitude = new.longitude) < minimumDistanceInMeters
+                    }
+            }
+
         job = combine(
-            locationRepository.getCurrentLocation().filterNotNull(),
+            locationFlow,
             deviceRepository.getBatteryState(),
             device,
         ) { location, batteryState, device ->
@@ -54,7 +68,6 @@ class SnapshotRepositoryImpl(
                 isSynced = false,
             )
         }
-            .debounce(5.seconds)
             .onEach {
                 storeSnapshot(it)
             }
