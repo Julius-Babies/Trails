@@ -108,6 +108,14 @@ class SettingsViewModel(
                     state.update { it.copy(appTheme = theme) }
                 }
         }
+
+        viewModelScope.launch {
+            keyValueRepository.get(Key.MinimumMovementDistanceToNextSnapshot)
+                .filterNotNull()
+                .collectLatest { minimumDistance ->
+                    state.update { it.copy(minimumMovementMeters = minimumDistance) }
+                }
+        }
     }
 
     fun onEvent(event: SettingsEvent) {
@@ -163,8 +171,12 @@ class SettingsViewModel(
             is SettingsEvent.StartTracking -> viewModelScope.launch { backgroundServiceRepository.startService() }
             is SettingsEvent.StopTracking -> backgroundServiceRepository.stopService()
             is SettingsEvent.RingDevice -> deviceRepository.startRinging("Settings") {}
+
             is SettingsEvent.SetAppTheme -> viewModelScope.launch {
                 keyValueRepository.set(Key.Theme, event.theme)
+            }
+            is SettingsEvent.UpdateMinimumMovementMeters -> viewModelScope.launch {
+                keyValueRepository.set(Key.MinimumMovementDistanceToNextSnapshot, event.meters)
             }
         }
     }
@@ -187,7 +199,13 @@ data class SettingsState(
     val unsyncedSnapshotCount: Int? = null,
 
     val appTheme: Theme? = null,
-)
+
+    val minimumMovementMeters: Int? = null,
+) {
+    companion object {
+        val DEFAULT_MINIMUM_MOVEMENT_METER_VALUES = listOf(3, 5, 10, 30, 50, 100)
+    }
+}
 
 sealed class SettingsEvent {
     data object OpenLoginDialog : SettingsEvent()
@@ -201,5 +219,7 @@ sealed class SettingsEvent {
     data object StartTracking : SettingsEvent()
     data object StopTracking : SettingsEvent()
     data object RingDevice : SettingsEvent()
+
     data class SetAppTheme(val theme: Theme) : SettingsEvent()
+    data class UpdateMinimumMovementMeters(val meters: Int): SettingsEvent()
 }
