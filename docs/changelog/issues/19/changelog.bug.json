@@ -1,0 +1,8 @@
+{
+  "description": "Update Docker Image push URL",
+  "localized": {
+    "de": {
+      "description": "Docker Image Push URL aktualisiert"
+    }
+  }
+}
