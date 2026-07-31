@@ -25,7 +25,12 @@ import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.Theme
 import es.jvbabi.trails.domain.repository.UiRepository
 import es.jvbabi.trails.page.Screen
+import es.jvbabi.trails.page.home.HomeEvent
 import es.jvbabi.trails.page.home.HomeScreen
+import es.jvbabi.trails.page.home.HomeViewModel
+import es.jvbabi.trails.page.home.MapEvent
+import es.jvbabi.trails.page.home.MapViewModel
+import es.jvbabi.trails.page.home.components.Map
 import es.jvbabi.trails.page.setings.SettingsScreen
 import es.jvbabi.trails.page.setings.SettingsViewModel
 import es.jvbabi.trails.ui.components.LocalHazeState
@@ -54,10 +59,13 @@ fun App(
 
     val keyValueRepository = koinInject<KeyValueRepository>()
 
-    // Held here rather than in the settings destination so its state is already loaded by the
-    // time the user navigates there, instead of the screen entering empty and filling in mid
-    // transition. The view model is scoped to the activity either way.
+    // These are held here, above the navigation display, so their state is already loaded when the
+    // user reaches the destination that shows it. The map view model in particular keeps the map
+    // surface alive: it is rendered below the navigation display and would otherwise be torn down
+    // and rebuilt — renderer, style and camera — every time another area is opened on top of it.
     val settingsViewModel = koinViewModel<SettingsViewModel>()
+    val homeViewModel = koinViewModel<HomeViewModel>()
+    val mapViewModel = koinViewModel<MapViewModel>()
 
     val theme = keyValueRepository.get(Key.Theme)
         .map { it ?: Theme.System }
@@ -87,29 +95,47 @@ fun App(
 
                 val currentSnackbar = uiRepository.currentSnackbar.collectAsStateWithLifecycle().value
 
-                NavDisplay(
-                    backStack = backstack,
-                    onBack = { backstack.removeLastOrNull() },
-                    entryProvider = { key ->
-                        return@NavDisplay when (key) {
-                            is Screen.Home -> NavEntry(key = key) {
-                                HomeScreen(
-                                    backstack = backstack,
-                                )
-                            }
+                val mapState by mapViewModel.state.collectAsStateWithLifecycle()
+                val hazeState = rememberHazeState()
 
-                            is Screen.Settings -> NavEntry(
-                                key = key,
-                                metadata = settingsAreaTransitions,
-                            ) {
-                                SettingsScreen(
-                                    viewModel = settingsViewModel,
-                                    onBack = remember { { backstack.removeLastOrNull() } }
-                                )
+                CompositionLocalProvider(LocalHazeState provides hazeState) {
+                    // The map is the blur source the card sheet samples, so it carries hazeSource.
+                    Box(Modifier.fillMaxSize().hazeSource(hazeState)) {
+                        Map(
+                            state = mapState,
+                            onDeviceClick = { device ->
+                                homeViewModel.onEvent(HomeEvent.SelectDeviceOnMap(device.device.id))
+                            },
+                            onUserDragStart = { mapViewModel.onEvent(MapEvent.UserDragged) },
+                        )
+                    }
+
+                    NavDisplay(
+                        backStack = backstack,
+                        onBack = { backstack.removeLastOrNull() },
+                        entryProvider = { key ->
+                            return@NavDisplay when (key) {
+                                is Screen.Home -> NavEntry(key = key) {
+                                    HomeScreen(
+                                        viewModel = homeViewModel,
+                                        mapViewModel = mapViewModel,
+                                        backstack = backstack,
+                                    )
+                                }
+
+                                is Screen.Settings -> NavEntry(
+                                    key = key,
+                                    metadata = settingsAreaTransitions,
+                                ) {
+                                    SettingsScreen(
+                                        viewModel = settingsViewModel,
+                                        onBack = remember { { backstack.removeLastOrNull() } }
+                                    )
+                                }
                             }
                         }
-                    }
-                )
+                    )
+                }
 
                 AnimatedContent(
                     targetState = currentSnackbar,

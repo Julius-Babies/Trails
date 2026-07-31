@@ -34,8 +34,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.blur.blurEffect
 import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 import es.jvbabi.trails.ThemeWrapper
 import es.jvbabi.trails.domain.model.Device
 import es.jvbabi.trails.domain.model.Snapshot
@@ -45,14 +43,16 @@ import es.jvbabi.trails.page.Screen
 import es.jvbabi.trails.page.devices.main.DevicesTab
 import es.jvbabi.trails.page.home.components.*
 import es.jvbabi.trails.page.shares.main.SharesScreen
+import es.jvbabi.trails.ui.components.LocalHazeState
 import es.jvbabi.trails.utils.IntPaddingValues
 import es.jvbabi.trails.utils.blendColor
 import es.jvbabi.trails.utils.padding
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.Month
 import org.jetbrains.compose.resources.painterResource
-import org.koin.compose.viewmodel.koinViewModel
 import trails.app.shared.generated.resources.Res
 import trails.app.shared.generated.resources.locate_fixed
 import trails.app.shared.generated.resources.maximize
@@ -63,26 +63,31 @@ const val DEBUG = false
 
 @Composable
 fun HomeScreen(
+    viewModel: HomeViewModel,
+    mapViewModel: MapViewModel,
     backstack: MutableList<Screen>,
 ) {
-    val viewModel = koinViewModel<HomeViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val mapState by mapViewModel.state.collectAsStateWithLifecycle()
 
     HomeContent(
         state = state,
+        mapState = mapState,
         backStack = backstack,
         onEvent = viewModel::onEvent,
+        onMapEvent = mapViewModel::onEvent,
+        semiExpandSheet = viewModel.semiExpandSheet,
     )
 
     val localDensity = LocalDensity.current
     LaunchedEffect(localDensity.density) {
-        viewModel.setup(
+        mapViewModel.setup(
             localDensity = localDensity.density
         )
     }
 
     if (DEBUG) {
-        val mapContentPadding by viewModel.mapContentPadding.collectAsStateWithLifecycle()
+        val mapContentPadding by mapViewModel.mapContentPadding.collectAsStateWithLifecycle()
         if (mapContentPadding != null) {
             val dpPadding = with(localDensity) {
                 PaddingValues(
@@ -106,20 +111,25 @@ fun HomeScreen(
 @Composable
 fun HomeContent(
     state: HomeState,
+    mapState: MapState,
     backStack: MutableList<Screen>,
     onEvent: (event: HomeEvent) -> Unit,
+    onMapEvent: (event: MapEvent) -> Unit,
+    semiExpandSheet: Flow<Unit> = emptyFlow(),
 ) {
     val cardCollapsedHeight = 72.dp
     var fabHeight by remember { mutableStateOf(48.dp) }
 
-    val hazeState = rememberHazeState()
+    // The map itself is rendered above the navigation display, so the sheet blurs it through the
+    // haze state provided there rather than through one of its own.
+    val hazeState = LocalHazeState.current
     val scope = rememberCoroutineScope()
 
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .onSizeChanged { size ->
-                onEvent(HomeEvent.OnViewportResize(size))
+                onMapEvent(MapEvent.OnViewportResize(size))
             }
     ) {
         val draggableCardSheetState = rememberDraggableCardSheetState(
@@ -134,23 +144,13 @@ fun HomeContent(
             content = {
                 val density = LocalDensity.current
 
-                Scaffold { scaffoldPadding ->
+                // Transparent so the map, which is rendered below the navigation display, shows
+                // through this destination.
+                Scaffold(containerColor = Color.Transparent) { scaffoldPadding ->
                     val contentPadding = (draggableCardSheetState.backgroundContentPaddingValues + es.jvbabi.trails.utils.PaddingValues(top = scaffoldPadding.calculateTopPadding())).assureNonNegative()
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .hazeSource(hazeState)
+                        modifier = Modifier.fillMaxSize()
                     ) {
-                        Box(Modifier.fillMaxSize())
-                        Map(
-                            state = state,
-                            onDeviceClick = { device ->
-                                scope.launch { draggableCardSheetState.semiExpand() }
-                                onEvent(HomeEvent.SelectTab(HomeState.Tab.MyDevices(es.jvbabi.trails.page.devices.Screen.Device(device.device.id))))
-                            },
-                            onUserDragStart = { onEvent(HomeEvent.UserDragged) },
-                        )
-
                         Box(
                             modifier = Modifier
                                 .padding(contentPadding)
@@ -176,10 +176,10 @@ fun HomeContent(
                                 }
                             }
 
-                            val trackingLabel = when (state.trackingMode) {
-                                HomeState.TrackingMode.None -> "Übersicht"
-                                HomeState.TrackingMode.Overview -> "Mein Standort"
-                                HomeState.TrackingMode.OwnLocation -> "Übersicht"
+                            val trackingLabel = when (mapState.trackingMode) {
+                                MapState.TrackingMode.None -> "Übersicht"
+                                MapState.TrackingMode.Overview -> "Mein Standort"
+                                MapState.TrackingMode.OwnLocation -> "Übersicht"
                             }
 
                             Column(
@@ -201,20 +201,20 @@ fun HomeContent(
                                     },
                                     icon = {
                                         AnimatedContent(
-                                            targetState = state.trackingMode,
+                                            targetState = mapState.trackingMode,
                                             modifier = Modifier.size(24.dp),
                                         ) { currentTrackingMode ->
                                             Icon(
                                                 painter = painterResource(when (currentTrackingMode) {
-                                                    HomeState.TrackingMode.None, HomeState.TrackingMode.OwnLocation -> Res.drawable.maximize
-                                                    HomeState.TrackingMode.Overview -> Res.drawable.locate_fixed
+                                                    MapState.TrackingMode.None, MapState.TrackingMode.OwnLocation -> Res.drawable.maximize
+                                                    MapState.TrackingMode.Overview -> Res.drawable.locate_fixed
                                                 }),
                                                 contentDescription = null,
                                                 modifier = Modifier.size(24.dp)
                                             )
                                         }
                                     },
-                                    onClick = { onEvent(HomeEvent.ToggleTrackingMode) },
+                                    onClick = { onMapEvent(MapEvent.ToggleTrackingMode) },
                                 )
                             }
                         }
@@ -264,7 +264,7 @@ fun HomeContent(
                                     nestedScrollConnection = draggableCardSheetState.nestedScrollConnection,
                                     initialRoute = selectedTab.initialRoute,
                                     onFocusDevice = { deviceId ->
-                                        onEvent(HomeEvent.FocusDevice(deviceId))
+                                        onMapEvent(MapEvent.FocusDevice(deviceId))
                                         if (deviceId != null && draggableCardSheetState.targetValue == CardSheetValue.Expanded) {
                                             scope.launch { draggableCardSheetState.semiExpand() }
                                         }
@@ -317,13 +317,17 @@ fun HomeContent(
         }
 
         LaunchedEffect(intPaddingValues) {
-            onEvent(HomeEvent.OnMapContentAreaPadding(intPaddingValues))
+            onMapEvent(MapEvent.OnMapContentAreaPadding(intPaddingValues))
+        }
+
+        LaunchedEffect(semiExpandSheet) {
+            semiExpandSheet.collect { draggableCardSheetState.semiExpand() }
         }
     }
 }
 
 @Composable
-internal fun rememberMockHomeState(): HomeState {
+internal fun rememberMockMapState(): MapState {
     var deviceImage by remember { mutableStateOf<ByteArray?>(null) }
 
     LaunchedEffect(Unit) {
@@ -361,7 +365,7 @@ internal fun rememberMockHomeState(): HomeState {
         isSynced = true,
     )
 
-    return HomeState(
+    return MapState(
         ownLocation = Location(
             latitude = 40.4178,
             longitude = -3.7030,
@@ -385,9 +389,11 @@ internal fun rememberMockHomeState(): HomeState {
 @Composable
 fun HomeScreenPreview() {
     HomeContent(
-        state = rememberMockHomeState(),
+        state = HomeState(),
+        mapState = rememberMockMapState(),
         backStack = mutableListOf(),
         onEvent = {},
+        onMapEvent = {},
     )
 }
 

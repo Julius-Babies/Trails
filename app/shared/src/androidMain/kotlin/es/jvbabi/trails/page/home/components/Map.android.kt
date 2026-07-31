@@ -55,6 +55,7 @@ import com.mapbox.maps.viewannotation.viewAnnotationOptions
 import es.jvbabi.trails.LocalAppTheme
 import es.jvbabi.trails.domain.repository.Theme
 import es.jvbabi.trails.page.home.HomeState
+import es.jvbabi.trails.page.home.MapState
 import es.jvbabi.trails.utils.rememberBitmapFromBytes
 import kotlin.time.Duration.Companion.seconds
 
@@ -129,7 +130,7 @@ fun DeviceMarkerPreview() {
 
 @Composable
 actual fun Map(
-    state: HomeState,
+    state: MapState,
     onDeviceClick: (HomeState.HomeDevice) -> Unit,
     onUserDragStart: () -> Unit,
 ) {
