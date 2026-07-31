@@ -103,15 +103,20 @@ fun App(
                 // is opened on top of it. Its entry below therefore draws nothing — anything
                 // full screen there would sit above the map and swallow its gestures.
                 //
-                // While an area covers it, home recedes against that area's progress. The layer is
-                // only in the chain for as long as an area is present: the map is an interop view,
-                // and it should not sit behind a render layer during normal use.
+                // While an area covers it, home recedes and rounds off against that area's
+                // progress — inverted, so it is at its smallest and roundest exactly when the area
+                // is fully covering. The layer is only in the chain for as long as an area is
+                // present: the map is an interop view, and it should not sit behind a render layer
+                // during normal use.
                 Box(
                     modifier = if (areaProgress.value != null) {
                         Modifier.graphicsLayer {
-                            val scale = lerp(AREA_BACKGROUND_SCALE, 1f, areaProgress.value?.value ?: 1f)
+                            val progress = areaProgress.value?.value ?: 1f
+                            val scale = lerp(AREA_BACKGROUND_SCALE, 1f, progress)
                             scaleX = scale
                             scaleY = scale
+                            clip = true
+                            shape = RoundedCornerShape(AREA_CORNER_RADIUS * (1f - progress))
                         }
                     } else {
                         Modifier
