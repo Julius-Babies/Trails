@@ -3,11 +3,6 @@
 package es.jvbabi.trails.page.setings
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -15,19 +10,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import es.jvbabi.trails.domain.repository.Theme
+import es.jvbabi.trails.ui.components.SteppedSlider
 import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 import trails.app.shared.generated.resources.*
 import kotlin.math.abs
-import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(
@@ -52,7 +44,6 @@ fun SettingsContent(
     onEvent: (SettingsEvent) -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val localHapticFeedback = LocalHapticFeedback.current
 
     Scaffold(
         topBar = {
@@ -158,6 +149,14 @@ fun SettingsContent(
                     .padding(top = 16.dp, bottom = 4.dp)
             )
 
+            val meterValues = SettingsState.DEFAULT_MINIMUM_MOVEMENT_METER_VALUES
+
+            // Nearest default to the persisted value, so a value outside the list still maps to a step.
+            val selectedIndex = remember(state.minimumMovementMeters) {
+                val persisted = state.minimumMovementMeters ?: meterValues.first()
+                meterValues.indices.minBy { abs(meterValues[it] - persisted) }
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -179,68 +178,14 @@ fun SettingsContent(
                         style = MaterialTheme.typography.bodyMedium,
                     )
 
-                    val meterValues = SettingsState.DEFAULT_MINIMUM_MOVEMENT_METER_VALUES
-
-                    val persistedIndex = remember(state.minimumMovementMeters) {
-                        val persisted = state.minimumMovementMeters ?: meterValues.first()
-                        meterValues.indices.minBy { abs(meterValues[it] - persisted) }
-                    }
-                    var selectedIndex by remember(persistedIndex) { mutableIntStateOf(persistedIndex) }
-
-                    Slider(
+                    SteppedSlider(
                         modifier = Modifier.padding(top = 8.dp),
-                        value = selectedIndex.toFloat(),
-                        onValueChange = { rawValue ->
-                            val index = rawValue.roundToInt().coerceIn(meterValues.indices)
-                            if (index != selectedIndex) {
-                                selectedIndex = index
-                                onEvent(SettingsEvent.UpdateMinimumMovementMeters(meterValues[index]))
-                                localHapticFeedback.performHapticFeedback(HapticFeedbackType.SegmentTick)
-                            }
+                        stepCount = meterValues.size,
+                        selectedIndex = selectedIndex,
+                        onSelectedIndexChange = { index ->
+                            onEvent(SettingsEvent.UpdateMinimumMovementMeters(meterValues[index]))
                         },
-                        thumb = { sliderState ->
-                            val isDragging = sliderState.isDragging
-                            val collapsedHeight = 32.dp
-                            val height by animateDpAsState(
-                                targetValue = if (isDragging) 72.dp else collapsedHeight,
-                                label = "thumbHeight",
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .size(width = 44.dp, height = collapsedHeight)
-                                    .wrapContentSize(align = Alignment.BottomCenter, unbounded = true)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .height(height)
-                                        .widthIn(min = 44.dp)
-                                        .clip(MaterialTheme.shapes.small)
-                                        .background(MaterialTheme.colorScheme.primary)
-                                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Top,
-                                ) {
-                                    AnimatedContent(
-                                        targetState = meterValues[selectedIndex],
-                                        transitionSpec = {
-                                            slideInVertically { it } togetherWith slideOutVertically { -it }
-                                        },
-                                        label = "meters",
-                                    ) { meters ->
-                                        Text(
-                                            text = "${meters}m",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onPrimary,
-                                            maxLines = 1,
-                                            softWrap = false,
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                        valueRange = 0f..meterValues.lastIndex.toFloat(),
-                        steps = meterValues.size - 2,
+                        thumbLabel = { index -> "${meterValues[index]}m" },
                     )
                 }
             }
