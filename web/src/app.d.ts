@@ -3,7 +3,10 @@
 declare global {
 	namespace App {
 		// interface Error {}
-		// interface Locals {}
+		interface Locals {
+			/** The language negotiated for this request, see `src/hooks.server.ts`. */
+			locale: string;
+		}
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}
