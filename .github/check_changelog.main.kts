@@ -44,7 +44,8 @@ val branch = System.getenv("BRANCH")?.takeIf { it.isNotBlank() }
 
 val summaryFile = System.getenv("GITHUB_STEP_SUMMARY")?.takeIf { it.isNotBlank() }?.let(::File)
 
-/** Identifies our own comment, and lets a human see where it came from. */
+// Tags the comment as ours. --edit-last currently finds it by author, so this
+// only matters if another workflow ever starts commenting as the same bot.
 val commentMarker = "<!-- changelog-check -->"
 
 val findings = StringBuilder()
