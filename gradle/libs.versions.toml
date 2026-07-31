@@ -21,7 +21,7 @@ app-mapbox = "11.23.1"
 app-navigation3 = "1.1.1"
 room = "2.8.4"
 sqlite = "2.7.0"
-human-readable = "1.13.1"
+human-readable = "2.0.0-alpha02"
 app-jetlime = "4.3.0"
 
 # Server
