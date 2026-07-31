@@ -18,7 +18,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
@@ -31,12 +30,10 @@ import com.pushpal.jetlime.ItemsList
 import com.pushpal.jetlime.JetLimeColumn
 import com.pushpal.jetlime.JetLimeEventDefaults
 import com.pushpal.jetlime.JetLimeExtendedEvent
-import dev.chrisbanes.haze.blur.HazeProgressive
-import dev.chrisbanes.haze.blur.blurEffect
-import dev.chrisbanes.haze.blur.materials.HazeMaterials
-import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import es.jvbabi.trails.ui.components.ProgressiveBlurScrim
+import es.jvbabi.trails.ui.components.ScrimEdge
 import es.jvbabi.trails.ThemeWrapper
 import es.jvbabi.trails.data.database.entity.ConnectionEvent
 import kotlinx.datetime.LocalDateTime
@@ -98,7 +95,6 @@ fun ConnectionEventsSheetContent(
 
     Box(Modifier.fillMaxWidth()) {
         val backgroundColor = BottomSheetDefaults.ContainerColor
-        val hazeStyle = HazeMaterials.thin(containerColor = backgroundColor)
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -150,22 +146,13 @@ fun ConnectionEventsSheetContent(
             }
         }
 
-        Column(
+        ProgressiveBlurScrim(
+            hazeState = hazeState,
+            edge = ScrimEdge.Top,
+            containerColor = backgroundColor,
             modifier = Modifier
-                .fillMaxWidth()
                 .padding(bottom = 24.dp)
-                .onSizeChanged{ size -> headerHeight = with(localDensity) { size.height.toDp() } }
-                .hazeEffect(hazeState) {
-                    blurEffect {
-                        blurRadius = 24.dp
-                        style = hazeStyle
-                        progressive = HazeProgressive.verticalGradient(
-                            startIntensity = 1f,
-                            endIntensity = 0f,
-                        )
-                    }
-                }
-                .background(Brush.verticalGradient(0.25f to backgroundColor.copy(alpha = 1f), 1f to backgroundColor.copy(alpha = 0f)))
+                .onSizeChanged { size -> headerHeight = with(localDensity) { size.height.toDp() } },
         ) {
             Text(
                 text = "Verbindungsereignisse",
