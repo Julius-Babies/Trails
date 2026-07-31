@@ -141,9 +141,9 @@ class DeviceViewModel(
                 try {
                     val result = trailsServerRepository.renameDevice(state.value.device!!.device, event.customName)
                     if (result.isSuccess) state.update { it.copy(renameState = DeviceState.RenameState.Success) }
-                    else state.update { it.copy(renameState = DeviceState.RenameState.Error(result.exceptionOrNull()?.message ?: "Unknown error")) }
+                    else state.update { it.copy(renameState = DeviceState.RenameState.Error(result.exceptionOrNull()?.message ?: getString(Res.string.common_unknown_error))) }
                 } catch (e: Exception) {
-                    state.update { it.copy(renameState = DeviceState.RenameState.Error(e.message ?: "Unknown error")) }
+                    state.update { it.copy(renameState = DeviceState.RenameState.Error(e.message ?: getString(Res.string.common_unknown_error))) }
                 }
             }
 
@@ -154,9 +154,9 @@ class DeviceViewModel(
                 try {
                     val result = trailsServerRepository.deleteDevice(state.value.device!!.device)
                     if (result.isSuccess) state.update { it.copy(deletionState = DeviceState.DeletionState.Success) }
-                    else if (result.isFailure) state.update { it.copy(deletionState = DeviceState.DeletionState.Error(result.exceptionOrNull()?.message ?: "Unknown error")) }
+                    else if (result.isFailure) state.update { it.copy(deletionState = DeviceState.DeletionState.Error(result.exceptionOrNull()?.message ?: getString(Res.string.common_unknown_error))) }
                 } catch (e: Exception) {
-                    state.update { it.copy(deletionState = DeviceState.DeletionState.Error(e.message ?: "Unknown error")) }
+                    state.update { it.copy(deletionState = DeviceState.DeletionState.Error(e.message ?: getString(Res.string.common_unknown_error))) }
                 }
             }
 
@@ -173,9 +173,9 @@ class DeviceViewModel(
                         .map { trailsServerRepository.returnShare(it) }
                         .firstNotNullOfOrNull { it.exceptionOrNull() }
                     if (failure == null) state.update { it.copy(returnState = DeviceState.ReturnState.Success) }
-                    else state.update { it.copy(returnState = DeviceState.ReturnState.Error(failure.message ?: "Unknown error")) }
+                    else state.update { it.copy(returnState = DeviceState.ReturnState.Error(failure.message ?: getString(Res.string.common_unknown_error))) }
                 } catch (e: Exception) {
-                    state.update { it.copy(returnState = DeviceState.ReturnState.Error(e.message ?: "Unknown error")) }
+                    state.update { it.copy(returnState = DeviceState.ReturnState.Error(e.message ?: getString(Res.string.common_unknown_error))) }
                 }
             }
 

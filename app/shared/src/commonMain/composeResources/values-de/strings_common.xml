@@ -10,6 +10,7 @@
     <string name="common_share">Teilen</string>
     <string name="common_more_actions">Weitere Aktionen</string>
     <string name="common_unknown">Unbekannt</string>
+    <string name="common_unknown_error">Unbekannter Fehler</string>
     <string name="common_error">Ein Fehler ist aufgetreten</string>
     <string name="common_error_with_message">Ein Fehler ist aufgetreten: %1$s</string>
     <string name="common_percentage">%1$s %</string>

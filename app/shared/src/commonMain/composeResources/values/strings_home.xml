@@ -5,4 +5,5 @@
     <string name="home_things_placeholder">Your things could be here!</string>
     <string name="home_map_overview">Overview</string>
     <string name="home_map_own_location">My location</string>
+    <string name="home_map_compass">Compass</string>
 </resources>
