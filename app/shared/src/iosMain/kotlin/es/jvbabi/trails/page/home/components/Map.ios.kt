@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.UIKitInteropProperties
 import androidx.compose.ui.viewinterop.UIKitView
 import es.jvbabi.trails.page.home.HomeState
+import es.jvbabi.trails.page.home.MapState
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.CoreLocation.CLLocationCoordinate2DMake
 import platform.MapKit.MKCoordinateRegionMakeWithDistance
@@ -35,7 +36,7 @@ private class MapDelegate(
 
 @Composable
 actual fun Map(
-    state: HomeState,
+    state: MapState,
     onDeviceClick: (HomeState.HomeDevice) -> Unit,
     onUserDragStart: () -> Unit,
 ) {

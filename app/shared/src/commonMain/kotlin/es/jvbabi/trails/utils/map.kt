@@ -1,6 +1,6 @@
 package es.jvbabi.trails.utils
 
-import es.jvbabi.trails.page.home.HomeState
+import es.jvbabi.trails.page.home.MapState
 import kotlin.math.*
 
 private const val TILE_SIZE = 512.0
@@ -36,7 +36,7 @@ data class IntPaddingValues(
  * @param minZoom          Lower zoom clamp.
  * @param maxZoom          Upper zoom clamp.
  */
-fun HomeState.FitBounds.toMapCamera(
+fun MapState.FitBounds.toMapCamera(
     viewportWidthPx: Int,
     viewportHeightPx: Int,
     density: Float,
@@ -46,7 +46,7 @@ fun HomeState.FitBounds.toMapCamera(
     defaultZoom: Double = 15.0,
     minZoom: Double = 0.0,
     maxZoom: Double = 22.0,
-): HomeState.MapCamera? {
+): MapState.MapCamera? {
     if (coordinates.isEmpty()) return null
 
     val lats = coordinates.map { it.first.coerceIn(-MAX_MERCATOR_LATITUDE, MAX_MERCATOR_LATITUDE) }
@@ -98,7 +98,7 @@ fun HomeState.FitBounds.toMapCamera(
         latToMercator(boundsLat) + paddingOffsetYPx * mercatorUnitsPerPixel(zoom)
     ).coerceIn(-MAX_MERCATOR_LATITUDE, MAX_MERCATOR_LATITUDE)
 
-    return HomeState.MapCamera(
+    return MapState.MapCamera(
         centerLatitude = centerLat,
         centerLongitude = centerLng,
         zoom = zoom,

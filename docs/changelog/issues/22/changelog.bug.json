@@ -1,0 +1,8 @@
+{
+  "description": "The settings app bar collapses while scrolling, settings open with their own transition, and returning to the map no longer reloads it",
+  "localized": {
+    "de": {
+      "description": "Die Titelleiste der Einstellungen klappt beim Scrollen zusammen, die Einstellungen öffnen sich mit einer eigenen Animation und die Karte wird beim Zurückgehen nicht mehr neu geladen"
+    }
+  }
+}

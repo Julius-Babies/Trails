@@ -23,6 +23,7 @@ import es.jvbabi.trails.page.connection_events.ConnectionEventsViewModel
 import es.jvbabi.trails.page.devices.device.DeviceViewModel
 import es.jvbabi.trails.page.devices.main.DevicesViewModel
 import es.jvbabi.trails.page.home.HomeViewModel
+import es.jvbabi.trails.page.home.MapViewModel
 import es.jvbabi.trails.page.ringing.RingingViewModel
 import es.jvbabi.trails.page.setings.SettingsViewModel
 import es.jvbabi.trails.page.shares.add_share.AddShareViewModel
@@ -142,6 +143,7 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
         singleOf(::GetHomeDeviceLocationsUseCase)
 
         viewModelOf(::HomeViewModel)
+        viewModelOf(::MapViewModel)
         viewModelOf(::RingingViewModel)
         viewModelOf(::SettingsViewModel)
         viewModelOf(::NewShareViewModel)
