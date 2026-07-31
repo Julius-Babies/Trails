@@ -8,8 +8,6 @@ import com.kgit2.kommand.process.Stdio
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.add
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
@@ -80,9 +78,14 @@ data class Text(
 data class Entry(
     val issue: Int,
     val category: Category,
+    val pullRequests: List<Int>,
     val default: Text,
     val localized: Map<String, Text>,
 ) {
+    /** Rendered as "(#18)" behind an entry, so a reader can jump to the change. */
+    val pullRequestReference: String
+        get() = pullRequests.takeIf { it.isNotEmpty() }?.joinToString(", ", " (", ")") { "#$it" }.orEmpty()
+
     /** A localization overrides only the fields it actually provides. */
     fun textFor(language: String?): Text {
         if (language == null) return default
@@ -151,6 +154,14 @@ val entries = issues.mapNotNull { issue ->
     Entry(
         issue = issue,
         category = category,
+        pullRequests = capture(
+            "gh", "issue", "view", "$issue",
+            "--json", "closedByPullRequestsReferences",
+            "--jq", ".closedByPullRequestsReferences[].number",
+        )
+            ?.lines()
+            ?.mapNotNull { it.trim().toIntOrNull() }
+            .orEmpty(),
         default = default,
         localized = (root["localized"] as? JsonObject).orEmpty().mapValues { (_, localization) ->
             textOf(localization as? JsonObject)
@@ -168,15 +179,16 @@ fun renderJson(language: String?) = buildJsonObject {
     Category.entries.forEach { category ->
         put(
             category.key,
-            buildJsonArray {
+            // Keyed by issue number, so a consumer can look an entry up directly.
+            buildJsonObject {
                 entriesOf(category).forEach { entry ->
                     val text = entry.textFor(language)
-                    add(
+                    put(
+                        "${entry.issue}",
                         buildJsonObject {
-                            put("issue", entry.issue)
                             if (category == Category.Feature) put("title", text.title)
                             put("description", text.description)
-                        }
+                        },
                     )
                 }
             },
@@ -203,12 +215,12 @@ fun renderMarkdown(language: String?) = buildString {
             val text = entry.textFor(language)
             if (category == Category.Feature) {
                 appendLine()
-                appendLine("### ${text.title}")
+                appendLine("### ${text.title}${entry.pullRequestReference}")
                 appendLine()
                 appendLine(text.description)
             } else {
                 // Fixes and tasks are one-liners.
-                appendLine("- ${text.description}")
+                appendLine("- ${text.description}${entry.pullRequestReference}")
             }
         }
     }
