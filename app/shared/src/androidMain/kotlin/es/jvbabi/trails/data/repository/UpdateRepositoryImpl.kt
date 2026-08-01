@@ -1,14 +1,37 @@
 package es.jvbabi.trails.data.repository
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import android.provider.Settings
 import androidx.core.net.toUri
+import es.jvbabi.trails.domain.model.UpdateDownload
+import es.jvbabi.trails.domain.model.UpdateDownloadTarget
 import es.jvbabi.trails.domain.repository.UpdateRepository
+import io.ktor.client.HttpClient
+import io.ktor.client.request.prepareGet
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.http.contentLength
+import io.ktor.http.isSuccess
+import io.ktor.utils.io.readAvailable
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.OutputStream
 
 class UpdateRepositoryImpl(
     private val context: Context,
+    private val httpClient: HttpClient,
 ) : UpdateRepository {
 
     override fun canInstallUpdates(): Boolean {
@@ -34,4 +57,198 @@ class UpdateRepositoryImpl(
         // Started from outside an activity, so it needs a task of its own.
         context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
+
+    override fun downloadUpdate(
+        url: String,
+        target: UpdateDownloadTarget,
+    ): Flow<UpdateDownload> = channelFlow {
+        // Sent before anything else, so the UI has something to show while the request is still on
+        // its way and there is no size to measure against yet.
+        send(UpdateDownload.Running(downloadedBytes = 0, totalBytes = null))
+
+        val destination = withContext(Dispatchers.IO) { openDestination(url, target) }
+        if (destination == null) {
+            send(UpdateDownload.Failed)
+            return@channelFlow
+        }
+
+        try {
+            withContext(Dispatchers.IO) {
+                httpClient.prepareGet(url).execute { response ->
+                    if (!response.status.isSuccess()) {
+                        throw IOException("Download failed with ${response.status}")
+                    }
+
+                    val total = response.contentLength()?.takeIf { it > 0 }
+
+                    // The size is in with the headers, so the UI can put a real figure and a real
+                    // bar up before the first chunk has even landed.
+                    if (total != null) {
+                        send(UpdateDownload.Running(downloadedBytes = 0, totalBytes = total))
+                    }
+
+                    val channel = response.bodyAsChannel()
+                    val buffer = ByteArray(DOWNLOAD_BUFFER_SIZE)
+                    var written = 0L
+                    var reportedBytes = 0L
+
+                    destination.openStream().use { output ->
+                        // Closed-for-read as the condition rather than a -1 from the read: that way
+                        // a read that comes back with nothing costs another look at the channel
+                        // instead of spinning on an empty buffer.
+                        while (!channel.isClosedForRead) {
+                            val read = channel.readAvailable(buffer)
+                            if (read <= 0) continue
+
+                            output.write(buffer, 0, read)
+                            written += read
+
+                            // Reported in steps rather than per chunk: a 47 MB APK is hundreds of
+                            // chunks, and the figure shown only goes to a tenth of a megabyte.
+                            if (written - reportedBytes < PROGRESS_REPORT_INTERVAL_BYTES) continue
+                            reportedBytes = written
+                            send(
+                                UpdateDownload.Running(
+                                    downloadedBytes = written,
+                                    totalBytes = total,
+                                )
+                            )
+                        }
+                    }
+                }
+
+                destination.finish()
+            }
+
+            send(UpdateDownload.Done(destination.uri))
+        } catch (e: CancellationException) {
+            // Cancelled downloads leave nothing behind either — half an APK is no use to anyone,
+            // and in the Downloads folder it would sit there looking installable. NonCancellable
+            // because the coroutine is already cancelled: a plain withContext would be refused
+            // before it ever got round to deleting anything.
+            withContext(NonCancellable + Dispatchers.IO) { destination.discard() }
+            throw e
+        } catch (_: Exception) {
+            withContext(Dispatchers.IO) { destination.discard() }
+            send(UpdateDownload.Failed)
+        }
+    }
+
+    /** Opens somewhere to write the download to, or `null` when there is nowhere to put it. */
+    private fun openDestination(url: String, target: UpdateDownloadTarget): Destination? {
+        val fileName = fileNameOf(url)
+
+        return when (target) {
+            UpdateDownloadTarget.AppCache -> appCacheDestination(fileName)
+            UpdateDownloadTarget.Downloads -> downloadsDestination(fileName)
+        }
+    }
+
+    private fun appCacheDestination(fileName: String): Destination {
+        val directory = File(context.cacheDir, UPDATE_CACHE_DIRECTORY).apply { mkdirs() }
+        val file = File(directory, fileName)
+
+        return Destination(
+            uri = Uri.fromFile(file),
+            // Truncating rather than appending: a leftover from an attempt that died halfway would
+            // otherwise be grown into a file that is part one download and part the next.
+            openStream = { FileOutputStream(file, false) },
+            discard = { file.delete() },
+        )
+    }
+
+    private fun downloadsDestination(fileName: String): Destination? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return legacyDownloadsDestination(fileName)
+
+        val resolver = context.contentResolver
+        val entry = ContentValues().apply {
+            put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+            put(MediaStore.Downloads.MIME_TYPE, APK_MIME_TYPE)
+            // Keeps the entry hidden from other apps until it is written in full, so nothing offers
+            // the user half an APK to install.
+            put(MediaStore.Downloads.IS_PENDING, 1)
+        }
+
+        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, entry) ?: return null
+
+        return Destination(
+            uri = uri,
+            openStream = {
+                resolver.openOutputStream(uri) ?: throw IOException("Cannot write to $uri")
+            },
+            finish = {
+                val done = ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) }
+                resolver.update(uri, done, null, null)
+            },
+            discard = { resolver.delete(uri, null, null) },
+        )
+    }
+
+    /**
+     * The public Downloads folder as it was reached before MediaStore existed.
+     *
+     * Needs `WRITE_EXTERNAL_STORAGE`, which is declared for these versions only and is not asked
+     * for at runtime yet — without that grant the write throws and the download reports itself
+     * failed, which beats quietly putting the APK somewhere the user cannot find it.
+     */
+    @Suppress("DEPRECATION")
+    private fun legacyDownloadsDestination(fileName: String): Destination {
+        val directory = Environment
+            .getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            .apply { mkdirs() }
+        val file = File(directory, fileName)
+
+        return Destination(
+            uri = Uri.fromFile(file),
+            openStream = { FileOutputStream(file, false) },
+            discard = { file.delete() },
+        )
+    }
+
+    /**
+     * Name to save under, taken from the URL's last segment.
+     *
+     * Release assets are already named `Trails.<version>.android-<abi>-release.apk`, which is
+     * exactly what belongs in a Downloads folder. Anything that doesn't look like an APK name falls
+     * back to a fixed one rather than being trusted — it ends up as a file name.
+     */
+    private fun fileNameOf(url: String): String {
+        val candidate = url.substringAfterLast('/').substringBefore('?')
+        val looksLikeApk = candidate.endsWith(APK_EXTENSION) &&
+            candidate.length > APK_EXTENSION.length
+
+        return if (looksLikeApk) candidate else FALLBACK_FILE_NAME
+    }
 }
+
+/**
+ * Somewhere a download can be written to, and what to do with it when it ends.
+ *
+ * A plain file and a MediaStore entry are opened, finished and cleaned up quite differently. This is
+ * what lets the download itself not care which of the two it is filling.
+ */
+private class Destination(
+    val uri: Uri,
+    val openStream: () -> OutputStream,
+    val finish: () -> Unit = {},
+    val discard: () -> Unit = {},
+)
+
+/** Subfolder of the cache, so the app's own downloads are not mixed in with everything else. */
+private const val UPDATE_CACHE_DIRECTORY = "updates"
+
+private const val APK_MIME_TYPE = "application/vnd.android.package-archive"
+
+private const val APK_EXTENSION = ".apk"
+
+private const val FALLBACK_FILE_NAME = "Trails$APK_EXTENSION"
+
+/** Large enough that the copy loop is not the bottleneck, small enough to stay off the heap. */
+private const val DOWNLOAD_BUFFER_SIZE = 64 * 1024
+
+/**
+ * How much has to arrive before the next progress report goes out.
+ *
+ * Roughly a tenth of a megabyte, which is the smallest step the figure in the UI can show anyway.
+ */
+private const val PROGRESS_REPORT_INTERVAL_BYTES = 128L * 1024

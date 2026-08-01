@@ -1,5 +1,9 @@
 package es.jvbabi.trails.domain.repository
 
+import es.jvbabi.trails.domain.model.UpdateDownload
+import es.jvbabi.trails.domain.model.UpdateDownloadTarget
+import kotlinx.coroutines.flow.Flow
+
 /**
  * Installing a downloaded release.
  *
@@ -28,4 +32,13 @@ interface UpdateRepository {
      * only be found out by asking [canInstallUpdates] again once they return.
      */
     fun openInstallPermissionSettings()
+
+    /**
+     * Downloads the APK at [url] into [target], reporting how far it has got as it goes.
+     *
+     * Cold: collecting starts a download, and cancelling the collection cancels it and clears away
+     * what had already been written. Always ends on [UpdateDownload.Done] or
+     * [UpdateDownload.Failed] — a caller never has to time it out itself.
+     */
+    fun downloadUpdate(url: String, target: UpdateDownloadTarget): Flow<UpdateDownload>
 }

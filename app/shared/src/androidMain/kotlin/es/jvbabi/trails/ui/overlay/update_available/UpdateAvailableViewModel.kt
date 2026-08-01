@@ -3,6 +3,8 @@ package es.jvbabi.trails.ui.overlay.update_available
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import es.jvbabi.trails.domain.model.Changelog
+import es.jvbabi.trails.domain.model.UpdateDownload
+import es.jvbabi.trails.domain.model.UpdateDownloadTarget
 import es.jvbabi.trails.domain.repository.ApplicationRepository
 import es.jvbabi.trails.domain.repository.TrailsAppRepository
 import es.jvbabi.trails.domain.repository.UpdateRepository
@@ -46,15 +48,52 @@ class UpdateAvailableViewModel(
     }
 
     /**
-     * Takes the permission dialog down once the permission it asks for has been granted.
+     * Fetches the update into [target], keeping the state in step with how far it has got.
      *
-     * A dialog whose permission is still missing stays up, which covers the user who went to the
+     * A download already in flight is left to finish: pressing Install twice must not pull the same
+     * APK down twice.
+     */
+    private fun startDownload(target: UpdateDownloadTarget) {
+        if (state.value?.download is UpdateDownload.Running) return
+        val downloadLink = state.value?.downloadLink ?: return
+
+        viewModelScope.launch {
+            updateRepository.downloadUpdate(url = downloadLink, target = target)
+                .collect { download ->
+                    state.update { it?.copy(download = download) }
+                    // TODO: hand a finished cache download to the package installer (#29). One in
+                    //  the Downloads folder is the user's to install, so that one ends here.
+                }
+        }
+    }
+
+    /**
+     * Puts the update in the user's Downloads folder, for them to install themselves.
+     *
+     * Takes the permission dialog down with it: this is the way out of that dialog which does not
+     * need the permission at all.
+     */
+    private fun installManually() {
+        state.update { it?.copy(isInstallPermissionRequired = false) }
+        startDownload(UpdateDownloadTarget.Downloads)
+    }
+
+    /**
+     * Carries on with the install once the permission has been granted.
+     *
+     * Finding the permission there takes the dialog down and starts the download the user asked for
+     * in the first place — they already pressed Install, and making them press it again would be
+     * asking twice for the same thing.
+     *
+     * A permission that is still missing leaves the dialog up, which covers the user who went to the
      * settings and came back without flipping the switch.
      */
-    private fun dismissInstallPermissionIfGranted() {
+    private fun continueOnceInstallPermissionGranted() {
         if (state.value?.isInstallPermissionRequired != true) return
         if (!updateRepository.canInstallUpdates()) return
+
         state.update { it?.copy(isInstallPermissionRequired = false) }
+        startDownload(UpdateDownloadTarget.AppCache)
     }
 
     /**
@@ -99,9 +138,7 @@ class UpdateAvailableViewModel(
                     return
                 }
 
-                val downloadLink = state.value?.downloadLink ?: return
-                openUrl(downloadLink)
-                state.update { it?.copy(isDismissed = true) }
+                startDownload(UpdateDownloadTarget.AppCache)
             }
 
             // Deliberately leaves the dialog up: the user is off to the settings and may well come
@@ -110,14 +147,15 @@ class UpdateAvailableViewModel(
             is UpdateAvailableEvent.GrantInstallPermission ->
                 updateRepository.openInstallPermissionSettings()
 
-            is UpdateAvailableEvent.RecheckInstallPermission -> dismissInstallPermissionIfGranted()
+            is UpdateAvailableEvent.RecheckInstallPermission ->
+                continueOnceInstallPermissionGranted()
 
-            // TODO: hand the download off so the user installs it themselves (#29).
-            is UpdateAvailableEvent.InstallManually -> Unit
+            is UpdateAvailableEvent.InstallManually -> installManually()
 
-            // TODO: remember the choice, so Install goes straight to the download from now on and
-            //  the permission is never asked for again (#29).
-            is UpdateAvailableEvent.AlwaysInstallManually -> Unit
+            // TODO: remember the choice, so Install goes straight to the Downloads folder from now
+            //  on and the permission is never asked for again (#29). Until then this is the
+            //  one-off above.
+            is UpdateAvailableEvent.AlwaysInstallManually -> installManually()
 
             is UpdateAvailableEvent.DismissInstallPermission ->
                 state.update { it?.copy(isInstallPermissionRequired = false) }
@@ -143,6 +181,9 @@ data class UpdateAvailableState(
      * the permission dialog is put up for.
      */
     val isInstallPermissionRequired: Boolean = false,
+
+    /** The download in flight or the one that has just ended, and `null` before any was started. */
+    val download: UpdateDownload? = null,
 
     /**
      * What changed between the running build and [latestVersion], newest version first.

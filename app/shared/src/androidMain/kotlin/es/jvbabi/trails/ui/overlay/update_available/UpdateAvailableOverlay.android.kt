@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewWrapper
@@ -33,20 +34,26 @@ import dev.chrisbanes.haze.rememberHazeState
 import es.jvbabi.trails.ThemeWrapper
 import es.jvbabi.trails.domain.model.AppVersions
 import es.jvbabi.trails.domain.model.Changelog
+import es.jvbabi.trails.domain.model.UpdateDownload
 import es.jvbabi.trails.domain.model.Version
 import es.jvbabi.trails.domain.model.issueUrl
 import es.jvbabi.trails.ui.components.ProgressiveBlurScrim
 import es.jvbabi.trails.ui.components.ScrimEdge
+import nl.jacobras.humanreadable.HumanReadable
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import trails.app.shared.generated.resources.Res
 import trails.app.shared.generated.resources.app_icon
 import trails.app.shared.generated.resources.move_right
+import trails.app.shared.generated.resources.update_downloading
+import trails.app.shared.generated.resources.update_downloading_progress
 import trails.app.shared.generated.resources.update_install
 import trails.app.shared.generated.resources.update_message
 import trails.app.shared.generated.resources.update_not_now
 import trails.app.shared.generated.resources.update_title
+import java.text.NumberFormat
+import java.util.Locale as JavaLocale
 
 @Composable
 actual fun UpdateAvailableOverlay() {
@@ -247,33 +254,119 @@ fun UpdateAvailableOverlayContent(
                     buttonsHeight = with(density) { size.height.toDp() }
                 },
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                OutlinedButton(
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ),
-                    onClick = { onEvent(UpdateAvailableEvent.RequestDismiss) },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(
-                        text = stringResource(Res.string.update_not_now)
+            // The content key is only whether a download is running, so progress arriving
+            // recomposes the bar in place instead of starting the transition over. The outgoing half
+            // keeps the last figures it had while it fades, rather than blanking out.
+            AnimatedContent(
+                targetState = state.download as? UpdateDownload.Running,
+                contentKey = { running -> running != null },
+                label = "installActions",
+            ) { running ->
+                if (running != null) {
+                    DownloadProgress(
+                        download = running,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
                     )
-                }
-                Button(
-                    onClick = { onEvent(UpdateAvailableEvent.Install) },
-                    modifier = Modifier.weight(1f),
+                } else Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(text = stringResource(Res.string.update_install))
+                    OutlinedButton(
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                        ),
+                        onClick = { onEvent(UpdateAvailableEvent.RequestDismiss) },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.update_not_now)
+                        )
+                    }
+                    Button(
+                        onClick = { onEvent(UpdateAvailableEvent.Install) },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(text = stringResource(Res.string.update_install))
+                    }
                 }
             }
         }
     }
+}
+
+/**
+ * How far the download has got, in the room the buttons it replaces were using.
+ *
+ * Falls back to a plain label and an indeterminate bar while the total size is unknown: a response
+ * that carries no length leaves nothing to measure against, and a bar sitting at zero next to a
+ * figure without a total would read as stuck rather than as unknown.
+ */
+@Composable
+private fun DownloadProgress(
+    download: UpdateDownload.Running,
+    modifier: Modifier = Modifier,
+) {
+    val totalBytes = download.totalBytes
+    val progress = download.progress
+
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = if (totalBytes != null && progress != null) {
+                stringResource(
+                    Res.string.update_downloading_progress,
+                    HumanReadable.fileSize(download.downloadedBytes),
+                    HumanReadable.fileSize(totalBytes),
+                    percentage(progress),
+                )
+            } else {
+                stringResource(Res.string.update_downloading)
+            },
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Spacer(Modifier.height(8.dp))
+
+        if (progress != null) {
+            // Animated so the bar travels between the whole percents the download reports rather
+            // than stepping from one to the next.
+            val settledProgress by animateFloatAsState(
+                targetValue = progress,
+                label = "downloadProgress",
+            )
+            LinearProgressIndicator(
+                progress = { settledProgress },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+        }
+    }
+}
+
+/**
+ * [fraction] as a percentage, in the locale Compose renders in.
+ *
+ * That is the same locale Human-Readable is kept in step with (see `SyncHumanReadableLocale`), so
+ * both halves of the progress line agree on how they format numbers.
+ *
+ * Deliberately not part of the translated format string: where the percent sign goes and whether a
+ * space precedes it differs by language ("26%" against "26 %"), and a number format already knows
+ * that for every locale — a translation would only get the chance to disagree with it.
+ */
+@Composable
+private fun percentage(fraction: Float): String {
+    val languageTag = Locale.current.toLanguageTag()
+    val format = remember(languageTag) {
+        NumberFormat.getPercentInstance(JavaLocale.forLanguageTag(languageTag))
+    }
+    return format.format(fraction)
 }
 
 /**
@@ -360,6 +453,48 @@ private fun UpdateAvailableOverlayPreview() {
             latestVersion = "20260731_1812",
             changelog = Changelog(versions = previewChangelogVersions),
             areChangelogsLoading = false,
+        )
+    )
+}
+
+/** Mid-download, where the progress bar has taken the place of the buttons. */
+@Preview(showBackground = true)
+@PreviewWrapper(wrapper = ThemeWrapper::class)
+@Composable
+private fun UpdateAvailableOverlayDownloadingPreview() {
+    UpdateAvailableOverlayContent(
+        onEvent = {},
+        state = UpdateAvailableState(
+            isDismissed = false,
+            currentVersion = "20260714_0930",
+            latestVersion = "20260731_1812",
+            changelog = Changelog(versions = previewChangelogVersions),
+            areChangelogsLoading = false,
+            download = UpdateDownload.Running(
+                downloadedBytes = 12_400_000,
+                totalBytes = 47_000_000,
+            ),
+        )
+    )
+}
+
+/** A download whose total size the server never said, so there is nothing to measure against. */
+@Preview(showBackground = true)
+@PreviewWrapper(wrapper = ThemeWrapper::class)
+@Composable
+private fun UpdateAvailableOverlayDownloadingWithoutProgressPreview() {
+    UpdateAvailableOverlayContent(
+        onEvent = {},
+        state = UpdateAvailableState(
+            isDismissed = false,
+            currentVersion = "20260714_0930",
+            latestVersion = "20260731_1812",
+            changelog = Changelog(versions = previewChangelogVersions),
+            areChangelogsLoading = false,
+            download = UpdateDownload.Running(
+                downloadedBytes = 12_400_000,
+                totalBytes = null,
+            ),
         )
     )
 }

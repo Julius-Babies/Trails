@@ -17,6 +17,15 @@
     <!-- Lets the app install its own updates instead of handing the APK to a browser. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!--
+      Only for saving an update to the user's Downloads folder, and only on the versions that had no
+      MediaStore to do it through. From Android 10 on the Downloads collection needs no permission
+      at all.
+    -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
     <application
         android:name=".MainApplication"
         android:allowBackup="true"

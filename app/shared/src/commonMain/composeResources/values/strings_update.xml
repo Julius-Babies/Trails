@@ -4,6 +4,10 @@
     <string name="update_not_now">Not now</string>
     <string name="update_install">Install</string>
 
+    <string name="update_downloading">Downloading update…</string>
+    <!-- How far the download has got: downloaded size, total size, percentage. -->
+    <string name="update_downloading_progress">%1$s / %2$s (%3$s)</string>
+
     <string name="update_install_permission_title">Permission needed</string>
     <string name="update_install_permission_message">To install the update itself, Trails needs permission to install apps. Without it, you have to install the update by hand.</string>
     <string name="update_install_permission_grant">Grant permission</string>

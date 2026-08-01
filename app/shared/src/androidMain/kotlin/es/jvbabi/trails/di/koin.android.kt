@@ -15,7 +15,6 @@ import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
-import org.koin.dsl.bind
 import org.koin.dsl.module
 import org.koin.mp.KoinPlatformTools
 
@@ -37,7 +36,12 @@ actual fun platformModule(): Module = module {
         )
     }
 
-    singleOf(::UpdateRepositoryImpl) bind UpdateRepository::class
+    single<UpdateRepository> {
+        UpdateRepositoryImpl(
+            context = get(),
+            httpClient = get(named(KOIN_HTTP_CLIENT_THIRD_PARTY)),
+        )
+    }
 
     singleOf(::CheckAppIsLatestVersionUseCase)
     singleOf(::GetReleaseChangelogsUseCase)
