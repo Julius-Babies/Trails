@@ -1,5 +1,6 @@
 package es.jvbabi.trails.ui.overlay.update_available
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import es.jvbabi.trails.domain.model.Changelog
@@ -60,11 +61,32 @@ class UpdateAvailableViewModel(
         viewModelScope.launch {
             updateRepository.downloadUpdate(url = downloadLink, target = target)
                 .collect { download ->
-                    state.update { it?.copy(download = download) }
-                    // TODO: hand a finished cache download to the package installer (#29). One in
-                    //  the Downloads folder is the user's to install, so that one ends here.
+                    state.update { it?.copy(download = download, downloadTarget = target) }
+
+                    // Only what was fetched to be installed goes on to the installer. A download in
+                    // the user's Downloads folder is theirs to install and ends here.
+                    if (download is UpdateDownload.Done && target == UpdateDownloadTarget.AppCache) {
+                        install(download.uri)
+                    }
                 }
         }
+    }
+
+    /**
+     * Hands a finished download to the system installer.
+     *
+     * The permission is looked at again rather than taken on trust from before the download: it
+     * lives in the system settings, and a download takes long enough for it to have been withdrawn
+     * in the meantime. If it has been, the dialog goes back up — with the APK already downloaded, so
+     * granting it carries straight on to the install.
+     */
+    private fun install(uri: Uri) {
+        if (!updateRepository.canInstallUpdates()) {
+            state.update { it?.copy(isInstallPermissionRequired = true) }
+            return
+        }
+
+        updateRepository.installUpdate(uri)
     }
 
     /**
@@ -89,11 +111,22 @@ class UpdateAvailableViewModel(
      * settings and came back without flipping the switch.
      */
     private fun continueOnceInstallPermissionGranted() {
-        if (state.value?.isInstallPermissionRequired != true) return
+        val current = state.value ?: return
+        if (!current.isInstallPermissionRequired) return
         if (!updateRepository.canInstallUpdates()) return
 
         state.update { it?.copy(isInstallPermissionRequired = false) }
-        startDownload(UpdateDownloadTarget.AppCache)
+
+        // An APK that is already in the cache is installed rather than fetched all over again —
+        // that is the case where the permission fell away while it was downloading.
+        val downloaded = (current.download as? UpdateDownload.Done)
+            ?.takeIf { current.downloadTarget == UpdateDownloadTarget.AppCache }
+
+        if (downloaded != null) {
+            updateRepository.installUpdate(downloaded.uri)
+        } else {
+            startDownload(UpdateDownloadTarget.AppCache)
+        }
     }
 
     /**
@@ -184,6 +217,9 @@ data class UpdateAvailableState(
 
     /** The download in flight or the one that has just ended, and `null` before any was started. */
     val download: UpdateDownload? = null,
+
+    /** What [download] was fetched for, so a finished one is put to the use it was meant for. */
+    val downloadTarget: UpdateDownloadTarget? = null,
 
     /**
      * What changed between the running build and [latestVersion], newest version first.

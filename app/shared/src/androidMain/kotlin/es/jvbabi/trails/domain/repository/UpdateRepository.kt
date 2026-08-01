@@ -1,5 +1,6 @@
 package es.jvbabi.trails.domain.repository
 
+import android.net.Uri
 import es.jvbabi.trails.domain.model.UpdateDownload
 import es.jvbabi.trails.domain.model.UpdateDownloadTarget
 import kotlinx.coroutines.flow.Flow
@@ -41,4 +42,14 @@ interface UpdateRepository {
      * [UpdateDownload.Failed] — a caller never has to time it out itself.
      */
     fun downloadUpdate(url: String, target: UpdateDownloadTarget): Flow<UpdateDownload>
+
+    /**
+     * Hands the APK at [uri] to the system installer, which takes it from there and asks the user to
+     * confirm.
+     *
+     * Expects [canInstallUpdates] to have been checked first — without the permission the installer
+     * only turns the user away again. [uri] has to be one this app can grant read access to, which
+     * is what [UpdateDownloadTarget.AppCache] downloads produce.
+     */
+    fun installUpdate(uri: Uri)
 }

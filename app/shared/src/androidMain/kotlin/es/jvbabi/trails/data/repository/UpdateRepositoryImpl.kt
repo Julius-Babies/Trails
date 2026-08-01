@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.provider.Settings
+import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import es.jvbabi.trails.domain.model.UpdateDownload
 import es.jvbabi.trails.domain.model.UpdateDownloadTarget
@@ -66,7 +67,11 @@ class UpdateRepositoryImpl(
         // its way and there is no size to measure against yet.
         send(UpdateDownload.Running(downloadedBytes = 0, totalBytes = null))
 
-        val destination = withContext(Dispatchers.IO) { openDestination(url, target) }
+        // Anything that goes wrong here is a place that cannot be written to, which is a failed
+        // download rather than something to throw at whoever is collecting.
+        val destination = withContext(Dispatchers.IO) {
+            runCatching { openDestination(url, target) }.getOrNull()
+        }
         if (destination == null) {
             send(UpdateDownload.Failed)
             return@channelFlow
@@ -134,6 +139,18 @@ class UpdateRepositoryImpl(
         }
     }
 
+    override fun installUpdate(uri: Uri) {
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, APK_MIME_TYPE)
+            // The installer is a different app, so it needs to be let in on our content URI, and it
+            // is started from outside an activity, so it needs a task of its own.
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        context.startActivity(intent)
+    }
+
     /** Opens somewhere to write the download to, or `null` when there is nowhere to put it. */
     private fun openDestination(url: String, target: UpdateDownloadTarget): Destination? {
         val fileName = fileNameOf(url)
@@ -149,7 +166,14 @@ class UpdateRepositoryImpl(
         val file = File(directory, fileName)
 
         return Destination(
-            uri = Uri.fromFile(file),
+            // Shared through the FileProvider from the start rather than as a file:// URI. This is
+            // the download that exists to be installed, and a file URI handed to the installer is a
+            // FileUriExposedException from Android 7 on.
+            uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}$FILE_PROVIDER_AUTHORITY_SUFFIX",
+                file,
+            ),
             // Truncating rather than appending: a leftover from an attempt that died halfway would
             // otherwise be grown into a file that is part one download and part the next.
             openStream = { FileOutputStream(file, false) },
@@ -234,8 +258,16 @@ private class Destination(
     val discard: () -> Unit = {},
 )
 
-/** Subfolder of the cache, so the app's own downloads are not mixed in with everything else. */
+/**
+ * Subfolder of the cache, so the app's own downloads are not mixed in with everything else.
+ *
+ * Has to match the `cache-path` the FileProvider is configured with in `res/xml/file_paths.xml`,
+ * which is the only path it will hand out.
+ */
 private const val UPDATE_CACHE_DIRECTORY = "updates"
+
+/** Completes the authority the FileProvider is declared under in the app manifest. */
+private const val FILE_PROVIDER_AUTHORITY_SUFFIX = ".fileprovider"
 
 private const val APK_MIME_TYPE = "application/vnd.android.package-archive"
 

@@ -86,6 +86,22 @@
 
 
 
+        <!--
+          Hands the downloaded APK to the system installer. A file:// URI would be a
+          FileUriExposedException from Android 7 on, so the update travels as a content URI that
+          carries a read grant with it. The paths it may share are deliberately just the updater's
+          own cache folder — see res/xml/file_paths.xml.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <receiver
             android:name=".android.BootReceiver"
             android:exported="true">
