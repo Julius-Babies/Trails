@@ -1,0 +1,22 @@
+package es.jvbabi.trails.domain.repository
+
+/**
+ * Installing a downloaded release.
+ *
+ * Android-only, as is the rest of the updater: everywhere else the platform's store owns the
+ * install. Fetching the release itself is [TrailsAppRepository]'s job — this one starts where the
+ * APK is already at hand.
+ */
+interface UpdateRepository {
+
+    /**
+     * Whether the app is allowed to install an update itself.
+     *
+     * `REQUEST_INSTALL_PACKAGES` in the manifest only makes the permission askable; from Android 8
+     * on the user grants it per app in system settings and can revoke it again at any time, so this
+     * has to be asked right before an install rather than remembered. Below Android 8 there is no
+     * such per-app permission — installing from outside a store is a single global setting there,
+     * which the installer itself points the user at, so this reports `true`.
+     */
+    fun canInstallUpdates(): Boolean
+}

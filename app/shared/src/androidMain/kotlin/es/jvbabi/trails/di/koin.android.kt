@@ -5,7 +5,9 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import es.jvbabi.trails.data.database.TrailsDatabase
 import es.jvbabi.trails.data.repository.TrailsAppRepositoryImpl
+import es.jvbabi.trails.data.repository.UpdateRepositoryImpl
 import es.jvbabi.trails.domain.repository.TrailsAppRepository
+import es.jvbabi.trails.domain.repository.UpdateRepository
 import es.jvbabi.trails.domain.usecase.app.CheckAppIsLatestVersionUseCase
 import es.jvbabi.trails.domain.usecase.app.GetReleaseChangelogsUseCase
 import es.jvbabi.trails.ui.overlay.update_available.UpdateAvailableViewModel
@@ -13,6 +15,7 @@ import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
+import org.koin.dsl.bind
 import org.koin.dsl.module
 import org.koin.mp.KoinPlatformTools
 
@@ -33,6 +36,8 @@ actual fun platformModule(): Module = module {
             deviceRepository = get(),
         )
     }
+
+    singleOf(::UpdateRepositoryImpl) bind UpdateRepository::class
 
     singleOf(::CheckAppIsLatestVersionUseCase)
     singleOf(::GetReleaseChangelogsUseCase)
