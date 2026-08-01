@@ -254,6 +254,13 @@ instead of
 The lookup path (`$_("user.email")`) is identical either way, but the nested
 form keeps the catalogue readable and diffable.
 
+The top level of each catalogue is the feature area (`devices`, `shares`,
+`auth`, …). Inside it, **texts owned by a dialog go under a `dialogs` object**,
+keyed by the dialog — `devices.dialogs.rename.title`,
+`emitted_shares.dialogs.delete.description` — which keeps them apart from the
+texts the page itself renders. A group whose messages are all page-level
+(`emitted_shares.link`, `emitted_shares.badge`) has no `dialogs` object at all.
+
 **The key passed to `$_` doesn't have to be a string.** svelte-i18n also takes a
 descriptor object, which is how you supply a `default` or pick the locale
 explicitly:

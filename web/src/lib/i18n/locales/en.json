@@ -51,19 +51,21 @@
     "registered": "Registered with Trails on {date} at {time}.",
     "use_this": "Yes, use this device",
     "register_new": "Register as a new device",
-    "new": {
-      "title": "Link a new device",
-      "hint": {
-        "title": "Note for new devices",
-        "description": "You already have a device of the same model in your Trails account. If you reset the app or your phone, go back and link this sign-in to the existing device so that shares and location data stay attached to it. Continue if you want to sign in several devices of the same model to your Trails account. To tell them apart, you have to give this device a name."
+    "dialogs": {
+      "new": {
+        "title": "Link a new device",
+        "hint": {
+          "title": "Note for new devices",
+          "description": "You already have a device of the same model in your Trails account. If you reset the app or your phone, go back and link this sign-in to the existing device so that shares and location data stay attached to it. Continue if you want to sign in several devices of the same model to your Trails account. To tell them apart, you have to give this device a name."
+        }
+      },
+      "name": {
+        "label": "Device name",
+        "placeholder": "e.g. Andy’s iPhone 12 (work)",
+        "description": "The name is shown in place of the device model.",
+        "too_short": "The name must be at least {min} characters long.",
+        "taken": "This name is already in use."
       }
-    },
-    "name": {
-      "label": "Device name",
-      "placeholder": "e.g. Andy’s iPhone 12 (work)",
-      "description": "The name is shown in place of the device model.",
-      "too_short": "The name must be at least {min} characters long.",
-      "taken": "This name is already in use."
     }
   },
   "devices": {
@@ -73,14 +75,16 @@
     "just_now": "just now",
     "place_and_time": "{place} · {time}",
     "history_unavailable": "History unavailable",
-    "rename": {
-      "title": "Rename device",
-      "description": "Give your device a recognisable name. If you share your device, the name may be visible to other people.",
-      "placeholder": "e.g. Ella’s iPhone"
-    },
-    "delete": {
-      "title": "Delete device",
-      "description": "Do you really want to delete “{name}”? Existing shares of this device become invalid. This action cannot be undone."
+    "dialogs": {
+      "rename": {
+        "title": "Rename device",
+        "description": "Give your device a recognisable name. If you share your device, the name may be visible to other people.",
+        "placeholder": "e.g. Ella’s iPhone"
+      },
+      "delete": {
+        "title": "Delete device",
+        "description": "Do you really want to delete “{name}”? Existing shares of this device become invalid. This action cannot be undone."
+      }
     }
   },
   "shares": {
@@ -88,10 +92,12 @@
     "owner": "shared by {owner}",
     "title": "{device} shared by {owner}",
     "not_found": "Share not found.",
-    "return": {
-      "title": "Return share",
-      "description": "Do you really want to return this share? It is removed from your account and you will no longer be able to see the location. To get access again you need a new share.",
-      "confirm": "Return"
+    "dialogs": {
+      "return": {
+        "title": "Return share",
+        "description": "Do you really want to return this share? It is removed from your account and you will no longer be able to see the location. To get access again you need a new share.",
+        "confirm": "Return"
+      }
     }
   },
   "emitted_shares": {
@@ -125,19 +131,21 @@
       "empty": "This share has not been redeemed yet.",
       "redeemed_at": "Redeemed {when}"
     },
-    "rename": {
-      "title": "Rename share",
-      "description": "The name helps you tell your shares apart. Recipients don’t see it.",
-      "placeholder": "e.g. Share for family",
-      "failed": "The share could not be renamed."
-    },
-    "name": {
-      "taken": "You already have a share with this name.",
-      "blank": "The share name must not be empty."
-    },
-    "delete": {
-      "title": "Delete share",
-      "description": "Do you really want to delete “{name}”? Everyone subscribed to the share will stop receiving data about the device."
+    "dialogs": {
+      "rename": {
+        "title": "Rename share",
+        "description": "The name helps you tell your shares apart. Recipients don’t see it.",
+        "placeholder": "e.g. Share for family",
+        "failed": "The share could not be renamed."
+      },
+      "name": {
+        "taken": "You already have a share with this name.",
+        "blank": "The share name must not be empty."
+      },
+      "delete": {
+        "title": "Delete share",
+        "description": "Do you really want to delete “{name}”? Everyone subscribed to the share will stop receiving data about the device."
+      }
     }
   },
   "history": {

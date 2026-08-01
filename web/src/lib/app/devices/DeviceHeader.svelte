@@ -55,7 +55,7 @@
         <DropdownMenuContent>
             <DropdownMenuGroup>
                 {#if !isOwnDevice}
-                    <DropdownMenuItem onclick={() => showReturnDialog = true}>{$_("shares.return.title")}</DropdownMenuItem>
+                    <DropdownMenuItem onclick={() => showReturnDialog = true}>{$_("shares.dialogs.return.title")}</DropdownMenuItem>
                 {:else}
                     <DropdownMenuItem class="text-destructive" onclick={() => showDeleteDialog = true}>
                         <TrashIcon/>
