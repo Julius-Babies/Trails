@@ -28,7 +28,7 @@
 
 <div class="w-full h-full flex flex-col">
     <form class="w-full flex flex-col gap-1.5" onsubmit={plugin.submit}>
-        <Label for="email-{id}">{$_("auth.email_label")}</Label>
+        <Label for="email-{id}">{$_("auth.email.label")}</Label>
         <Input
                 type="user"
                 autocorrect="off"
@@ -37,7 +37,7 @@
                 inputmode="email"
                 bind:value={plugin.email}
                 bind:ref={inputField}
-                placeholder={$_("auth.email_placeholder")}
+                placeholder={$_("auth.email.placeholder")}
                 onsubmit={plugin.submit}
         />
     </form>
@@ -48,7 +48,7 @@
                                                 transition:slide={{ duration: 200 }}
                                         >
                                             {#if plugin.status === "user_not_existing"}
-                                                {$_("auth.user_not_found")}
+                                                {$_("auth.email.user_not_found")}
                                             {:else if plugin.status === "error"}
                                                 {$_("common.error")}
                                             {/if}

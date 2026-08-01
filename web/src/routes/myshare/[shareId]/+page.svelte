@@ -156,7 +156,7 @@
                 {#if share.is_locked}
                     <span class="inline-flex items-center gap-1">
                         <LockIcon class="size-3.5"/>
-                        {$_("emitted_shares.locked_badge")}
+                        {$_("emitted_shares.badge.locked")}
                     </span>
                 {/if}
             </div>
@@ -165,11 +165,11 @@
                 <div class="flex flex-col gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-4">
                     <div class="flex flex-row items-center gap-2">
                         <LinkIcon class="size-4 shrink-0 text-primary"/>
-                        <span class="text-sm font-semibold text-accent-foreground">{$_("emitted_shares.link_title")}</span>
+                        <span class="text-sm font-semibold text-accent-foreground">{$_("emitted_shares.link.title")}</span>
                     </div>
 
                     <p class="text-xs text-muted-foreground">
-                        {$_(share.allow_multiuse ? "emitted_shares.link_multiuse" : "emitted_shares.link_single_use")}
+                        {$_(share.allow_multiuse ? "emitted_shares.link.multiuse" : "emitted_shares.link.single_use")}
                     </p>
 
                     <InputGroup class="bg-background">
@@ -210,7 +210,7 @@
                 <Field>
                     <FieldTitle>
                         <ClockCounterClockwiseIcon class="size-4"/>
-                        {$_("emitted_shares.history_title")}
+                        {$_("emitted_shares.history.title")}
                     </FieldTitle>
                     <Select
                             type="single"
@@ -227,7 +227,7 @@
                         </SelectContent>
                     </Select>
                     <FieldDescription>
-                        {$_("emitted_shares.history_description")}
+                        {$_("emitted_shares.history.description")}
                     </FieldDescription>
                 </Field>
 
@@ -235,10 +235,10 @@
                     <FieldContent>
                         <FieldTitle>
                             <BatteryVerticalHighIcon class="size-4"/>
-                            {$_("emitted_shares.battery_title")}
+                            {$_("emitted_shares.battery.title")}
                         </FieldTitle>
                         <FieldDescription>
-                            {$_("emitted_shares.battery_description")}
+                            {$_("emitted_shares.battery.description")}
                         </FieldDescription>
                     </FieldContent>
                     <Checkbox
@@ -250,11 +250,11 @@
 
             <div class="flex flex-col gap-2">
                 <h2 class="text-sm font-semibold text-accent-foreground">
-                    {$_("emitted_shares.redemptions_heading", {values: {count: share.active_shares.length}})}
+                    {$_("emitted_shares.redemptions.heading", {values: {count: share.active_shares.length}})}
                 </h2>
 
                 {#if share.active_shares.length === 0}
-                    <p class="text-sm text-muted-foreground">{$_("emitted_shares.no_redemptions")}</p>
+                    <p class="text-sm text-muted-foreground">{$_("emitted_shares.redemptions.empty")}</p>
                 {:else}
                     <div class="flex flex-col rounded-2xl bg-card overflow-hidden">
                         {#each share.active_shares as activeShare, index (activeShare.id)}
@@ -267,7 +267,7 @@
                                 <LinkIcon class="size-4 shrink-0 text-muted-foreground"/>
                                 <div class="flex flex-col min-w-0">
                                     <span class="text-sm truncate">
-                                        {$_("emitted_shares.redeemed_at", {
+                                        {$_("emitted_shares.redemptions.redeemed_at", {
                                             values: {when: dayjs(activeShare.created_at).fromNow()},
                                         })}
                                     </span>

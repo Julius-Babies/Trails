@@ -96,7 +96,7 @@
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     role="img"
-    aria-label={$_(isCharging ? "battery.label_charging" : "battery.label", {values: {percentage: clamped}})}
+    aria-label={$_(isCharging ? "battery.label.charging" : "battery.label.not_charging", {values: {percentage: clamped}})}
     style={`transform: rotate(${ROTATION[orientation]}deg); transform-origin: center;`}
 >
     <defs>

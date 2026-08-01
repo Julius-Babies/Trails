@@ -27,7 +27,7 @@
 
 <div class="w-full h-full flex flex-col">
     <form class="w-full flex flex-col gap-1.5" onsubmit={plugin.submit}>
-        <Label for="password-{id}">{$_("auth.password_label")}</Label>
+        <Label for="password-{id}">{$_("auth.password.label")}</Label>
         <Input
                 type="password"
                 id="password-{id}"
@@ -44,7 +44,7 @@
                                                 transition:slide={{ duration: 200 }}
                                         >
                                             {#if plugin.status === "password_incorrect"}
-                                                {$_("auth.password_incorrect")}
+                                                {$_("auth.password.incorrect")}
                                             {:else if plugin.status === "error"}
                                                 {$_("common.error")}
                                             {/if}

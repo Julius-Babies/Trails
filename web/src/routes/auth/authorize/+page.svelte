@@ -53,8 +53,8 @@
                                     <span class="text-xl font-semibold pb-1">{$_("auth.success")}</span>
                                     {#if plugin.result?.type === "redirect"}
                                         <div>
-                                            {$_("auth.redirect_hint")}
-                                            <a href={plugin.result.to} class="underline">{$_("auth.redirect_link")}</a>
+                                            {$_("auth.redirect.hint")}
+                                            <a href={plugin.result.to} class="underline">{$_("auth.redirect.link")}</a>
                                         </div>
                                     {/if}
                                 </div>

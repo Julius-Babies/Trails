@@ -16,14 +16,14 @@
     type Option = { mode: GeneralCameraMode | DetailCameraMode; labelKey: string };
 
     const GENERAL_OPTIONS: Option[] = [
-        {mode: "tracking", labelKey: "map.keep_all_in_view"},
-        {mode: "manual", labelKey: "map.move_manually"},
+        {mode: "tracking", labelKey: "map.camera_mode.options.keep_all_in_view"},
+        {mode: "manual", labelKey: "map.camera_mode.options.move_manually"},
     ];
 
     const DETAIL_OPTIONS: Option[] = [
-        {mode: "tracking", labelKey: "map.follow_device"},
-        {mode: "trail", labelKey: "map.keep_trail_in_view"},
-        {mode: "manual", labelKey: "map.move_manually"},
+        {mode: "tracking", labelKey: "map.camera_mode.options.follow_device"},
+        {mode: "trail", labelKey: "map.camera_mode.options.keep_trail_in_view"},
+        {mode: "manual", labelKey: "map.camera_mode.options.move_manually"},
     ];
 
     let isDetail = $derived(mapCamera.scope === "detail");
@@ -38,7 +38,7 @@
 
 <div
         role="group"
-        aria-label={$_("map.camera_mode")}
+        aria-label={$_("map.camera_mode.label")}
         class="pointer-events-auto flex flex-col items-center gap-1 rounded-full border border-border bg-accent/65 p-1 text-card-foreground shadow-2xl backdrop-blur-lg"
 >
     {#each options as option (option.mode)}
