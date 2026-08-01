@@ -49,15 +49,15 @@
 <Dialog bind:open={open}>
     <DialogContent>
         <DialogHeader>
-            <DialogTitle>{$_("devices.renameTitle")}</DialogTitle>
-            <DialogDescription>{$_("devices.renameDescription")}</DialogDescription>
+            <DialogTitle>{$_("devices.rename_title")}</DialogTitle>
+            <DialogDescription>{$_("devices.rename_description")}</DialogDescription>
         </DialogHeader>
 
         <Input
                 bind:value={name}
                 bind:ref={inputElement}
                 type="text"
-                placeholder={$_("devices.renamePlaceholder")}
+                placeholder={$_("devices.rename_placeholder")}
                 onkeydown={(e) => { if (e.key === "Enter") save(); }}
         />
 

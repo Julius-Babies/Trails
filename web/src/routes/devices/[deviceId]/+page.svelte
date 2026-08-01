@@ -68,6 +68,6 @@
             />
         </div>
     {:else}
-        <p class="px-2 mt-4 text-sm text-muted-foreground">{$_("devices.notFound")}</p>
+        <p class="px-2 mt-4 text-sm text-muted-foreground">{$_("devices.not_found")}</p>
     {/if}
 </div>

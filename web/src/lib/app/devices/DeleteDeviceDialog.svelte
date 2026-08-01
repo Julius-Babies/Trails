@@ -41,9 +41,9 @@
 <Dialog bind:open={open}>
     <DialogContent>
         <DialogHeader>
-            <DialogTitle>{$_("devices.deleteTitle")}</DialogTitle>
+            <DialogTitle>{$_("devices.delete_title")}</DialogTitle>
             <DialogDescription>
-                {$_("devices.deleteDescription", {values: {name: deviceName}})}
+                {$_("devices.delete_description", {values: {name: deviceName}})}
             </DialogDescription>
         </DialogHeader>
 

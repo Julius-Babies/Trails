@@ -211,14 +211,21 @@ display string goes through the translation layer. App and web app both ship
   `nl.jacobras:Human-Readable` in the app and the active `dayjs` locale (or
   `Intl.*`) on the web — never a hardcoded format string.
 - **Keep keys short.** Group them by feature area instead of spelling out the
-  sentence: `devices.renameTitle`, not
+  sentence: `devices.rename_title`, not
   `devices.dialogs.rename.title.headline`.
+- **Key names are `snake_case`** on both platforms — `rename_title`,
+  `shared_with_me`, never `renameTitle`.
 
 #### Web ([`web/`](web))
 
-Uses [svelte-i18n](https://github.com/kaisermann/svelte-i18n). Message
-catalogues live in `web/src/lib/i18n/locales/<language>.json` and use **nested
-groups**, not flat dotted keys:
+Uses [svelte-i18n](https://github.com/kaisermann/svelte-i18n).
+
+**One JSON file per language**, at `web/src/lib/i18n/locales/<language>.json`.
+Every catalogue holds the complete key set for its language; they are added
+eagerly in `web/src/lib/i18n/index.ts` so a server-rendered page never ships
+raw message keys.
+
+Catalogues use **nested groups**, not flat dotted keys:
 
 ```json
 {
@@ -240,6 +247,21 @@ instead of
 
 The lookup path (`$_("user.email")`) is identical either way, but the nested
 form keeps the catalogue readable and diffable.
+
+**The key passed to `$_` doesn't have to be a string.** svelte-i18n also takes a
+descriptor object, which is how you supply a `default` or pick the locale
+explicitly:
+
+```svelte
+{$_({id: "user.email", default: "E-Mail"})}
+```
+
+The key also doesn't have to be a literal — a variable, a constant or a
+conditional is fine, and is the normal way to map state onto messages:
+
+```svelte
+{$_(charging ? "battery.level_charging" : "battery.level", {values: {percentage}})}
+```
 
 #### App ([`app/shared/`](app/shared))
 

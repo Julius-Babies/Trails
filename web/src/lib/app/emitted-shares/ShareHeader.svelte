@@ -26,7 +26,7 @@
             class="flex flex-row grow items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
     >
         <ArrowLeftIcon class="size-4"/>
-        {$_("emittedShares.title")}
+        {$_("emitted_shares.title")}
     </a>
 
     {#if share}

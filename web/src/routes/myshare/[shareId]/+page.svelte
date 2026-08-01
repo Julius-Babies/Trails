@@ -143,7 +143,7 @@
                     <span class="text-lg font-semibold truncate leading-tight">{share.name}</span>
                     <span class="text-sm font-light text-muted-foreground truncate">{share.device_display_name}</span>
                     <span class="text-xs font-light text-muted-foreground truncate">
-                        {$_("emittedShares.createdAt", {values: {when: dayjs(share.created_at).fromNow()}})}
+                        {$_("emitted_shares.created_at", {values: {when: dayjs(share.created_at).fromNow()}})}
                     </span>
                 </div>
             </div>
@@ -151,12 +151,12 @@
             <div class="flex flex-row flex-wrap gap-x-3 gap-y-0.5 px-1 text-xs text-muted-foreground">
                 <span class="inline-flex items-center gap-1">
                     <UsersIcon class="size-3.5"/>
-                    {$_(share.allow_multiuse ? "emittedShares.multiuse" : "emittedShares.singleUse")}
+                    {$_(share.allow_multiuse ? "emitted_shares.multiuse" : "emitted_shares.single_use")}
                 </span>
                 {#if share.is_locked}
                     <span class="inline-flex items-center gap-1">
                         <LockIcon class="size-3.5"/>
-                        {$_("emittedShares.lockedBadge")}
+                        {$_("emitted_shares.locked_badge")}
                     </span>
                 {/if}
             </div>
@@ -165,11 +165,11 @@
                 <div class="flex flex-col gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-4">
                     <div class="flex flex-row items-center gap-2">
                         <LinkIcon class="size-4 shrink-0 text-primary"/>
-                        <span class="text-sm font-semibold text-accent-foreground">{$_("emittedShares.linkTitle")}</span>
+                        <span class="text-sm font-semibold text-accent-foreground">{$_("emitted_shares.link_title")}</span>
                     </div>
 
                     <p class="text-xs text-muted-foreground">
-                        {$_(share.allow_multiuse ? "emittedShares.linkMultiuse" : "emittedShares.linkSingleUse")}
+                        {$_(share.allow_multiuse ? "emitted_shares.link_multiuse" : "emitted_shares.link_single_use")}
                     </p>
 
                     <InputGroup class="bg-background">
@@ -201,7 +201,7 @@
             {#if saveFailed}
                 <Alert variant="destructive">
                     <AlertDescription>
-                        {$_("emittedShares.saveFailed")}
+                        {$_("emitted_shares.save_failed")}
                     </AlertDescription>
                 </Alert>
             {/if}
@@ -210,7 +210,7 @@
                 <Field>
                     <FieldTitle>
                         <ClockCounterClockwiseIcon class="size-4"/>
-                        {$_("emittedShares.historyTitle")}
+                        {$_("emitted_shares.history_title")}
                     </FieldTitle>
                     <Select
                             type="single"
@@ -227,7 +227,7 @@
                         </SelectContent>
                     </Select>
                     <FieldDescription>
-                        {$_("emittedShares.historyDescription")}
+                        {$_("emitted_shares.history_description")}
                     </FieldDescription>
                 </Field>
 
@@ -235,10 +235,10 @@
                     <FieldContent>
                         <FieldTitle>
                             <BatteryVerticalHighIcon class="size-4"/>
-                            {$_("emittedShares.batteryTitle")}
+                            {$_("emitted_shares.battery_title")}
                         </FieldTitle>
                         <FieldDescription>
-                            {$_("emittedShares.batteryDescription")}
+                            {$_("emitted_shares.battery_description")}
                         </FieldDescription>
                     </FieldContent>
                     <Checkbox
@@ -250,11 +250,11 @@
 
             <div class="flex flex-col gap-2">
                 <h2 class="text-sm font-semibold text-accent-foreground">
-                    {$_("emittedShares.redemptionsHeading", {values: {count: share.active_shares.length}})}
+                    {$_("emitted_shares.redemptions_heading", {values: {count: share.active_shares.length}})}
                 </h2>
 
                 {#if share.active_shares.length === 0}
-                    <p class="text-sm text-muted-foreground">{$_("emittedShares.noRedemptions")}</p>
+                    <p class="text-sm text-muted-foreground">{$_("emitted_shares.no_redemptions")}</p>
                 {:else}
                     <div class="flex flex-col rounded-2xl bg-card overflow-hidden">
                         {#each share.active_shares as activeShare, index (activeShare.id)}
@@ -267,7 +267,7 @@
                                 <LinkIcon class="size-4 shrink-0 text-muted-foreground"/>
                                 <div class="flex flex-col min-w-0">
                                     <span class="text-sm truncate">
-                                        {$_("emittedShares.redeemedAt", {
+                                        {$_("emitted_shares.redeemed_at", {
                                             values: {when: dayjs(activeShare.created_at).fromNow()},
                                         })}
                                     </span>
@@ -284,7 +284,7 @@
             </div>
         </div>
     {:else if share === null}
-        <p class="px-2 mt-4 text-sm text-muted-foreground">{$_("emittedShares.notFound")}</p>
+        <p class="px-2 mt-4 text-sm text-muted-foreground">{$_("emitted_shares.not_found")}</p>
     {:else}
         <p class="px-2 mt-4 text-sm text-muted-foreground">{$_("common.loading")}</p>
     {/if}

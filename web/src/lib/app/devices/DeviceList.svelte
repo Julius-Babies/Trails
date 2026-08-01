@@ -50,7 +50,7 @@
     </div>
 
     {#if sharedWithMe.length > 0}
-        <h1 class="text-sm font-semibold mt-1 px-6 text-accent-foreground">{$_("shares.sharedWithMe")}</h1>
+        <h1 class="text-sm font-semibold mt-1 px-6 text-accent-foreground">{$_("shares.shared_with_me")}</h1>
 
         <div class="px-3 pb-2">
             <div class="flex flex-col rounded-4xl bg-card overflow-hidden">
@@ -67,7 +67,7 @@
     {/if}
 
     {#if webappSocket.emittedShares.length > 0}
-        <h1 class="text-sm font-semibold mt-1 px-6 text-accent-foreground">{$_("emittedShares.title")}</h1>
+        <h1 class="text-sm font-semibold mt-1 px-6 text-accent-foreground">{$_("emitted_shares.title")}</h1>
 
         <div class="px-3 pb-2 ">
             <div class="flex flex-col rounded-4xl bg-card overflow-hidden">

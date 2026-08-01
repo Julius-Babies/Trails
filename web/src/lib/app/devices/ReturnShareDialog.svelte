@@ -42,9 +42,9 @@
 <Dialog bind:open={open}>
     <DialogContent>
         <DialogHeader>
-            <DialogTitle>{$_("shares.returnTitle")}</DialogTitle>
+            <DialogTitle>{$_("shares.return_title")}</DialogTitle>
             <DialogDescription>
-                {$_("shares.returnDescription")}
+                {$_("shares.return_description")}
             </DialogDescription>
         </DialogHeader>
 
@@ -54,7 +54,7 @@
                 {#if returning}
                     <CircleNotchIcon class="size-4 animate-spin" />
                 {/if}
-                {$_("shares.returnConfirm")}
+                {$_("shares.return_confirm")}
             </Button>
         </DialogFooter>
     </DialogContent>

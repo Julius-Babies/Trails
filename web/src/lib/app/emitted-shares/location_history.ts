@@ -20,11 +20,11 @@ export interface LocationHistoryOption {
 
 /** The retention steps, in the order the picker offers them. */
 const LOCATION_HISTORY_STEPS: readonly { seconds: number; key: string }[] = [
-    {seconds: 0, key: "history.currentOnly"},
-    {seconds: 60 * 60, key: "history.lastHour"},
-    {seconds: 6 * 60 * 60, key: "history.last6Hours"},
-    {seconds: 24 * 60 * 60, key: "history.lastDay"},
-    {seconds: 7 * 24 * 60 * 60, key: "history.lastWeek"},
+    {seconds: 0, key: "history.current_only"},
+    {seconds: 60 * 60, key: "history.last_hour"},
+    {seconds: 6 * 60 * 60, key: "history.last_6_hours"},
+    {seconds: 24 * 60 * 60, key: "history.last_day"},
+    {seconds: 7 * 24 * 60 * 60, key: "history.last_week"},
     {seconds: INFINITE_HISTORY_SECONDS, key: "history.full"},
 ];
 
@@ -43,9 +43,9 @@ export function locationHistoryLabel(seconds: number): string {
     if (seconds < 0) return t("history.full");
 
     const hours = Math.round(seconds / 3600);
-    if (hours >= 24) return t("history.lastDays", {values: {count: Math.round(hours / 24)}});
-    if (hours >= 1) return t("history.lastHours", {values: {count: hours}});
-    return t("history.lastMinutes", {values: {count: Math.max(1, Math.round(seconds / 60))}});
+    if (hours >= 24) return t("history.last_days", {values: {count: Math.round(hours / 24)}});
+    if (hours >= 1) return t("history.last_hours", {values: {count: hours}});
+    return t("history.last_minutes", {values: {count: Math.max(1, Math.round(seconds / 60))}});
 }
 
 /**

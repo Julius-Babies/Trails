@@ -91,7 +91,7 @@
             />
         </div>
     {:else if share === null}
-        <p class="px-2 mt-4 text-sm text-muted-foreground">{$_("shares.notFound")}</p>
+        <p class="px-2 mt-4 text-sm text-muted-foreground">{$_("shares.not_found")}</p>
     {:else}
         <p class="px-2 mt-4 text-sm text-muted-foreground">{$_("common.loading")}</p>
     {/if}

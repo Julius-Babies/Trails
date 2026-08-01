@@ -34,9 +34,9 @@
 <Dialog bind:open={open}>
     <DialogContent>
         <DialogHeader>
-            <DialogTitle>{$_("emittedShares.deleteTitle")}</DialogTitle>
+            <DialogTitle>{$_("emitted_shares.delete_title")}</DialogTitle>
             <DialogDescription>
-                {$_("emittedShares.deleteDescription", {values: {name: shareName}})}
+                {$_("emitted_shares.delete_description", {values: {name: shareName}})}
             </DialogDescription>
         </DialogHeader>
 

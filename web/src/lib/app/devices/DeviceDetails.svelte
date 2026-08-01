@@ -82,7 +82,7 @@
 
     let placeText = $derived.by(() => {
         const location = resolvedLastLocation;
-        if (location == null) return $_("devices.neverSeen");
+        if (location == null) return $_("devices.never_seen");
 
         const address = location.address;
         return address != null
@@ -97,7 +97,7 @@
     let timeText = $derived.by(() => {
         const location = resolvedLastLocation;
         if (location == null) return null;
-        if (Date.now() - location.found_at < TWO_MINUTES_MS) return $_("devices.justNow");
+        if (Date.now() - location.found_at < TWO_MINUTES_MS) return $_("devices.just_now");
         return dayjs(location.found_at).fromNow();
     });
 </script>
@@ -148,7 +148,7 @@
                         emptyColor="color-mix(in oklab, var(--color-foreground) 18%, transparent)"
                 />
                 <span class="font-medium text-muted-foreground truncate">
-                    {$_(resolvedBattery.is_charging ? "battery.levelCharging" : "battery.level", {
+                    {$_(resolvedBattery.is_charging ? "battery.level_charging" : "battery.level", {
                         values: {percentage: resolvedBattery.percentage},
                     })}
                 </span>
@@ -166,7 +166,7 @@
                 {#if history.type === "loading"}
                     {$_("common.loading")}
                 {:else if history.type === "not-available"}
-                    {$_("devices.historyUnavailable")}
+                    {$_("devices.history_unavailable")}
                 {:else if history.type === "available"}
                     {#if history.state.historySeconds === null}
                         {$_("history.full")}
