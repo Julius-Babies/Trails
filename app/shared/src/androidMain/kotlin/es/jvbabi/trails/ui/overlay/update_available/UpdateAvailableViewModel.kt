@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import es.jvbabi.trails.domain.model.Changelog
 import es.jvbabi.trails.domain.repository.ApplicationRepository
 import es.jvbabi.trails.domain.repository.TrailsAppRepository
+import es.jvbabi.trails.domain.repository.UpdateRepository
 import es.jvbabi.trails.domain.usecase.app.AppVersionState
 import es.jvbabi.trails.domain.usecase.app.CheckAppIsLatestVersionUseCase
 import es.jvbabi.trails.domain.usecase.app.GetReleaseChangelogsUseCase
@@ -18,6 +19,7 @@ import kotlinx.coroutines.launch
 class UpdateAvailableViewModel(
     private val trailsAppRepository: TrailsAppRepository,
     private val applicationRepository: ApplicationRepository,
+    private val updateRepository: UpdateRepository,
     private val checkAppIsLatestVersionUseCase: CheckAppIsLatestVersionUseCase,
     private val getReleaseChangelogsUseCase: GetReleaseChangelogsUseCase,
 ) : ViewModel() {
@@ -41,6 +43,18 @@ class UpdateAvailableViewModel(
                 .distinctUntilChanged()
                 .collect { isInForeground -> if (isInForeground) checkForUpdate() }
         }
+    }
+
+    /**
+     * Takes the permission dialog down once the permission it asks for has been granted.
+     *
+     * A dialog whose permission is still missing stays up, which covers the user who went to the
+     * settings and came back without flipping the switch.
+     */
+    private fun dismissInstallPermissionIfGranted() {
+        if (state.value?.isInstallPermissionRequired != true) return
+        if (!updateRepository.canInstallUpdates()) return
+        state.update { it?.copy(isInstallPermissionRequired = false) }
     }
 
     /**
@@ -78,10 +92,36 @@ class UpdateAvailableViewModel(
         when (event) {
             is UpdateAvailableEvent.RequestDismiss -> state.update { it?.copy(isDismissed = true) }
             is UpdateAvailableEvent.Install -> {
+                // Asked on every press rather than once when the prompt goes up: the permission
+                // lives in system settings and can be taken away again in the meantime.
+                if (!updateRepository.canInstallUpdates()) {
+                    state.update { it?.copy(isInstallPermissionRequired = true) }
+                    return
+                }
+
                 val downloadLink = state.value?.downloadLink ?: return
                 openUrl(downloadLink)
                 state.update { it?.copy(isDismissed = true) }
             }
+
+            // Deliberately leaves the dialog up: the user is off to the settings and may well come
+            // back without having granted anything, in which case the dialog is still what they
+            // need to see. It is taken down by dismissInstallPermissionIfGranted() on return.
+            is UpdateAvailableEvent.GrantInstallPermission ->
+                updateRepository.openInstallPermissionSettings()
+
+            is UpdateAvailableEvent.RecheckInstallPermission -> dismissInstallPermissionIfGranted()
+
+            // TODO: hand the download off so the user installs it themselves (#29).
+            is UpdateAvailableEvent.InstallManually -> Unit
+
+            // TODO: remember the choice, so Install goes straight to the download from now on and
+            //  the permission is never asked for again (#29).
+            is UpdateAvailableEvent.AlwaysInstallManually -> Unit
+
+            is UpdateAvailableEvent.DismissInstallPermission ->
+                state.update { it?.copy(isInstallPermissionRequired = false) }
+
             // Leaves the overlay open: the user is looking something up, not done updating.
             is UpdateAvailableEvent.OpenIssue -> openUrl(event.url)
             is UpdateAvailableEvent.Dismissed -> {
@@ -97,6 +137,12 @@ data class UpdateAvailableState(
     val latestVersion: String? = null,
     val downloadLink: String? = null,
     val isDismissed: Boolean = false,
+
+    /**
+     * Whether the app has been asked to install the update but is not allowed to, which is what
+     * the permission dialog is put up for.
+     */
+    val isInstallPermissionRequired: Boolean = false,
 
     /**
      * What changed between the running build and [latestVersion], newest version first.
@@ -118,6 +164,26 @@ sealed class UpdateAvailableEvent {
     data object Dismissed: UpdateAvailableEvent()
 
     data object Install: UpdateAvailableEvent()
+
+    /** Sends the user to the settings where the install permission is granted. */
+    data object GrantInstallPermission: UpdateAvailableEvent()
+
+    /**
+     * Ask whether the install permission has been granted in the meantime.
+     *
+     * Granting happens in the system settings, and Android reports nothing back when it is done.
+     * The app returning to the front is the only signal there is, so the overlay sends this then.
+     */
+    data object RecheckInstallPermission: UpdateAvailableEvent()
+
+    /** Install this one update by hand instead of granting the permission. */
+    data object InstallManually: UpdateAvailableEvent()
+
+    /** Install by hand from now on, without being asked for the permission again. */
+    data object AlwaysInstallManually: UpdateAvailableEvent()
+
+    /** The user closed the permission dialog without choosing any of it. */
+    data object DismissInstallPermission: UpdateAvailableEvent()
 
     /** Opens the issue a changelog entry came from. */
     data class OpenIssue(val url: String): UpdateAvailableEvent()

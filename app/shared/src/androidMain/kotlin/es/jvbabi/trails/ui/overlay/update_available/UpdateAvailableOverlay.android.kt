@@ -25,6 +25,8 @@ import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
@@ -72,6 +74,20 @@ actual fun UpdateAvailableOverlay() {
             onEvent = viewModel::onEvent,
             state = state!!,
         )
+    }
+
+    // A sibling of the sheet rather than part of its content: a dialog brings its own window, so it
+    // sits above the sheet either way, and the sheet stays untouched behind it.
+    if (state?.isInstallPermissionRequired == true) {
+        // The permission is granted in the system settings, which means leaving the app, and Android
+        // reports nothing back when it is done. So the dialog asks again every time the app resumes
+        // while it is up — tied to the lifecycle rather than to the app's own foreground flag, which
+        // is driven by the activity by hand and is not this precise about what "back in front" is.
+        LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+            viewModel.onEvent(UpdateAvailableEvent.RecheckInstallPermission)
+        }
+
+        InstallPermissionDialog(onEvent = viewModel::onEvent)
     }
 }
 

@@ -19,4 +19,13 @@ interface UpdateRepository {
      * which the installer itself points the user at, so this reports `true`.
      */
     fun canInstallUpdates(): Boolean
+
+    /**
+     * Takes the user to the system settings where the permission from [canInstallUpdates] is
+     * granted — the app's own "install unknown apps" screen.
+     *
+     * Leaves the app, and there is nothing to hand back: whether the user flipped the switch can
+     * only be found out by asking [canInstallUpdates] again once they return.
+     */
+    fun openInstallPermissionSettings()
 }
