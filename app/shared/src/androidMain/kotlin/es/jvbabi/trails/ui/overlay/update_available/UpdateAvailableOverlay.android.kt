@@ -87,6 +87,10 @@ actual fun UpdateAvailableOverlay() {
 
         InstallPermissionDialog(onEvent = viewModel::onEvent)
     }
+
+    if (state?.download is UpdateDownload.Failed) {
+        DownloadFailedDialog(onEvent = viewModel::onEvent)
+    }
 }
 
 @Composable

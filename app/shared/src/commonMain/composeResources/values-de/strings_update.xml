@@ -8,6 +8,9 @@
     <string name="update_cancel_download">Download abbrechen</string>
     <string name="update_downloading_progress">%1$s / %2$s (%3$s)</string>
 
+    <string name="update_download_failed_title">Update fehlgeschlagen</string>
+    <string name="update_download_failed_message">Das Update konnte nicht heruntergeladen werden. Bitte versuche es später noch einmal.</string>
+
     <string name="update_install_permission_title">Berechtigung erforderlich</string>
     <string name="update_install_permission_message">Um das Update selbst zu installieren, braucht Trails die Berechtigung, Apps zu installieren. Ohne sie musst du das Update von Hand installieren.</string>
     <string name="update_install_permission_grant">Berechtigung erteilen</string>

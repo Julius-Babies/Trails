@@ -107,6 +107,14 @@ class UpdateAvailableViewModel(
      */
     private fun cancelDownload() {
         downloadJob?.cancel()
+        clearDownload()
+    }
+
+    /**
+     * Winds the state back to before any download was started, so the prompt reads as though none
+     * ever had been.
+     */
+    private fun clearDownload() {
         downloadJob = null
         state.update { it?.copy(download = null, downloadTarget = null) }
     }
@@ -210,6 +218,10 @@ class UpdateAvailableViewModel(
             }
 
             is UpdateAvailableEvent.CancelDownload -> cancelDownload()
+
+            // Nothing to retry from here: dismissing puts the prompt back as it was, with Install
+            // right there for another attempt.
+            is UpdateAvailableEvent.DismissDownloadError -> clearDownload()
             is UpdateAvailableEvent.Install -> when {
                 // Being allowed to install comes first, ahead of any standing "always by hand":
                 // someone who has since granted the permission has plainly changed their mind. Asked
@@ -303,6 +315,9 @@ sealed class UpdateAvailableEvent {
      * update.
      */
     data object CancelDownload: UpdateAvailableEvent()
+
+    /** The user has taken note of a download that failed; the prompt goes back to how it was. */
+    data object DismissDownloadError: UpdateAvailableEvent()
 
     /** Sends the user to the settings where the install permission is granted. */
     data object GrantInstallPermission: UpdateAvailableEvent()
