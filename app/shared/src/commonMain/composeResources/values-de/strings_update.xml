@@ -5,6 +5,7 @@
     <string name="update_install">Installieren</string>
 
     <string name="update_downloading">Update wird heruntergeladen …</string>
+    <string name="update_cancel_download">Download abbrechen</string>
     <string name="update_downloading_progress">%1$s / %2$s (%3$s)</string>
 
     <string name="update_install_permission_title">Berechtigung erforderlich</string>

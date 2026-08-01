@@ -3,17 +3,19 @@
 package es.jvbabi.trails.ui.overlay.update_available
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,26 +34,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import es.jvbabi.trails.ThemeWrapper
-import es.jvbabi.trails.domain.model.AppVersions
-import es.jvbabi.trails.domain.model.Changelog
-import es.jvbabi.trails.domain.model.UpdateDownload
-import es.jvbabi.trails.domain.model.Version
-import es.jvbabi.trails.domain.model.issueUrl
+import es.jvbabi.trails.domain.model.*
 import es.jvbabi.trails.ui.components.ProgressiveBlurScrim
 import es.jvbabi.trails.ui.components.ScrimEdge
+import es.jvbabi.trails.utils.blendColor
 import nl.jacobras.humanreadable.HumanReadable
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
-import trails.app.shared.generated.resources.Res
-import trails.app.shared.generated.resources.app_icon
-import trails.app.shared.generated.resources.move_right
-import trails.app.shared.generated.resources.update_downloading
-import trails.app.shared.generated.resources.update_downloading_progress
-import trails.app.shared.generated.resources.update_install
-import trails.app.shared.generated.resources.update_message
-import trails.app.shared.generated.resources.update_not_now
-import trails.app.shared.generated.resources.update_title
+import trails.app.shared.generated.resources.*
 import java.text.NumberFormat
 import java.util.Locale as JavaLocale
 
@@ -254,98 +245,144 @@ fun UpdateAvailableOverlayContent(
                     buttonsHeight = with(density) { size.height.toDp() }
                 },
         ) {
-            // The content key is only whether a download is running, so progress arriving
-            // recomposes the bar in place instead of starting the transition over. The outgoing half
-            // keeps the last figures it had while it fades, rather than blanking out.
-            AnimatedContent(
-                targetState = state.download as? UpdateDownload.Running,
-                contentKey = { running -> running != null },
-                label = "installActions",
-            ) { running ->
-                if (running != null) {
-                    DownloadProgress(
-                        download = running,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                    )
-                } else Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+            val isDownloading = state.download is UpdateDownload.Running
+
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                val spacing = 8.dp
+                val height = ButtonDefaults.MinHeight            // 40.dp
+                val secondaryWidth by animateDpAsState(
+                    targetValue = if (isDownloading) 48.dp else (maxWidth - spacing) / 2,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioNoBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                    label = "secondaryWidth",
+                )
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(spacing),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    OutlinedButton(
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                        ),
-                        onClick = { onEvent(UpdateAvailableEvent.RequestDismiss) },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(
-                            text = stringResource(Res.string.update_not_now)
-                        )
+                    AnimatedContent(
+                        targetState = isDownloading,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() using null },
+                        modifier = Modifier.width(secondaryWidth),
+                        label = "secondary",
+                    ) { downloading ->
+                        if (downloading) {
+                            OutlinedIconButton(
+                                onClick = { onEvent(UpdateAvailableEvent.CancelDownload) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(height),
+                                shape = ButtonDefaults.outlinedShape,
+                                colors = IconButtonDefaults.outlinedIconButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.primary,
+                                ),
+                                border = ButtonDefaults.outlinedButtonBorder(enabled = true),
+                            ) {
+                                Icon(
+                                    painter = painterResource(Res.drawable.x),
+                                    contentDescription = stringResource(Res.string.update_cancel_download),
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = { onEvent(UpdateAvailableEvent.RequestDismiss) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(height),
+                                contentPadding = PaddingValues(0.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(Res.string.update_not_now),
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    modifier = Modifier.wrapContentWidth(unbounded = true),
+                                )
+                            }
+                        }
                     }
-                    Button(
-                        onClick = { onEvent(UpdateAvailableEvent.Install) },
+
+                    AnimatedContent(
+                        targetState = isDownloading,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() using null },
                         modifier = Modifier.weight(1f),
-                    ) {
-                        Text(text = stringResource(Res.string.update_install))
+                        label = "secondary",
+                    ) { downloading ->
+                        if (downloading) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(height)
+                                    .clip(ButtonDefaults.shape)
+                                    .background(ButtonDefaults.buttonColors().containerColor),
+                            ) {
+                                if (state.download is UpdateDownload.Running) {
+                                    val progress = state.download.progress
+                                    if (progress != null) {
+                                        val settledProgress by animateFloatAsState(
+                                            targetValue = progress,
+                                            label = "downloadProgress",
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .background(blendColor(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.primary, .8f))
+                                                .fillMaxHeight()
+                                                .fillMaxWidth(settledProgress)
+                                        )
+                                    }
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(vertical = 4.dp, horizontal = 16.dp),
+                                    ) {
+                                        Text(
+                                            text = "Wird heruntergeladen",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            modifier = Modifier.wrapContentWidth(unbounded = true),
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                        )
+                                        Text(
+                                            text = if (state.download.totalBytes != null && progress != null) {
+                                                stringResource(
+                                                    Res.string.update_downloading_progress,
+                                                    HumanReadable.fileSize(state.download.downloadedBytes),
+                                                    HumanReadable.fileSize(state.download.totalBytes),
+                                                    percentage(progress),
+                                                )
+                                            } else {
+                                                stringResource(Res.string.update_downloading)
+                                            },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            modifier = Modifier.wrapContentWidth(unbounded = true),
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            Button(
+                                onClick = { onEvent(UpdateAvailableEvent.Install) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(height),
+                            ) {
+                                Text(text = stringResource(Res.string.update_install), maxLines = 1)
+                            }
+                        }
                     }
                 }
             }
-        }
-    }
-}
-
-/**
- * How far the download has got, in the room the buttons it replaces were using.
- *
- * Falls back to a plain label and an indeterminate bar while the total size is unknown: a response
- * that carries no length leaves nothing to measure against, and a bar sitting at zero next to a
- * figure without a total would read as stuck rather than as unknown.
- */
-@Composable
-private fun DownloadProgress(
-    download: UpdateDownload.Running,
-    modifier: Modifier = Modifier,
-) {
-    val totalBytes = download.totalBytes
-    val progress = download.progress
-
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = if (totalBytes != null && progress != null) {
-                stringResource(
-                    Res.string.update_downloading_progress,
-                    HumanReadable.fileSize(download.downloadedBytes),
-                    HumanReadable.fileSize(totalBytes),
-                    percentage(progress),
-                )
-            } else {
-                stringResource(Res.string.update_downloading)
-            },
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Spacer(Modifier.height(8.dp))
-
-        if (progress != null) {
-            // Animated so the bar travels between the whole percents the download reports rather
-            // than stepping from one to the next.
-            val settledProgress by animateFloatAsState(
-                targetValue = progress,
-                label = "downloadProgress",
-            )
-            LinearProgressIndicator(
-                progress = { settledProgress },
-                modifier = Modifier.fillMaxWidth(),
-            )
-        } else {
-            LinearProgressIndicator(Modifier.fillMaxWidth())
         }
     }
 }

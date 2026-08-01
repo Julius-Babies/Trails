@@ -2,6 +2,7 @@ package es.jvbabi.trails.domain.usecase.app
 
 import es.jvbabi.trails.BuildKonfig
 import es.jvbabi.trails.domain.model.AppVersions
+import es.jvbabi.trails.domain.model.updateLogger
 import es.jvbabi.trails.domain.repository.ApplicationRepository
 import es.jvbabi.trails.domain.repository.TrailsAppRepository
 
@@ -18,16 +19,35 @@ class CheckAppIsLatestVersionUseCase(
      * unless `app.check_for_updates.enable_in_debug` is set in `local.properties`.
      */
     suspend operator fun invoke(): AppVersionState? {
-        if (applicationRepository.isDebugBuild && !BuildKonfig.CHECK_FOR_UPDATES_IN_DEBUG) return null
-
-        val latestVersion = ignoreErrors { trailsAppRepository.getLatestVersion() } ?: return null
         val currentVersion = trailsAppRepository.getCurrentVersion()
 
-        if (AppVersions.isAtLeast(currentVersion, latestVersion)) return AppVersionState.IsLatest
+        if (applicationRepository.isDebugBuild && !BuildKonfig.CHECK_FOR_UPDATES_IN_DEBUG) {
+            updateLogger.i {
+                "Not checking: debug build without app.check_for_updates.enable_in_debug"
+            }
+            return null
+        }
+
+        val latestVersion = ignoreErrors { trailsAppRepository.getLatestVersion() }
+        if (latestVersion == null) {
+            updateLogger.w { "Cannot tell: the latest release could not be read (running $currentVersion)" }
+            return null
+        }
+
+        if (AppVersions.isAtLeast(currentVersion, latestVersion)) {
+            updateLogger.i { "Up to date: running $currentVersion, latest release is $latestVersion" }
+            return AppVersionState.IsLatest
+        }
+
+        val downloadLink = ignoreErrors { trailsAppRepository.getDownloadLinkForLatestVersion() }
+        updateLogger.i {
+            "Update available: running $currentVersion, latest release is $latestVersion, " +
+                "download link ${downloadLink ?: "MISSING"}"
+        }
 
         return AppVersionState.UpdateAvailable(
             version = latestVersion,
-            downloadLink = ignoreErrors { trailsAppRepository.getDownloadLinkForLatestVersion() },
+            downloadLink = downloadLink,
         )
     }
 }

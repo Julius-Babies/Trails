@@ -5,6 +5,8 @@
     <string name="update_install">Install</string>
 
     <string name="update_downloading">Downloading update…</string>
+    <!-- Label of the icon-only button that stops a download, so it says what it stops. -->
+    <string name="update_cancel_download">Cancel download</string>
     <!-- How far the download has got: downloaded size, total size, percentage. -->
     <string name="update_downloading_progress">%1$s / %2$s (%3$s)</string>
 

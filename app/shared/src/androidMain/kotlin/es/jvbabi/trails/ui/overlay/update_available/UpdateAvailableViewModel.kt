@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import es.jvbabi.trails.domain.model.Changelog
 import es.jvbabi.trails.domain.model.UpdateDownload
 import es.jvbabi.trails.domain.model.UpdateDownloadTarget
+import es.jvbabi.trails.domain.model.updateLogger
 import es.jvbabi.trails.domain.repository.ApplicationRepository
 import es.jvbabi.trails.domain.repository.TrailsAppRepository
 import es.jvbabi.trails.domain.repository.UpdateRepository
@@ -13,6 +14,7 @@ import es.jvbabi.trails.domain.usecase.app.AppVersionState
 import es.jvbabi.trails.domain.usecase.app.CheckAppIsLatestVersionUseCase
 import es.jvbabi.trails.domain.usecase.app.GetReleaseChangelogsUseCase
 import es.jvbabi.trails.openUrl
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -37,6 +39,9 @@ class UpdateAvailableViewModel(
      */
     private var dismissedVersion: String? = null
 
+    /** The download in flight, kept so the cancel button has something to stop. */
+    private var downloadJob: Job? = null
+
     init {
         viewModelScope.launch {
             // The foreground state emits its current value right away, so this covers the check on
@@ -58,7 +63,9 @@ class UpdateAvailableViewModel(
         if (state.value?.download is UpdateDownload.Running) return
         val downloadLink = state.value?.downloadLink ?: return
 
-        viewModelScope.launch {
+        updateLogger.i { "Downloading $downloadLink into $target" }
+
+        downloadJob = viewModelScope.launch {
             updateRepository.downloadUpdate(url = downloadLink, target = target)
                 .collect { download ->
                     state.update { it?.copy(download = download, downloadTarget = target) }
@@ -75,6 +82,20 @@ class UpdateAvailableViewModel(
                     }
                 }
         }
+    }
+
+    /**
+     * Stops the download in flight, if there is one.
+     *
+     * Nothing to tidy up beyond the state: cancelling the collection cancels the repository's flow,
+     * which clears the half-written file away itself. The state is wound back rather than left on its
+     * last reading — a cancelled download is not a failed one, and the prompt should read as though
+     * it had never been started.
+     */
+    private fun cancelDownload() {
+        downloadJob?.cancel()
+        downloadJob = null
+        state.update { it?.copy(download = null, downloadTarget = null) }
     }
 
     /**
@@ -142,36 +163,62 @@ class UpdateAvailableViewModel(
      * rate limited), and pulling the prompt out from under the user would be worse than leaving it.
      */
     private suspend fun checkForUpdate() {
+        updateLogger.d { "Checking for an update" }
+
         // Anything but a confirmed newer release (including a failed check) leaves the state as it
         // is, which keeps the overlay hidden.
         val updateAvailable = checkAppIsLatestVersionUseCase() as? AppVersionState.UpdateAvailable
-            ?: return
-        if (updateAvailable.version == dismissedVersion) return
+        if (updateAvailable == null) {
+            updateLogger.i { "No prompt: there is nothing newer to offer" }
+            return
+        }
+
+        if (updateAvailable.version == dismissedVersion) {
+            updateLogger.i { "No prompt: ${updateAvailable.version} was already waved off" }
+            return
+        }
 
         // Already prompting for exactly this release — restarting would throw away a changelog that
         // has arrived in the meantime.
-        if (state.value?.latestVersion == updateAvailable.version) return
+        if (state.value?.latestVersion == updateAvailable.version) {
+            updateLogger.i { "No prompt: already showing ${updateAvailable.version}" }
+            return
+        }
 
         state.value = UpdateAvailableState(
             currentVersion = trailsAppRepository.getCurrentVersion(),
             latestVersion = updateAvailable.version,
             downloadLink = updateAvailable.downloadLink,
         )
+        updateLogger.i { "Prompting for ${updateAvailable.version}: the sheet should be up now" }
 
         // Fetched only after the overlay is already showing: it takes one request per release, and
         // the update prompt must not wait for it. Releases already read are served from the
         // repository's cache, so a later check only pays for what is new.
         val changelog = getReleaseChangelogsUseCase(upToVersion = updateAvailable.version)
+        updateLogger.i {
+            "Changelog for ${updateAvailable.version}: " +
+                "${changelog?.versions?.size ?: 0} release(s) to show"
+        }
         state.update { it?.copy(changelog = changelog, areChangelogsLoading = false) }
     }
 
     fun onEvent(event: UpdateAvailableEvent) {
         when (event) {
-            is UpdateAvailableEvent.RequestDismiss -> state.update { it?.copy(isDismissed = true) }
+            is UpdateAvailableEvent.RequestDismiss -> {
+                // Still stops a download in flight, even though the cancel button has its own event
+                // now: the sheet can also be swiped away mid-download, and a download left running
+                // behind a closed prompt would turn up as an installer nobody asked for.
+                cancelDownload()
+                state.update { it?.copy(isDismissed = true) }
+            }
+
+            is UpdateAvailableEvent.CancelDownload -> cancelDownload()
             is UpdateAvailableEvent.Install -> {
                 // Asked on every press rather than once when the prompt goes up: the permission
                 // lives in system settings and can be taken away again in the meantime.
                 if (!updateRepository.canInstallUpdates()) {
+                    updateLogger.i { "Install pressed, but the app may not install — asking first" }
                     state.update { it?.copy(isInstallPermissionRequired = true) }
                     return
                 }
@@ -246,6 +293,14 @@ sealed class UpdateAvailableEvent {
     data object Dismissed: UpdateAvailableEvent()
 
     data object Install: UpdateAvailableEvent()
+
+    /**
+     * Stops the download in flight and leaves the prompt standing, so it can be started again.
+     *
+     * Distinct from [RequestDismiss]: stopping a download is not the same as being done with the
+     * update.
+     */
+    data object CancelDownload: UpdateAvailableEvent()
 
     /** Sends the user to the settings where the install permission is granted. */
     data object GrantInstallPermission: UpdateAvailableEvent()

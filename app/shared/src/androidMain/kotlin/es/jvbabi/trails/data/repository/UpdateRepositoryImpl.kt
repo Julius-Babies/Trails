@@ -1,6 +1,7 @@
 package es.jvbabi.trails.data.repository
 
 import android.app.DownloadManager
+import android.content.ActivityNotFoundException
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -13,6 +14,7 @@ import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import es.jvbabi.trails.domain.model.UpdateDownload
 import es.jvbabi.trails.domain.model.UpdateDownloadTarget
+import es.jvbabi.trails.domain.model.updateLogger
 import es.jvbabi.trails.domain.repository.UpdateRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.request.prepareGet
@@ -44,20 +46,17 @@ class UpdateRepositoryImpl(
     override fun openInstallPermissionSettings() {
         val packageUri = "package:${context.packageName}".toUri()
 
-        // The per-app screen only exists from Android 8 on, and some ROMs ship no activity for it
-        // even then. The app's own settings page is the fallback in both cases: the switch is one
-        // tap further in from there, which beats going nowhere.
-        val unknownAppSources = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, packageUri)
-        } else {
-            null
-        }
-
-        val intent = unknownAppSources?.takeIf { it.resolveActivity(context.packageManager) != null }
-            ?: Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri)
-
-        // Started from outside an activity, so it needs a task of its own.
-        context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        startFirstThatResolves(
+            // The per-app screen, which only exists from Android 8 on.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, packageUri)
+            } else {
+                null
+            },
+            // Some ROMs ship no activity for that screen. The app's own settings page has the switch
+            // one tap further in, which beats going nowhere.
+            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, packageUri),
+        )
     }
 
     override fun downloadUpdate(
@@ -71,9 +70,12 @@ class UpdateRepositoryImpl(
         // Anything that goes wrong here is a place that cannot be written to, which is a failed
         // download rather than something to throw at whoever is collecting.
         val destination = withContext(Dispatchers.IO) {
-            runCatching { openDestination(url, target) }.getOrNull()
+            runCatching { openDestination(url, target) }
+                .onFailure { updateLogger.e(it) { "Cannot open a $target destination" } }
+                .getOrNull()
         }
         if (destination == null) {
+            updateLogger.e { "No $target destination to download into" }
             send(UpdateDownload.Failed)
             return@channelFlow
         }
@@ -134,34 +136,48 @@ class UpdateRepositoryImpl(
             // before it ever got round to deleting anything.
             withContext(NonCancellable + Dispatchers.IO) { destination.discard() }
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            updateLogger.e(e) { "Downloading $url into $target failed" }
             withContext(Dispatchers.IO) { destination.discard() }
             send(UpdateDownload.Failed)
         }
     }
 
     override fun installUpdate(uri: Uri) {
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, APK_MIME_TYPE)
-            // The installer is a different app, so it needs to be let in on our content URI, and it
-            // is started from outside an activity, so it needs a task of its own.
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-
-        context.startActivity(intent)
+        startFirstThatResolves(
+            Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, APK_MIME_TYPE)
+                // The installer is a different app, so it has to be let in on our content URI.
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        )
     }
 
     override fun openDownloadsFolder() {
-        val intent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        startFirstThatResolves(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS))
+    }
 
-        // Not every build ships a Downloads screen. There is nothing to fall back to when one is
-        // missing — the APK is in the Downloads folder either way — but it must not take the app
-        // down with it.
-        if (intent.resolveActivity(context.packageManager) == null) return
-
-        context.startActivity(intent)
+    /**
+     * Starts the first of [intents] that something can handle, skipping `null` entries.
+     *
+     * Tried in turn rather than resolved up front. From Android 11 on, `resolveActivity` is filtered
+     * by package visibility and reports nothing for activities `startActivity` finds without trouble,
+     * so asking first is worse than useless — it turns a working intent into a silent no-op. Actually
+     * launching is the only reliable test there is.
+     *
+     * All of them failing is not worth an error: every caller has something else the user can still
+     * do, and there is nothing to say beyond "this device has no such screen".
+     */
+    private fun startFirstThatResolves(vararg intents: Intent?) {
+        for (intent in intents.filterNotNull()) {
+            try {
+                // Started from outside an activity, so it needs a task of its own.
+                context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return
+            } catch (e: ActivityNotFoundException) {
+                updateLogger.w(e) { "Nothing handles ${intent.action}" }
+            }
+        }
     }
 
     /** Opens somewhere to write the download to, or `null` when there is nowhere to put it. */
