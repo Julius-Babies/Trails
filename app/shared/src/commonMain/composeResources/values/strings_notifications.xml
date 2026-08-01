@@ -9,10 +9,4 @@
     <!-- %1$s is the name of the device that found this one. -->
     <string name="notification_ping_by_device">Your %1$s found this device!</string>
 
-    <string name="notification_ring_title">Ringing</string>
-    <string name="notification_ring_stop">Stop</string>
-
-    <string name="notification_channel_tracking_name">GPS tracking</string>
-    <string name="notification_tracking_title">GPS tracking is running</string>
-    <string name="notification_tracking_body">Your location is being shared with your Trails home server.</string>
 </resources>

@@ -1,0 +1,17 @@
+<!--
+  Android resources rather than composeResources: these strings are read by the
+  foreground services, which build their notification synchronously — reading a
+  compose resource there means blocking the main thread, and startForeground()
+  has to happen within seconds of the service starting. They are Android-only
+  strings for Android-only services, so nothing else needs them.
+
+  Every other user-facing string lives in commonMain/composeResources.
+-->
+<resources>
+    <string name="notification_ring_title">Ringing</string>
+    <string name="notification_ring_stop">Stop</string>
+
+    <string name="notification_channel_tracking_name">GPS tracking</string>
+    <string name="notification_tracking_title">GPS tracking is running</string>
+    <string name="notification_tracking_body">Your location is being shared with your Trails home server.</string>
+</resources>

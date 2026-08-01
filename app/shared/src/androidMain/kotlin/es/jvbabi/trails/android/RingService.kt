@@ -13,13 +13,8 @@ import androidx.core.app.NotificationCompat
 import es.jvbabi.trails.data.repository.NotificationRepository
 import es.jvbabi.trails.domain.repository.DeviceRepository
 import es.jvbabi.trails.shared.compose.R
-import kotlinx.coroutines.runBlocking
-import org.jetbrains.compose.resources.getString
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import trails.app.shared.generated.resources.Res
-import trails.app.shared.generated.resources.notification_ring_stop
-import trails.app.shared.generated.resources.notification_ring_title
 
 class RingService: Service(), KoinComponent {
     private val deviceRepository: DeviceRepository by inject()
@@ -95,11 +90,8 @@ class RingService: Service(), KoinComponent {
         }
 
     private fun buildCallNotification(): Notification {
-        // Blocking is safe here: the strings come out of the app's own bundled resources, and the
-        // notification has to exist synchronously — startForeground() must be called within
-        // seconds of the service starting or the OS kills it.
-        val title = runBlocking { getString(Res.string.notification_ring_title) }
-        val stopLabel = runBlocking { getString(Res.string.notification_ring_stop) }
+        val title = getString(R.string.notification_ring_title)
+        val stopLabel = getString(R.string.notification_ring_stop)
 
         val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
 

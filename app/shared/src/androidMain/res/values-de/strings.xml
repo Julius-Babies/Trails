@@ -1,0 +1,8 @@
+<resources>
+    <string name="notification_ring_title">Klingeln</string>
+    <string name="notification_ring_stop">Beenden</string>
+
+    <string name="notification_channel_tracking_name">GPS-Tracking</string>
+    <string name="notification_tracking_title">GPS-Tracking läuft</string>
+    <string name="notification_tracking_body">Standort wird mit deinem Trails-Homeserver geteilt.</string>
+</resources>

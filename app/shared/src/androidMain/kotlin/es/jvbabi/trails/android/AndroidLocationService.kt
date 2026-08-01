@@ -25,16 +25,12 @@ import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
 import co.touchlab.kermit.Logger
 import es.jvbabi.trails.domain.repository.*
+import es.jvbabi.trails.shared.compose.R
 import es.jvbabi.trails.utils.backgroundExceptionHandler
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
-import org.jetbrains.compose.resources.getString
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import trails.app.shared.generated.resources.Res
-import trails.app.shared.generated.resources.notification_channel_tracking_name
-import trails.app.shared.generated.resources.notification_tracking_body
-import trails.app.shared.generated.resources.notification_tracking_title
 
 class AndroidLocationService: Service(), LocationListener, KoinComponent {
 
@@ -162,7 +158,7 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                runBlocking { getString(Res.string.notification_channel_tracking_name) },
+                getString(R.string.notification_channel_tracking_name),
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java) as NotificationManager
@@ -170,8 +166,8 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
         }
 
         return NotificationCompat.Builder(this, channelId)
-            .setContentTitle(runBlocking { getString(Res.string.notification_tracking_title) })
-            .setContentText(runBlocking { getString(Res.string.notification_tracking_body) })
+            .setContentTitle(getString(R.string.notification_tracking_title))
+            .setContentText(getString(R.string.notification_tracking_body))
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setOngoing(true)
             .setSilent(true)
