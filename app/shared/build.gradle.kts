@@ -158,5 +158,18 @@ buildkonfig {
             nullable = false,
             const = true,
         )
+        // Swaps the updater's repositories for fake ones, so the whole flow can be walked through
+        // without a release to update to — and without spending the 60 requests an hour GitHub
+        // allows an unauthenticated client. Opt in per developer machine.
+        buildConfigField(
+            type = Type.BOOLEAN,
+            name = "FAKE_UPDATE",
+            value = localProperties["app.dev.fake-update"]
+                ?.toString()
+                .toBoolean()
+                .toString(),
+            nullable = false,
+            const = true,
+        )
     }
 }

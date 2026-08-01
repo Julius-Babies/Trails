@@ -1,5 +1,6 @@
 package es.jvbabi.trails.domain.usecase.app
 
+import co.touchlab.kermit.Logger
 import es.jvbabi.trails.BuildKonfig
 import es.jvbabi.trails.domain.model.AppVersions
 import es.jvbabi.trails.domain.repository.ApplicationRepository
@@ -10,6 +11,15 @@ class CheckAppIsLatestVersionUseCase(
     private val applicationRepository: ApplicationRepository,
 ) {
     /**
+     * Every check leaves a line behind, so how often this actually runs can be read off a log rather
+     * than guessed at: `adb logcat -s UpdateCheck`.
+     *
+     * Tagged for the check rather than for this class, since what a reader follows is the check and
+     * not which type happens to perform it.
+     */
+    private val logger = Logger.withTag("UpdateCheck")
+
+    /**
      * Compares the running build against the latest published release.
      *
      * Returns `null` when the check couldn't be completed (offline, rate limited, unexpected
@@ -18,16 +28,35 @@ class CheckAppIsLatestVersionUseCase(
      * unless `app.check_for_updates.enable_in_debug` is set in `local.properties`.
      */
     suspend operator fun invoke(): AppVersionState? {
-        if (applicationRepository.isDebugBuild && !BuildKonfig.CHECK_FOR_UPDATES_IN_DEBUG) return null
-
-        val latestVersion = ignoreErrors { trailsAppRepository.getLatestVersion() } ?: return null
         val currentVersion = trailsAppRepository.getCurrentVersion()
+        logger.d { "Checking $currentVersion against the latest release" }
 
-        if (AppVersions.isAtLeast(currentVersion, latestVersion)) return AppVersionState.IsLatest
+        // A faked update is only ever worth having in a debug build, so switching it on carries the
+        // permission to check in one — otherwise the fakes would sit there doing nothing in exactly
+        // the build they exist for.
+        val mayCheckInDebug = BuildKonfig.CHECK_FOR_UPDATES_IN_DEBUG || BuildKonfig.FAKE_UPDATE
+        if (applicationRepository.isDebugBuild && !mayCheckInDebug) {
+            logger.w { "Not checking: debug build without app.check_for_updates.enable_in_debug" }
+            return null
+        }
+
+        val latestVersion = ignoreErrors { trailsAppRepository.getLatestVersion() }
+        if (latestVersion == null) {
+            logger.w { "Could not check: the latest release could not be read" }
+            return null
+        }
+
+        if (AppVersions.isAtLeast(currentVersion, latestVersion)) {
+            logger.d { "Up to date: latest release is $latestVersion" }
+            return AppVersionState.IsLatest
+        }
+
+        val downloadLink = ignoreErrors { trailsAppRepository.getDownloadLinkForLatestVersion() }
+        logger.i { "Update available: $latestVersion, download link ${downloadLink ?: "MISSING"}" }
 
         return AppVersionState.UpdateAvailable(
             version = latestVersion,
-            downloadLink = ignoreErrors { trailsAppRepository.getDownloadLinkForLatestVersion() },
+            downloadLink = downloadLink,
         )
     }
 }
