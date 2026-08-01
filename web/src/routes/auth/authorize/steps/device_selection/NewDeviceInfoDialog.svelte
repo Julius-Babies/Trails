@@ -64,13 +64,13 @@
 <Dialog bind:open={open} onOpenChangeComplete={(to) => { if (!to) onDismiss(); }}>
     <DialogContent>
         <DialogHeader>
-            <DialogTitle>{$_("device_selection.new_title")}</DialogTitle>
+            <DialogTitle>{$_("device_selection.new.title")}</DialogTitle>
             <DialogDescription>
                 <Alert class="mt-2" variant="warning">
                     <TriangleAlert />
-                    <AlertTitle>{$_("device_selection.new_hint_title")}</AlertTitle>
+                    <AlertTitle>{$_("device_selection.new.hint.title")}</AlertTitle>
                     <AlertDescription>
-                        {$_("device_selection.new_hint")}
+                        {$_("device_selection.new.hint.description")}
                     </AlertDescription>
                 </Alert>
             </DialogDescription>
@@ -81,22 +81,22 @@
                 <Field>
                     <FieldLabel
                             for="device-name-field-{componentId}"
-                    >{$_("device_selection.name_label")}</FieldLabel>
+                    >{$_("device_selection.name.label")}</FieldLabel>
                     <Input
                             id="device-name-field-{componentId}"
-                            placeholder={$_("device_selection.name_placeholder")}
+                            placeholder={$_("device_selection.name.placeholder")}
                             bind:value={deviceName}
                             bind:ref={deviceNameInput}
                     />
-                    <FieldDescription>{$_("device_selection.name_description")}</FieldDescription>
+                    <FieldDescription>{$_("device_selection.name.description")}</FieldDescription>
                     <div>
                         {#if error}
                             <div transition:slide>
                                 <FieldError>
                                     {#if error === "name_too_short"}
-                                        {$_("device_selection.name_too_short", {values: {min: MIN_NAME_LENGTH}})}
+                                        {$_("device_selection.name.too_short", {values: {min: MIN_NAME_LENGTH}})}
                                     {:else if error === "name_already_exists"}
-                                        {$_("device_selection.name_taken")}
+                                        {$_("device_selection.name.taken")}
                                     {:else if error === "unknown_error"}
                                         {$_("common.unknown_error")}
                                     {/if}

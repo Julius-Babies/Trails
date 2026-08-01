@@ -148,7 +148,7 @@
                         emptyColor="color-mix(in oklab, var(--color-foreground) 18%, transparent)"
                 />
                 <span class="font-medium text-muted-foreground truncate">
-                    {$_(resolvedBattery.is_charging ? "battery.level_charging" : "battery.level", {
+                    {$_(resolvedBattery.is_charging ? "battery.level.charging" : "battery.level.not_charging", {
                         values: {percentage: resolvedBattery.percentage},
                     })}
                 </span>
@@ -169,7 +169,7 @@
                     {$_("devices.history_unavailable")}
                 {:else if history.type === "available"}
                     {#if history.state.historySeconds === null}
-                        {$_("history.full")}
+                        {$_("history.preset.full")}
                     {:else}
                         {locationHistoryLabel(history.state.historySeconds)}
                     {/if}
