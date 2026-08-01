@@ -36,6 +36,11 @@ sealed class Key<VALUE>(val key: String) {
         override fun fromValue(value: Int): String = value.toString()
     }
 
+    abstract class BooleanKey(key: String): Key<Boolean>(key) {
+        override fun toValue(value: String): Boolean = value.toBoolean()
+        override fun fromValue(value: Boolean): String = value.toString()
+    }
+
     abstract class UuidKey(key: String): Key<Uuid>(key) {
         override fun toValue(value: String): Uuid = Uuid.parse(value)
         override fun fromValue(value: Uuid): String = value.toString()
@@ -48,6 +53,18 @@ sealed class Key<VALUE>(val key: String) {
 
     data object MinimumMovementDistanceToNextSnapshot: IntKey("trails.minimumMovementDistanceToNextSnapshot") {
         override val defaultValue: Int = 10
+    }
+
+    /**
+     * Whether the user has settled on installing updates by hand rather than letting the app do it.
+     *
+     * Android only — no other platform installs its own updates. Being allowed to install takes
+     * priority over this: someone who has since granted that permission has plainly changed their
+     * mind, so the app installs the update itself and this is left as it was, ready to take over
+     * again if the permission is ever withdrawn.
+     */
+    data object AlwaysInstallUpdatesManually: BooleanKey("app.update.alwaysInstallManually") {
+        override val defaultValue: Boolean = false
     }
 
     data object Theme: Key<es.jvbabi.trails.domain.repository.Theme>("app.theme") {

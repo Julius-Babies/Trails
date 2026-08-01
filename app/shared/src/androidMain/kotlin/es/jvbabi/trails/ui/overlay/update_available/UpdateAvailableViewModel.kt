@@ -6,8 +6,9 @@ import androidx.lifecycle.viewModelScope
 import es.jvbabi.trails.domain.model.Changelog
 import es.jvbabi.trails.domain.model.UpdateDownload
 import es.jvbabi.trails.domain.model.UpdateDownloadTarget
-import es.jvbabi.trails.domain.model.updateLogger
 import es.jvbabi.trails.domain.repository.ApplicationRepository
+import es.jvbabi.trails.domain.repository.Key
+import es.jvbabi.trails.domain.repository.KeyValueRepository
 import es.jvbabi.trails.domain.repository.TrailsAppRepository
 import es.jvbabi.trails.domain.repository.UpdateRepository
 import es.jvbabi.trails.domain.usecase.app.AppVersionState
@@ -25,6 +26,7 @@ class UpdateAvailableViewModel(
     private val trailsAppRepository: TrailsAppRepository,
     private val applicationRepository: ApplicationRepository,
     private val updateRepository: UpdateRepository,
+    private val keyValueRepository: KeyValueRepository,
     private val checkAppIsLatestVersionUseCase: CheckAppIsLatestVersionUseCase,
     private val getReleaseChangelogsUseCase: GetReleaseChangelogsUseCase,
 ) : ViewModel() {
@@ -42,7 +44,20 @@ class UpdateAvailableViewModel(
     /** The download in flight, kept so the cancel button has something to stop. */
     private var downloadJob: Job? = null
 
+    /**
+     * The user's standing answer to [Key.AlwaysInstallUpdatesManually].
+     *
+     * Kept up to date here rather than read when Install is pressed, so that press does not have to
+     * wait on the database.
+     */
+    private var alwaysInstallManually = false
+
     init {
+        viewModelScope.launch {
+            keyValueRepository.get(Key.AlwaysInstallUpdatesManually)
+                .collect { alwaysInstallManually = it == true }
+        }
+
         viewModelScope.launch {
             // The foreground state emits its current value right away, so this covers the check on
             // start as well as every return to the front. Collected rather than collected-latest:
@@ -62,8 +77,6 @@ class UpdateAvailableViewModel(
     private fun startDownload(target: UpdateDownloadTarget) {
         if (state.value?.download is UpdateDownload.Running) return
         val downloadLink = state.value?.downloadLink ?: return
-
-        updateLogger.i { "Downloading $downloadLink into $target" }
 
         downloadJob = viewModelScope.launch {
             updateRepository.downloadUpdate(url = downloadLink, target = target)
@@ -163,43 +176,26 @@ class UpdateAvailableViewModel(
      * rate limited), and pulling the prompt out from under the user would be worse than leaving it.
      */
     private suspend fun checkForUpdate() {
-        updateLogger.d { "Checking for an update" }
-
         // Anything but a confirmed newer release (including a failed check) leaves the state as it
         // is, which keeps the overlay hidden.
         val updateAvailable = checkAppIsLatestVersionUseCase() as? AppVersionState.UpdateAvailable
-        if (updateAvailable == null) {
-            updateLogger.i { "No prompt: there is nothing newer to offer" }
-            return
-        }
-
-        if (updateAvailable.version == dismissedVersion) {
-            updateLogger.i { "No prompt: ${updateAvailable.version} was already waved off" }
-            return
-        }
+            ?: return
+        if (updateAvailable.version == dismissedVersion) return
 
         // Already prompting for exactly this release — restarting would throw away a changelog that
         // has arrived in the meantime.
-        if (state.value?.latestVersion == updateAvailable.version) {
-            updateLogger.i { "No prompt: already showing ${updateAvailable.version}" }
-            return
-        }
+        if (state.value?.latestVersion == updateAvailable.version) return
 
         state.value = UpdateAvailableState(
             currentVersion = trailsAppRepository.getCurrentVersion(),
             latestVersion = updateAvailable.version,
             downloadLink = updateAvailable.downloadLink,
         )
-        updateLogger.i { "Prompting for ${updateAvailable.version}: the sheet should be up now" }
 
         // Fetched only after the overlay is already showing: it takes one request per release, and
         // the update prompt must not wait for it. Releases already read are served from the
         // repository's cache, so a later check only pays for what is new.
         val changelog = getReleaseChangelogsUseCase(upToVersion = updateAvailable.version)
-        updateLogger.i {
-            "Changelog for ${updateAvailable.version}: " +
-                "${changelog?.versions?.size ?: 0} release(s) to show"
-        }
         state.update { it?.copy(changelog = changelog, areChangelogsLoading = false) }
     }
 
@@ -214,16 +210,18 @@ class UpdateAvailableViewModel(
             }
 
             is UpdateAvailableEvent.CancelDownload -> cancelDownload()
-            is UpdateAvailableEvent.Install -> {
-                // Asked on every press rather than once when the prompt goes up: the permission
-                // lives in system settings and can be taken away again in the meantime.
-                if (!updateRepository.canInstallUpdates()) {
-                    updateLogger.i { "Install pressed, but the app may not install — asking first" }
-                    state.update { it?.copy(isInstallPermissionRequired = true) }
-                    return
-                }
+            is UpdateAvailableEvent.Install -> when {
+                // Being allowed to install comes first, ahead of any standing "always by hand":
+                // someone who has since granted the permission has plainly changed their mind. Asked
+                // on every press rather than once when the prompt goes up, since the permission lives
+                // in the system settings and can be taken away again in the meantime.
+                updateRepository.canInstallUpdates() ->
+                    startDownload(UpdateDownloadTarget.AppCache)
 
-                startDownload(UpdateDownloadTarget.AppCache)
+                // Asked once and answered for good, so there is nothing left to put a dialog up for.
+                alwaysInstallManually -> installManually()
+
+                else -> state.update { it?.copy(isInstallPermissionRequired = true) }
             }
 
             // Deliberately leaves the dialog up: the user is off to the settings and may well come
@@ -237,10 +235,14 @@ class UpdateAvailableViewModel(
 
             is UpdateAvailableEvent.InstallManually -> installManually()
 
-            // TODO: remember the choice, so Install goes straight to the Downloads folder from now
-            //  on and the permission is never asked for again (#29). Until then this is the
-            //  one-off above.
-            is UpdateAvailableEvent.AlwaysInstallManually -> installManually()
+            is UpdateAvailableEvent.AlwaysInstallManually -> {
+                // Written rather than waited on: the download this starts is the same either way, and
+                // the answer only has to be there by the next time Install is pressed.
+                viewModelScope.launch {
+                    keyValueRepository.set(Key.AlwaysInstallUpdatesManually, true)
+                }
+                installManually()
+            }
 
             is UpdateAvailableEvent.DismissInstallPermission ->
                 state.update { it?.copy(isInstallPermissionRequired = false) }

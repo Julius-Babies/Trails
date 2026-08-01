@@ -12,9 +12,9 @@ import android.provider.MediaStore
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
+import co.touchlab.kermit.Logger
 import es.jvbabi.trails.domain.model.UpdateDownload
 import es.jvbabi.trails.domain.model.UpdateDownloadTarget
-import es.jvbabi.trails.domain.model.updateLogger
 import es.jvbabi.trails.domain.repository.UpdateRepository
 import io.ktor.client.HttpClient
 import io.ktor.client.request.prepareGet
@@ -37,6 +37,8 @@ class UpdateRepositoryImpl(
     private val context: Context,
     private val httpClient: HttpClient,
 ) : UpdateRepository {
+
+    private val logger = Logger.withTag("UpdateRepositoryImpl")
 
     override fun canInstallUpdates(): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return true
@@ -71,11 +73,11 @@ class UpdateRepositoryImpl(
         // download rather than something to throw at whoever is collecting.
         val destination = withContext(Dispatchers.IO) {
             runCatching { openDestination(url, target) }
-                .onFailure { updateLogger.e(it) { "Cannot open a $target destination" } }
+                .onFailure { logger.e(it) { "Cannot open a $target destination" } }
                 .getOrNull()
         }
         if (destination == null) {
-            updateLogger.e { "No $target destination to download into" }
+            logger.e { "No $target destination to download into" }
             send(UpdateDownload.Failed)
             return@channelFlow
         }
@@ -137,7 +139,7 @@ class UpdateRepositoryImpl(
             withContext(NonCancellable + Dispatchers.IO) { destination.discard() }
             throw e
         } catch (e: Exception) {
-            updateLogger.e(e) { "Downloading $url into $target failed" }
+            logger.e(e) { "Downloading $url into $target failed" }
             withContext(Dispatchers.IO) { destination.discard() }
             send(UpdateDownload.Failed)
         }
@@ -175,7 +177,7 @@ class UpdateRepositoryImpl(
                 context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 return
             } catch (e: ActivityNotFoundException) {
-                updateLogger.w(e) { "Nothing handles ${intent.action}" }
+                logger.w(e) { "Nothing handles ${intent.action}" }
             }
         }
     }
