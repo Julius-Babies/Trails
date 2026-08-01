@@ -25,5 +25,5 @@
 
     <string name="shares_creating">Freigabe wird erstellt…</string>
     <string name="shares_created">Freigabe erstellt</string>
-    <string name="shares_share_sheet_title">Trails Standortfreigabe für %1$s</string>
+    <string name="shares_share_sheet_title">Trails Standortfreigabe von %1$s</string>
 </resources>

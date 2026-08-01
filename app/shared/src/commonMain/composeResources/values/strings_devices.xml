@@ -8,7 +8,7 @@
     <string name="devices_shared_with_me">Devices shared with me</string>
 
     <!-- Device name followed by the user it belongs to, e.g. "Pixel 7 from julius". -->
-    <string name="devices_card_owner">%1$s from %2$s</string>
+    <string name="devices_card_owner">%1$s · %2$s</string>
     <!-- Friendly device name followed by its model, e.g. "Pixel 7 (panther)". -->
     <string name="devices_card_model">%1$s (%2$s)</string>
     <string name="devices_card_this_device">This device</string>
