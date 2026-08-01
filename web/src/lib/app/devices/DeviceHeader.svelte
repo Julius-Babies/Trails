@@ -12,6 +12,7 @@
     import DeleteDeviceDialog from "$lib/app/devices/DeleteDeviceDialog.svelte";
     import ReturnShareDialog from "$lib/app/devices/ReturnShareDialog.svelte";
     import type {Device} from "$lib/state/webapp_socket.svelte";
+    import {_} from "svelte-i18n";
 
     let {
         device,
@@ -41,7 +42,7 @@
             class="flex flex-row grow items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
     >
         <ArrowLeftIcon class="size-4"/>
-        Geräte
+        {$_("devices.title")}
     </a>
 
     <DropdownMenu>
@@ -54,16 +55,16 @@
         <DropdownMenuContent>
             <DropdownMenuGroup>
                 {#if !isOwnDevice}
-                    <DropdownMenuItem onclick={() => showReturnDialog = true}>Freigabe zurückgeben</DropdownMenuItem>
+                    <DropdownMenuItem onclick={() => showReturnDialog = true}>{$_("shares.dialogs.return.title")}</DropdownMenuItem>
                 {:else}
                     <DropdownMenuItem class="text-destructive" onclick={() => showDeleteDialog = true}>
                         <TrashIcon/>
-                        Löschen
+                        {$_("common.delete")}
                     </DropdownMenuItem>
 
                     <DropdownMenuItem onclick={() => showRenameDialog = true}>
                         <PencilIcon/>
-                        Umbenennen
+                        {$_("common.rename")}
                     </DropdownMenuItem>
                 {/if}
             </DropdownMenuGroup>

@@ -36,13 +36,11 @@ import es.jvbabi.trails.ui.components.ProgressiveBlurScrim
 import es.jvbabi.trails.ui.components.ScrimEdge
 import es.jvbabi.trails.ThemeWrapper
 import es.jvbabi.trails.data.database.entity.ConnectionEvent
-import kotlinx.datetime.LocalDateTime
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.format
-import kotlinx.datetime.format.Padding
-import kotlinx.datetime.format.char
-import kotlinx.datetime.toLocalDateTime
+import es.jvbabi.trails.utils.formatDate
+import es.jvbabi.trails.utils.formatTime
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
+import trails.app.shared.generated.resources.*
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -114,23 +112,7 @@ fun ConnectionEventsSheetContent(
                     additionalContent = {
                         Text(
                             modifier = Modifier.padding(end = 4.dp),
-                            text = buildString {
-                                val localDateTime = event.timestamp.toLocalDateTime(TimeZone.currentSystemDefault())
-                                appendLine(localDateTime.format(LocalDateTime.Format {
-                                    year()
-                                    char('-')
-                                    monthNumber(Padding.ZERO)
-                                    char('-')
-                                    day(Padding.ZERO)
-                                }))
-                                appendLine(localDateTime.format(LocalDateTime.Format {
-                                    hour(Padding.ZERO)
-                                    char(':')
-                                    minute(Padding.ZERO)
-                                    char(':')
-                                    second(Padding.ZERO)
-                                }))
-                            },
+                            text = formatDate(event.timestamp) + "\n" + formatTime(event.timestamp),
                             style = MaterialTheme.typography.labelSmall,
                             textAlign = TextAlign.End,
                         )
@@ -138,8 +120,8 @@ fun ConnectionEventsSheetContent(
                 ) {
                     Column(Modifier.padding(top = 4.dp)) {
                         when(event.data) {
-                            is ConnectionEvent.Event.Connected -> Text("Verbunden")
-                            is ConnectionEvent.Event.Disconnected -> Text("Getrennt")
+                            is ConnectionEvent.Event.Connected -> Text(stringResource(Res.string.connection_events_connected))
+                            is ConnectionEvent.Event.Disconnected -> Text(stringResource(Res.string.connection_events_disconnected))
                         }
                     }
                 }
@@ -155,7 +137,7 @@ fun ConnectionEventsSheetContent(
                 .onSizeChanged { size -> headerHeight = with(localDensity) { size.height.toDp() } },
         ) {
             Text(
-                text = "Verbindungsereignisse",
+                text = stringResource(Res.string.connection_events_title),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.headlineLarge,
@@ -164,12 +146,11 @@ fun ConnectionEventsSheetContent(
                     .padding(top = 8.dp)
             )
             Text(
-                text = buildString {
-                    append(state.server)
-                    append(" - ")
-                    if (state.isConnected) append("verbunden")
-                    else append("nicht verbunden")
-                },
+                text = stringResource(
+                    if (state.isConnected) Res.string.connection_events_subtitle_connected
+                    else Res.string.connection_events_subtitle_disconnected,
+                    state.server,
+                ),
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier
                     .padding(horizontal = 16.dp)

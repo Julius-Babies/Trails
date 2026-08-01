@@ -12,6 +12,7 @@
     import EmailUserSelection from "./steps/email/EmailUserSelection.svelte";
     import Password from "./steps/password/Password.svelte";
     import { env } from '$env/dynamic/public';
+    import {_} from "svelte-i18n";
 
     const config: AuthentiktConfiguration = {
         baseUrl: env.PUBLIC_BASE_URL + "/api/v1/auth/authentikt/",
@@ -36,7 +37,7 @@
         <div class="w-full h-full flex flex-col items-center justify-center">
             <div class="flex flex-col items-center w-full h-full overflow-y-auto px-2">
                 <span class="text-6xl font-extralight pt-8">Trails</span>
-                <span class="text-base font-light text-zinc-600 pt-1 pb-2">Mit Benutzerkonto anmelden.</span>
+                <span class="text-base font-light text-zinc-600 pt-1 pb-2">{$_("auth.subtitle")}</span>
 
                 <div class="flex grow w-full pt-4">
                     {#if !authentikt.currentFlow}
@@ -49,11 +50,11 @@
                         <DoneRenderer>
                             {#snippet children(plugin)}
                                 <div class="flex flex-col items-center justify-center w-full h-full gap-4">
-                                    <span class="text-xl font-semibold pb-1">Anmeldung erfolgreich.</span>
+                                    <span class="text-xl font-semibold pb-1">{$_("auth.success")}</span>
                                     {#if plugin.result?.type === "redirect"}
                                         <div>
-                                            Die Weiterleitung funktioniert nicht?
-                                            <a href={plugin.result.to} class="underline">Klicke hier.</a>
+                                            {$_("auth.redirect.hint")}
+                                            <a href={plugin.result.to} class="underline">{$_("auth.redirect.link")}</a>
                                         </div>
                                     {/if}
                                 </div>
@@ -61,10 +62,11 @@
                         </DoneRenderer>
                     {/if}
                 </div>
-                <span class="text-xs text-zinc-400">Powered by <a href="https://github.com/Julius-Babies/authentikt" class="underline" target="blank" rel="noreferrer">Authentikt</a>.</span><br />
+                <!-- "Authentikt" is a product name, so only the lead-in is translated. -->
+                <span class="text-xs text-zinc-400">{$_("auth.powered_by")} <a href="https://github.com/Julius-Babies/authentikt" class="underline" target="blank" rel="noreferrer">Authentikt</a>.</span><br />
 
                 <!-- TODO: Remove for production -->
-                <span class="text-xs text-zinc-400">Anmeldung <a data-sveltekit-reload href="/api/v1/auth/app-authorization?device_manufacturer=Google&device_model=panther" class="underline">neustarten</a>.</span>
+                <span class="text-xs text-zinc-400"><a data-sveltekit-reload href="/api/v1/auth/app-authorization?device_manufacturer=Google&device_model=panther" class="underline">{$_("auth.restart")}</a></span>
             </div>
         </div>
     </Authentikt>

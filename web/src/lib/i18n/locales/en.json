@@ -1,0 +1,179 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "rename": "Rename",
+    "next": "Next",
+    "copy": "Copy",
+    "copied": "Copied",
+    "loading": "Loading …",
+    "error": "Something went wrong.",
+    "unknown_error": "An unknown error occurred."
+  },
+  "battery": {
+    "level": {
+      "not_charging": "{percentage}%",
+      "charging": "{percentage}% · charging"
+    },
+    "label": {
+      "not_charging": "Battery {percentage}%",
+      "charging": "Battery {percentage}%, charging"
+    }
+  },
+  "auth": {
+    "welcome": "Welcome to Trails",
+    "login": "Login",
+    "logout": "Logout",
+    "subtitle": "Sign in with your account.",
+    "success": "Signed in successfully.",
+    "powered_by": "Powered by",
+    "restart": "Restart sign-in.",
+    "redirect": {
+      "hint": "Redirect not working?",
+      "link": "Click here."
+    },
+    "email": {
+      "label": "E-mail or username",
+      "placeholder": "andrea.doe@example.com",
+      "user_not_found": "This user does not exist."
+    },
+    "password": {
+      "label": "Password",
+      "incorrect": "The password is incorrect."
+    }
+  },
+  "device_selection": {
+    "loading": "Loading devices …",
+    "multiple": "Several similar devices already exist in your Trails account. If your current device is in the list, you can select it to continue.",
+    "single": "You already have a {manufacturer} {model} in your Trails account. Is this that device?",
+    "location_note": "Location data is tied to your device. In Trails you can share individual devices.",
+    "registered": "Registered with Trails on {date} at {time}.",
+    "use_this": "Yes, use this device",
+    "register_new": "Register as a new device",
+    "dialogs": {
+      "new": {
+        "title": "Link a new device",
+        "hint": {
+          "title": "Note for new devices",
+          "description": "You already have a device of the same model in your Trails account. If you reset the app or your phone, go back and link this sign-in to the existing device so that shares and location data stay attached to it. Continue if you want to sign in several devices of the same model to your Trails account. To tell them apart, you have to give this device a name."
+        }
+      },
+      "name": {
+        "label": "Device name",
+        "placeholder": "e.g. Andy’s iPhone 12 (work)",
+        "description": "The name is shown in place of the device model.",
+        "too_short": "The name must be at least {min} characters long.",
+        "taken": "This name is already in use."
+      }
+    }
+  },
+  "devices": {
+    "title": "Devices",
+    "not_found": "Device not found.",
+    "never_seen": "Never seen",
+    "just_now": "just now",
+    "place_and_time": "{place} · {time}",
+    "history_unavailable": "History unavailable",
+    "dialogs": {
+      "rename": {
+        "title": "Rename device",
+        "description": "Give your device a recognisable name. If you share your device, the name may be visible to other people.",
+        "placeholder": "e.g. Ella’s iPhone"
+      },
+      "delete": {
+        "title": "Delete device",
+        "description": "Do you really want to delete “{name}”? Existing shares of this device become invalid. This action cannot be undone."
+      }
+    }
+  },
+  "shares": {
+    "shared_with_me": "Shared with me",
+    "owner": "shared by {owner}",
+    "title": "{device} shared by {owner}",
+    "not_found": "Share not found.",
+    "dialogs": {
+      "return": {
+        "title": "Return share",
+        "description": "Do you really want to return this share? It is removed from your account and you will no longer be able to see the location. To get access again you need a new share.",
+        "confirm": "Return"
+      }
+    }
+  },
+  "emitted_shares": {
+    "title": "My shares",
+    "created_at": "Created {when}",
+    "not_found": "Share not found.",
+    "multiuse": "Can be redeemed multiple times",
+    "single_use": "Can be redeemed once",
+    "save_failed": "The change could not be saved. Please try again.",
+    "badge": {
+      "battery": "Battery level",
+      "multiuse": "Multi-use",
+      "locked": "Locked"
+    },
+    "link": {
+      "title": "Share link",
+      "multiuse": "Anyone who opens the link with Trails can see the device. It can be redeemed multiple times.",
+      "single_use": "Anyone who opens the link with Trails can see the device. It can only be redeemed once."
+    },
+    "history": {
+      "title": "Location history",
+      "description": "How far back recipients can look into this device’s location history."
+    },
+    "battery": {
+      "title": "Share battery level",
+      "description": "Recipients see the charge level and whether the device is charging."
+    },
+    "redemptions": {
+      "label": "{count, plural, one {Redemption} other {Redemptions}}",
+      "heading": "Redemptions ({count})",
+      "empty": "This share has not been redeemed yet.",
+      "redeemed_at": "Redeemed {when}"
+    },
+    "dialogs": {
+      "rename": {
+        "title": "Rename share",
+        "description": "The name helps you tell your shares apart. Recipients don’t see it.",
+        "placeholder": "e.g. Share for family",
+        "failed": "The share could not be renamed."
+      },
+      "name": {
+        "taken": "You already have a share with this name.",
+        "blank": "The share name must not be empty."
+      },
+      "delete": {
+        "title": "Delete share",
+        "description": "Do you really want to delete “{name}”? Everyone subscribed to the share will stop receiving data about the device."
+      }
+    }
+  },
+  "history": {
+    "preset": {
+      "current_only": "Current location only",
+      "full": "Full history",
+      "last": {
+        "hour": "Last hour",
+        "six_hours": "Last 6 hours",
+        "day": "Last day",
+        "week": "Last week"
+      }
+    },
+    "custom": {
+      "days": "{count, plural, one {Last day} other {Last # days}}",
+      "hours": "{count, plural, one {Last hour} other {Last # hours}}",
+      "minutes": "Last {count} min"
+    }
+  },
+  "map": {
+    "camera_mode": {
+      "label": "Camera mode",
+      "options": {
+        "keep_all_in_view": "Keep all devices in view",
+        "follow_device": "Follow device",
+        "keep_trail_in_view": "Keep the trail in view",
+        "move_manually": "Move the map yourself"
+      }
+    }
+  }
+}

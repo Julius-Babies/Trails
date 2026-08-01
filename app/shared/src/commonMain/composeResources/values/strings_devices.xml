@@ -1,0 +1,49 @@
+<resources>
+    <string name="devices_title">Devices</string>
+    <plurals name="devices_count">
+        <item quantity="one">%1$d device</item>
+        <item quantity="other">%1$d devices</item>
+    </plurals>
+    <string name="devices_own">My devices</string>
+    <string name="devices_shared_with_me">Devices shared with me</string>
+
+    <!-- Device name followed by the user it belongs to, e.g. "Pixel 7 from julius". -->
+    <string name="devices_card_owner">%1$s · %2$s</string>
+    <!-- Friendly device name followed by its model, e.g. "Pixel 7 (panther)". -->
+    <string name="devices_card_model">%1$s (%2$s)</string>
+    <string name="devices_card_this_device">This device</string>
+    <string name="devices_card_never_seen">Never seen</string>
+    <string name="devices_card_seen_just_now">Seen just now</string>
+    <!-- %1$s is a relative time such as "5 minutes ago". -->
+    <string name="devices_card_last_seen">Last seen %1$s</string>
+
+    <string name="devices_server_connected">Connected to Trails server</string>
+    <string name="devices_server_disconnected">Not connected to Trails server</string>
+
+    <string name="device_rename">Rename</string>
+    <string name="device_rename_title">Rename device</string>
+    <string name="device_rename_message">Give your device a recognisable name. If you share your device, other people may be able to see it.</string>
+    <!-- Manufacturer followed by the model's marketing name, e.g. "Google Pixel 7". -->
+    <string name="device_default_name">%1$s %2$s</string>
+
+    <string name="device_delete_title">Delete device?</string>
+    <string name="device_delete_message">This cannot be undone. Every share granted from this device expires.</string>
+
+    <string name="device_return_share">Return share</string>
+    <string name="device_return_share_confirm">Return</string>
+    <string name="device_return_share_title">Return share?</string>
+    <string name="device_return_share_message">You will no longer be able to see the location of this device. To get access again, you need a new share.</string>
+
+    <string name="device_ping">Ping</string>
+    <string name="device_ping_found">The device was found.</string>
+    <string name="device_ping_no_notification">The device answered, but could not show a notification.</string>
+    <string name="device_ping_not_allowed">You are not allowed to ping this device.</string>
+    <string name="device_ping_timeout">The device is not responding.</string>
+
+    <string name="device_ring">Ring</string>
+    <string name="device_ring_stop">Stop ringing</string>
+
+    <string name="device_deleted_title">Device removed</string>
+    <!-- %1$s is the name of the device the deletion was triggered from. -->
+    <string name="device_deleted_message">This device was removed from your Trails account by %1$s. It will not send any more location data to your home server.</string>
+</resources>

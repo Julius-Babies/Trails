@@ -1,0 +1,10 @@
+{
+  "title": "English and German language support",
+  "description": "The app and the web app are now available in English and German. The language follows your system or browser setting, and dates and relative times are formatted to match.",
+  "localized": {
+    "de": {
+      "title": "Deutsch und Englisch",
+      "description": "Die App und die Web-App sind jetzt auf Deutsch und Englisch verfügbar. Die Sprache richtet sich nach der Einstellung deines Systems oder Browsers, Datums- und Zeitangaben werden passend formatiert."
+    }
+  }
+}

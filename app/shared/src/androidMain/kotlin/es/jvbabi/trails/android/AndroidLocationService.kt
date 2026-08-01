@@ -25,6 +25,7 @@ import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
 import co.touchlab.kermit.Logger
 import es.jvbabi.trails.domain.repository.*
+import es.jvbabi.trails.shared.compose.R
 import es.jvbabi.trails.utils.backgroundExceptionHandler
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -65,10 +66,10 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
             }
             true
         } catch (e: Exception) {
-            // Ab Android 12 darf ein location-Foreground-Service nicht aus dem Hintergrund
-            // gestartet werden -> ForegroundServiceStartNotAllowedException. Sauber beenden
-            // statt die App abstürzen zu lassen.
-            Log.w("LocationService", "startForeground nicht erlaubt, Service wird beendet: $e")
+            // From Android 12 on, a location foreground service must not be started from the
+            // background -> ForegroundServiceStartNotAllowedException. Shut down cleanly instead
+            // of letting the app crash.
+            Log.w("LocationService", "startForeground not allowed, stopping the service: $e")
             false
         }
         if (!foregroundStarted) stopSelf()
@@ -149,15 +150,15 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
         Logger.d { "Native Location: ${location.latitude}, ${location.longitude} (Provider: ${location.provider})" }
     }
 
-    override fun onProviderEnabled(provider: String) { Log.d("LocationService", "$provider aktiviert") }
-    override fun onProviderDisabled(provider: String) { Log.d("LocationService", "$provider deaktiviert") }
+    override fun onProviderEnabled(provider: String) { Log.d("LocationService", "$provider enabled") }
+    override fun onProviderDisabled(provider: String) { Log.d("LocationService", "$provider disabled") }
 
     private fun createNotification(): Notification {
         val channelId = "pure_location_channel"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "GPS-Tracking",
+                getString(R.string.notification_channel_tracking_name),
                 NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(NotificationManager::class.java) as NotificationManager
@@ -165,8 +166,8 @@ class AndroidLocationService: Service(), LocationListener, KoinComponent {
         }
 
         return NotificationCompat.Builder(this, channelId)
-            .setContentTitle("GPS-Tracking läuft")
-            .setContentText("Standort wird mit deinem Trails-Homeserver geteilt.")
+            .setContentTitle(getString(R.string.notification_tracking_title))
+            .setContentText(getString(R.string.notification_tracking_body))
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setOngoing(true)
             .setSilent(true)

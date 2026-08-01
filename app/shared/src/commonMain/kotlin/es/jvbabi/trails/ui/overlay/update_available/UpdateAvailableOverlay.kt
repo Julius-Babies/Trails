@@ -32,10 +32,9 @@ import es.jvbabi.trails.domain.model.issueUrl
 import es.jvbabi.trails.ui.components.ProgressiveBlurScrim
 import es.jvbabi.trails.ui.components.ScrimEdge
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
-import trails.app.shared.generated.resources.Res
-import trails.app.shared.generated.resources.app_icon
-import trails.app.shared.generated.resources.move_right
+import trails.app.shared.generated.resources.*
 
 @Composable
 fun UpdateAvailableOverlay() {
@@ -110,7 +109,7 @@ fun UpdateAvailableOverlayContent(
         ) {
             Image(
                 painter = painterResource(Res.drawable.app_icon),
-                contentDescription = "Trails",
+                contentDescription = null,
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
                     .size(108.dp),
@@ -118,7 +117,7 @@ fun UpdateAvailableOverlayContent(
         }
         if (showsChangelog) Spacer(Modifier.height(24.dp)) else Spacer(Modifier.weight(.4f))
         Text(
-            text = "Update verfügbar",
+            text = stringResource(Res.string.update_title),
             style = MaterialTheme.typography.displayMedium,
             modifier = Modifier
                 .padding(horizontal = 16.dp)
@@ -127,7 +126,7 @@ fun UpdateAvailableOverlayContent(
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Ein Update für Trails ist verfügbar. Bitte installiere das Update, um die neuesten Funktionen zu erhalten.",
+            text = stringResource(Res.string.update_message),
             style = MaterialTheme.typography.bodyMedium,
             modifier = Modifier
                 .padding(horizontal = 16.dp)
@@ -150,7 +149,7 @@ fun UpdateAvailableOverlayContent(
 
             Icon(
                 painter = painterResource(Res.drawable.move_right),
-                contentDescription = "Arrow",
+                contentDescription = null,
                 modifier = Modifier.size(24.dp),
                 tint = MaterialTheme.colorScheme.outline,
             )
@@ -226,14 +225,14 @@ fun UpdateAvailableOverlayContent(
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(
-                        text = "Jetzt nicht"
+                        text = stringResource(Res.string.update_not_now)
                     )
                 }
                 Button(
                     onClick = { onEvent(UpdateAvailableEvent.Install) },
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text(text = "Installieren")
+                    Text(text = stringResource(Res.string.update_install))
                 }
             }
         }

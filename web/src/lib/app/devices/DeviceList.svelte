@@ -4,6 +4,7 @@
     import DeviceItem from "./DeviceItem.svelte";
     import ShareItem from "./ShareItem.svelte";
     import EmittedShareItem from "./EmittedShareItem.svelte";
+    import {_} from "svelte-i18n";
 
     // "Shared with me" merges same-server shares (from the webapp socket) with
     // foreign shares (live from their origin via per-host share sockets). Foreign
@@ -33,7 +34,7 @@
 </script>
 
 <div class="flex flex-col h-full gap-2 overflow-y-auto scroll-thin pt-8">
-    <h1 class="text-xl font-bold px-6">Geräte</h1>
+    <h1 class="text-xl font-bold px-6">{$_("devices.title")}</h1>
 
     <div class="px-3 pb-2">
         <div class="flex flex-col rounded-4xl bg-card overflow-hidden">
@@ -49,7 +50,7 @@
     </div>
 
     {#if sharedWithMe.length > 0}
-        <h1 class="text-sm font-semibold mt-1 px-6 text-accent-foreground">Geteilt mit mir</h1>
+        <h1 class="text-sm font-semibold mt-1 px-6 text-accent-foreground">{$_("shares.shared_with_me")}</h1>
 
         <div class="px-3 pb-2">
             <div class="flex flex-col rounded-4xl bg-card overflow-hidden">
@@ -66,7 +67,7 @@
     {/if}
 
     {#if webappSocket.emittedShares.length > 0}
-        <h1 class="text-sm font-semibold mt-1 px-6 text-accent-foreground">Meine Freigaben</h1>
+        <h1 class="text-sm font-semibold mt-1 px-6 text-accent-foreground">{$_("emitted_shares.title")}</h1>
 
         <div class="px-3 pb-2 ">
             <div class="flex flex-col rounded-4xl bg-card overflow-hidden">

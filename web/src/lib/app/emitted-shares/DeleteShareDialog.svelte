@@ -4,6 +4,7 @@
     import { CircleNotchIcon } from "phosphor-svelte";
     import {goto} from "$app/navigation";
     import {ShareRepository} from "$lib/api/shares/share_repository";
+    import {_} from "svelte-i18n";
 
     let {
       open = $bindable(),
@@ -33,19 +34,19 @@
 <Dialog bind:open={open}>
     <DialogContent>
         <DialogHeader>
-            <DialogTitle>Freigabe löschen</DialogTitle>
+            <DialogTitle>{$_("emitted_shares.dialogs.delete.title")}</DialogTitle>
             <DialogDescription>
-                Möchtest du „{shareName}“ wirklich löschen? Alle Abonnenten der Freigabe werden keine Daten mehr über das Gerät erhalten.
+                {$_("emitted_shares.dialogs.delete.description", {values: {name: shareName}})}
             </DialogDescription>
         </DialogHeader>
 
         <DialogFooter>
-            <Button variant="secondary" onclick={() => open = false} disabled={deleting}>Abbrechen</Button>
+            <Button variant="secondary" onclick={() => open = false} disabled={deleting}>{$_("common.cancel")}</Button>
             <Button variant="destructive" onclick={confirmDelete} disabled={deleting}>
                 {#if deleting}
                     <CircleNotchIcon class="size-4 animate-spin" />
                 {/if}
-                Löschen
+                {$_("common.delete")}
             </Button>
         </DialogFooter>
     </DialogContent>

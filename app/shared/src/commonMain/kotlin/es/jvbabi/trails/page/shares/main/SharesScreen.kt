@@ -37,9 +37,8 @@ import es.jvbabi.trails.page.shares.add_share.AddShareScreen
 import es.jvbabi.trails.page.shares.new_share.NewShareScreen
 import es.jvbabi.trails.utils.PaddingValues
 import org.jetbrains.compose.resources.painterResource
-import trails.app.shared.generated.resources.Res
-import trails.app.shared.generated.resources.plus
-import trails.app.shared.generated.resources.share_2
+import org.jetbrains.compose.resources.stringResource
+import trails.app.shared.generated.resources.*
 
 @Composable
 fun SharesScreen(
@@ -116,7 +115,7 @@ fun SharesContent(
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.plus),
-                    contentDescription = "Link eingeben",
+                    contentDescription = stringResource(Res.string.shares_enter_link),
                     modifier = Modifier.size(24.dp),
                 )
             }
@@ -127,7 +126,7 @@ fun SharesContent(
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.share_2),
-                    contentDescription = "Freigabe hinzufügen",
+                    contentDescription = stringResource(Res.string.shares_add),
                     modifier = Modifier.size(28.dp),
                 )
             }

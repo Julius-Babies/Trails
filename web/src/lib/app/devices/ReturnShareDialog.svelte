@@ -11,6 +11,7 @@
     import {CircleNotchIcon} from "phosphor-svelte";
     import {goto} from "$app/navigation";
     import {ShareRepository} from "$lib/api/shares/share_repository";
+    import {_} from "svelte-i18n";
 
     let {
         open = $bindable(),
@@ -41,19 +42,19 @@
 <Dialog bind:open={open}>
     <DialogContent>
         <DialogHeader>
-            <DialogTitle>Freigabe zurückgeben</DialogTitle>
+            <DialogTitle>{$_("shares.dialogs.return.title")}</DialogTitle>
             <DialogDescription>
-                Möchtest du diese Freigabe wirklich zurückgeben? Sie wird aus deinem Konto entfernt und du kannst den Standort nicht mehr sehen. Um erneut Zugriff zu erhalten, brauchst du eine neue Freigabe.
+                {$_("shares.dialogs.return.description")}
             </DialogDescription>
         </DialogHeader>
 
         <DialogFooter>
-            <Button variant="secondary" onclick={() => open = false} disabled={returning}>Abbrechen</Button>
+            <Button variant="secondary" onclick={() => open = false} disabled={returning}>{$_("common.cancel")}</Button>
             <Button onclick={confirmReturn} disabled={returning}>
                 {#if returning}
                     <CircleNotchIcon class="size-4 animate-spin" />
                 {/if}
-                Zurückgeben
+                {$_("shares.dialogs.return.confirm")}
             </Button>
         </DialogFooter>
     </DialogContent>

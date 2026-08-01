@@ -4,6 +4,8 @@
     import {DeviceSelectionPlugin} from "./DeviceSelectionPlugin.svelte.ts";
     import {Button} from "$lib/components/ui/button";
     import NewDeviceInfoDialog from "./NewDeviceInfoDialog.svelte";
+    import dayjs from "$lib/dayjs";
+    import {_} from "svelte-i18n";
 
     let {
         children,
@@ -40,17 +42,22 @@
         <div>
             <div class="leading-tight">
                 {#if plugin.data.options.length > 1}
-                    Es existieren mehrere ähnliche Geräte in deinem Trails-Account. Falls dein aktuelles Gerät in der Liste auftaucht, kannst du es auswählen, um fortzufahren.
+                    {$_("device_selection.multiple")}
                 {:else}
-                    Du hast bereits ein {plugin.data.options[0].manufacturer} {plugin.data.options[0].friendly_name} in deinem Trails-Account. Handelt es sich um dieses Gerät?
+                    {$_("device_selection.single", {
+                        values: {
+                            manufacturer: plugin.data.options[0].manufacturer,
+                            model: plugin.data.options[0].friendly_name,
+                        },
+                    })}
                 {/if}
                 <div class="pt-1">
-                    Standortdaten sind an dein Gerät gebunden. Du kannst in Trails einzelne Geräte freigeben.
+                    {$_("device_selection.location_note")}
                 </div>
             </div>
             <div class="flex flex-col w-full mt-4 border border-zinc-200 rounded-lg overflow-y-auto">
                 {#each plugin.data.options as option, index (option.device_id)}
-                    {@const date = new Date(option.created_at * 1000)}
+                    {@const registeredAt = dayjs(option.created_at * 1000)}
                     <button
                             class="p-4 border-t-zinc-200 flex flex-row gap-4 items-center justify-start bg-zinc-50 transition-colors hover:bg-zinc-100 duration-75 cursor-pointer text-left"
                             class:border-t={index > 0}
@@ -66,7 +73,10 @@
                             {#if option.display_name !== option.manufacturer + " " + option.friendly_name}
                                 <span class="text-zinc-500 text-sm">{option.display_name}</span>
                             {/if}
-                            <span class="pt-1 font-light text-xs">Am {date.toLocaleDateString()} um {date.toLocaleTimeString()} bei Trails registriert.</span>
+                            <!-- L/LT are dayjs' localized date/time patterns and follow the active locale. -->
+                            <span class="pt-1 font-light text-xs">{$_("device_selection.registered", {
+                                values: {date: registeredAt.format("L"), time: registeredAt.format("LT")},
+                            })}</span>
                         </div>
                     </button>
                 {/each}
@@ -78,17 +88,17 @@
                             onclick={() => plugin.selectDevice(plugin.data!.options[0].device_id)}
                             variant="default"
                             class="flex flex-1"
-                    >Ja, dieses Gerät verwenden</Button>
+                    >{$_("device_selection.use_this")}</Button>
                 {/if}
                 <Button
                         variant="outline"
                         class="flex flex-1"
                         onclick={() => showNewDeviceDialog = true}
-                >Als neues Gerät registrieren</Button>
+                >{$_("device_selection.register_new")}</Button>
             </div>
         </div>
     {:else}
-        <p>Loading devices...</p>
+        <p>{$_("device_selection.loading")}</p>
     {/if}
 
     {#if showNewDeviceDialog}

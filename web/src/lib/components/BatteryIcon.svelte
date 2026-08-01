@@ -18,6 +18,8 @@
 </script>
 
 <script lang="ts">
+    import {_} from "svelte-i18n";
+
     let {
         percentage = 80,
         isCharging = false,
@@ -94,7 +96,7 @@
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     role="img"
-    aria-label={`Battery ${clamped}%${isCharging ? ", charging" : ""}`}
+    aria-label={$_(isCharging ? "battery.label.charging" : "battery.label.not_charging", {values: {percentage: clamped}})}
     style={`transform: rotate(${ROTATION[orientation]}deg); transform-origin: center;`}
 >
     <defs>

@@ -8,6 +8,7 @@
         DropdownMenuTrigger
     } from "$lib/components/ui/dropdown-menu";
     import {SignOutIcon} from "phosphor-svelte";
+    import {_} from "svelte-i18n";
 
     let initials = $derived.by(() => {
         const name = $currentUser?.username || "";
@@ -31,7 +32,7 @@
             <DropdownMenuGroup>
                 <DropdownMenuItem class="text-destructive" href="/api/v1/webapp/auth/logout">
                     <SignOutIcon />
-                    Logout
+                    {$_("auth.logout")}
                 </DropdownMenuItem>
             </DropdownMenuGroup>
         </DropdownMenuContent>

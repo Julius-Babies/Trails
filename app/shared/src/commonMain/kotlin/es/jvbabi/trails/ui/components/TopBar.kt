@@ -36,9 +36,8 @@ import dev.chrisbanes.haze.hazeEffect
 import es.jvbabi.trails.ThemeWrapper
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
-import trails.app.shared.generated.resources.Res
-import trails.app.shared.generated.resources.arrow_left
-import trails.app.shared.generated.resources.ellipsis_vertical
+import org.jetbrains.compose.resources.stringResource
+import trails.app.shared.generated.resources.*
 
 @Composable
 fun TopBar(
@@ -271,7 +270,7 @@ fun TopBarActions(actions: List<TopBarAction>) {
                 ) {
                     Icon(
                         painter = painterResource(Res.drawable.ellipsis_vertical),
-                        contentDescription = "Weitere Aktionen",
+                        contentDescription = stringResource(Res.string.common_more_actions),
                         modifier = Modifier.size(24.dp),
                     )
                 }
@@ -410,7 +409,7 @@ private fun TopBarWithBackButtonPreview() {
                         subtitle = "Online",
                         navigationIcon = {
                             IconButton(onClick = {}) {
-                                Icon(painter = painterResource(Res.drawable.arrow_left), contentDescription = "Back")
+                                Icon(painter = painterResource(Res.drawable.arrow_left), contentDescription = stringResource(Res.string.common_back))
                             }
                         },
                     )
@@ -433,7 +432,7 @@ private fun TopBarLongTextPreview() {
                         subtitle = "And this subtitle is also unreasonably long for any normal screen",
                         navigationIcon = {
                             IconButton(onClick = {}) {
-                                Icon(painter = painterResource(Res.drawable.arrow_left), contentDescription = "Back")
+                                Icon(painter = painterResource(Res.drawable.arrow_left), contentDescription = stringResource(Res.string.common_back))
                             }
                         },
                     )

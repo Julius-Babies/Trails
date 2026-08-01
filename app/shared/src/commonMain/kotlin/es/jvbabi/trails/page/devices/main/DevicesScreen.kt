@@ -43,7 +43,10 @@ import es.jvbabi.trails.page.devices.main.components.DeviceCard
 import es.jvbabi.trails.ui.components.*
 import es.jvbabi.trails.utils.PaddingValues
 import es.jvbabi.trails.utils.padding
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
+import trails.app.shared.generated.resources.*
 import kotlin.uuid.Uuid
 
 @Composable
@@ -129,9 +132,10 @@ fun DevicesScreen(
     val viewModel = koinViewModel<DevicesViewModel>()
     val state by viewModel.state.collectAsStateWithLifecycle()
 
+    val deviceCount = state.myDevices.size + state.foreignDevices.size
     ConfigureTopBar(
-        title = "Geräte",
-        subtitle = "${state.myDevices.size + state.foreignDevices.size} Geräte"
+        title = stringResource(Res.string.devices_title),
+        subtitle = pluralStringResource(Res.plurals.devices_count, deviceCount, deviceCount)
     )
 
     DevicesContent(
@@ -172,7 +176,7 @@ fun DevicesContent(
             ) {
                 if (state.myDevices.isNotEmpty()) {
                     Text(
-                        text = "Meine Geräte",
+                        text = stringResource(Res.string.devices_own),
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier
                             .padding(horizontal = 16.dp)
@@ -191,7 +195,7 @@ fun DevicesContent(
 
                 if (state.foreignDevices.isNotEmpty()) {
                     Text(
-                        text = "Mit mir geteilte Geräte",
+                        text = stringResource(Res.string.devices_shared_with_me),
                         style = MaterialTheme.typography.labelLarge,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                     )
@@ -235,7 +239,10 @@ fun DevicesContent(
             )
 
             Text(
-                text = if (state.isConnectedToHomeServer is DevicesState.HomeServerConnectionState.Connected) "Verbunden mit Trails Server" else "Nicht verbunden mit Trails Server",
+                text = stringResource(
+                    if (state.isConnectedToHomeServer is DevicesState.HomeServerConnectionState.Connected) Res.string.devices_server_connected
+                    else Res.string.devices_server_disconnected
+                ),
                 style = MaterialTheme.typography.labelMedium,
             )
         }

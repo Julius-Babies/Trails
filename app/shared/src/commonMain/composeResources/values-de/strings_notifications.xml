@@ -1,0 +1,11 @@
+<resources>
+    <string name="notification_channel_ping_name">Ping</string>
+    <string name="notification_channel_ping_description">Wird verwendet, um dein Gerät zu finden</string>
+    <string name="notification_channel_ring_name">Anklingeln</string>
+    <string name="notification_channel_ring_description">Lasse dein Gerät klingeln, um es zu finden</string>
+
+    <string name="notification_ping_title">Gerät gefunden</string>
+    <string name="notification_ping_by_browser">Ein Browser hat dieses Gerät gefunden!</string>
+    <string name="notification_ping_by_device">Dein %1$s hat dieses Gerät gefunden!</string>
+
+</resources>

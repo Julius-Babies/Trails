@@ -25,7 +25,7 @@ class RingService: Service(), KoinComponent {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> startRinging(intent.getStringExtra(EXTRA_DEVICE_NAME) ?: "")
-            // Triggered by the notification's "Beenden" action. Route through the
+            // Triggered by the notification's "stop" action. Route through the
             // repository so the server (and therefore every other device / the
             // web UI) is told the ring stopped, and the RingingActivity closes.
             ACTION_USER_STOP -> deviceRepository.stopRinging()
@@ -90,6 +90,9 @@ class RingService: Service(), KoinComponent {
         }
 
     private fun buildCallNotification(): Notification {
+        val title = getString(R.string.notification_ring_title)
+        val stopLabel = getString(R.string.notification_ring_stop)
+
         val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
 
         val fullScreenIntent = PendingIntent.getActivity(this, 0, showRingingIntent(), pendingFlags)
@@ -103,7 +106,7 @@ class RingService: Service(), KoinComponent {
 
         return NotificationCompat.Builder(this, NotificationRepository.RING_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_monochrome)
-            .setContentTitle("Klingeln")
+            .setContentTitle(title)
             .setContentText(causedByDeviceName)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_CALL)
@@ -111,7 +114,7 @@ class RingService: Service(), KoinComponent {
             .setAutoCancel(false)
             .setContentIntent(fullScreenIntent)
             .setFullScreenIntent(fullScreenIntent, true)
-            .addAction(R.drawable.ic_launcher_monochrome, "Beenden", stopIntent)
+            .addAction(R.drawable.ic_launcher_monochrome, stopLabel, stopIntent)
             .build()
     }
 

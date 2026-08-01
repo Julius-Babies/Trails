@@ -7,6 +7,7 @@
     import DeviceHeader from "$lib/app/devices/DeviceHeader.svelte";
     import {loadHistory} from "$lib/state/history.svelte";
     import {setMapTrail} from "$lib/state/map_trail.svelte";
+    import {_} from "svelte-i18n";
 
     let deviceId = $derived(page.params.deviceId);
     let device = $derived(webappSocket.devices.find((d) => d.id === deviceId) ?? null);
@@ -67,6 +68,6 @@
             />
         </div>
     {:else}
-        <p class="px-2 mt-4 text-sm text-muted-foreground">Gerät nicht gefunden.</p>
+        <p class="px-2 mt-4 text-sm text-muted-foreground">{$_("devices.not_found")}</p>
     {/if}
 </div>

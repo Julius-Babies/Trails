@@ -7,22 +7,23 @@
         type DetailCameraMode,
         type GeneralCameraMode,
     } from "$lib/state/map_camera.svelte";
+    import {_} from "svelte-i18n";
 
     // Which options exist depends on the scope: the overview can only keep every
     // device in view or hand over to the user, while a detail view can also frame
     // the target's trail. The two scopes carry independent modes, so the switch
     // reflects whichever one is currently driving the camera.
-    type Option = { mode: GeneralCameraMode | DetailCameraMode; label: string };
+    type Option = { mode: GeneralCameraMode | DetailCameraMode; labelKey: string };
 
     const GENERAL_OPTIONS: Option[] = [
-        {mode: "tracking", label: "Alle Geräte im Blick behalten"},
-        {mode: "manual", label: "Karte selbst bewegen"},
+        {mode: "tracking", labelKey: "map.camera_mode.options.keep_all_in_view"},
+        {mode: "manual", labelKey: "map.camera_mode.options.move_manually"},
     ];
 
     const DETAIL_OPTIONS: Option[] = [
-        {mode: "tracking", label: "Gerät folgen"},
-        {mode: "trail", label: "Verlauf im Blick behalten"},
-        {mode: "manual", label: "Karte selbst bewegen"},
+        {mode: "tracking", labelKey: "map.camera_mode.options.follow_device"},
+        {mode: "trail", labelKey: "map.camera_mode.options.keep_trail_in_view"},
+        {mode: "manual", labelKey: "map.camera_mode.options.move_manually"},
     ];
 
     let isDetail = $derived(mapCamera.scope === "detail");
@@ -37,7 +38,7 @@
 
 <div
         role="group"
-        aria-label="Kameramodus"
+        aria-label={$_("map.camera_mode.label")}
         class="pointer-events-auto flex flex-col items-center gap-1 rounded-full border border-border bg-accent/65 p-1 text-card-foreground shadow-2xl backdrop-blur-lg"
 >
     {#each options as option (option.mode)}
@@ -46,7 +47,7 @@
                 type="button"
                 onclick={() => select(option.mode)}
                 aria-pressed={active}
-                title={option.label}
+                title={$_(option.labelKey)}
                 class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full transition-colors
                    {active ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'}"
         >

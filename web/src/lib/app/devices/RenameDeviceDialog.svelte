@@ -11,6 +11,7 @@
     import {Input} from "$lib/components/ui/input";
     import {CircleNotchIcon} from "phosphor-svelte";
     import {DeviceRepository} from "$lib/api/devices/device_repository";
+    import {_} from "svelte-i18n";
 
     let {
         open = $bindable(),
@@ -48,25 +49,25 @@
 <Dialog bind:open={open}>
     <DialogContent>
         <DialogHeader>
-            <DialogTitle>Gerät umbenennen</DialogTitle>
-            <DialogDescription>Gib deinem Gerät einen erkennbaren Namen. Wenn du dein Gerät teilst, ist er möglicherweise für andere Personen sichtbar.</DialogDescription>
+            <DialogTitle>{$_("devices.dialogs.rename.title")}</DialogTitle>
+            <DialogDescription>{$_("devices.dialogs.rename.description")}</DialogDescription>
         </DialogHeader>
 
         <Input
                 bind:value={name}
                 bind:ref={inputElement}
                 type="text"
-                placeholder="z.B. iPhone von Ella"
+                placeholder={$_("devices.dialogs.rename.placeholder")}
                 onkeydown={(e) => { if (e.key === "Enter") save(); }}
         />
 
         <DialogFooter>
-            <Button variant="secondary" onclick={() => open = false} disabled={saving}>Abbrechen</Button>
+            <Button variant="secondary" onclick={() => open = false} disabled={saving}>{$_("common.cancel")}</Button>
             <Button onclick={save} disabled={saving}>
                 {#if saving}
                     <CircleNotchIcon class="size-4 animate-spin" />
                 {/if}
-                Speichern
+                {$_("common.save")}
             </Button>
         </DialogFooter>
     </DialogContent>

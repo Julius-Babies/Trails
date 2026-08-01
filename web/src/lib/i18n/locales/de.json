@@ -1,0 +1,179 @@
+{
+  "common": {
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "delete": "Löschen",
+    "rename": "Umbenennen",
+    "next": "Weiter",
+    "copy": "Kopieren",
+    "copied": "Kopiert",
+    "loading": "Wird geladen …",
+    "error": "Ein Fehler ist aufgetreten.",
+    "unknown_error": "Es ist ein unbekannter Fehler aufgetreten."
+  },
+  "battery": {
+    "level": {
+      "not_charging": "{percentage}%",
+      "charging": "{percentage}% · lädt"
+    },
+    "label": {
+      "not_charging": "Akku {percentage}%",
+      "charging": "Akku {percentage}%, lädt"
+    }
+  },
+  "auth": {
+    "welcome": "Willkommen bei Trails",
+    "login": "Login",
+    "logout": "Logout",
+    "subtitle": "Mit Benutzerkonto anmelden.",
+    "success": "Anmeldung erfolgreich.",
+    "powered_by": "Powered by",
+    "restart": "Anmeldung neustarten.",
+    "redirect": {
+      "hint": "Die Weiterleitung funktioniert nicht?",
+      "link": "Klicke hier."
+    },
+    "email": {
+      "label": "E-Mail oder Benutzername",
+      "placeholder": "andrea.musterfrau@gmx.de",
+      "user_not_found": "Der Nutzer existiert nicht."
+    },
+    "password": {
+      "label": "Passwort",
+      "incorrect": "Das Passwort ist falsch."
+    }
+  },
+  "device_selection": {
+    "loading": "Geräte werden geladen …",
+    "multiple": "Es existieren mehrere ähnliche Geräte in deinem Trails-Account. Falls dein aktuelles Gerät in der Liste auftaucht, kannst du es auswählen, um fortzufahren.",
+    "single": "Du hast bereits ein {manufacturer} {model} in deinem Trails-Account. Handelt es sich um dieses Gerät?",
+    "location_note": "Standortdaten sind an dein Gerät gebunden. Du kannst in Trails einzelne Geräte freigeben.",
+    "registered": "Am {date} um {time} bei Trails registriert.",
+    "use_this": "Ja, dieses Gerät verwenden",
+    "register_new": "Als neues Gerät registrieren",
+    "dialogs": {
+      "new": {
+        "title": "Neues Gerät verknüpfen",
+        "hint": {
+          "title": "Hinweis für neue Geräte",
+          "description": "Du hast bereits ein Gerät des gleichen Modells in deinem Trails-Account. Falls du die App oder dein Handy zurückgesetzt hast, gehe zurück und verknüpfe diese Anmeldung mit dem bestehenden Gerät, sodass Freigaben und Standortdaten nahtlos mit dem Gerät verknüpft werden. Fahre fort, wenn du mehrere Geräte des gleichen Modells in deinem Trails-Account anmelden möchtest. Zur besseren Unterscheidbarkeit musst du diesem Gerät einen Namen geben."
+        }
+      },
+      "name": {
+        "label": "Gerätenamen",
+        "placeholder": "z.B. Andys iPhone 12 (dienstlich)",
+        "description": "Der Name wird anstelle des Gerätemodells bevorzugt angezeigt.",
+        "too_short": "Der Name muss mindestens {min} Zeichen umfassen.",
+        "taken": "Dieser Name wird bereits verwendet."
+      }
+    }
+  },
+  "devices": {
+    "title": "Geräte",
+    "not_found": "Gerät nicht gefunden.",
+    "never_seen": "Noch nie gesehen",
+    "just_now": "gerade eben",
+    "place_and_time": "{place} · {time}",
+    "history_unavailable": "Verlauf nicht verfügbar",
+    "dialogs": {
+      "rename": {
+        "title": "Gerät umbenennen",
+        "description": "Gib deinem Gerät einen erkennbaren Namen. Wenn du dein Gerät teilst, ist er möglicherweise für andere Personen sichtbar.",
+        "placeholder": "z.B. iPhone von Ella"
+      },
+      "delete": {
+        "title": "Gerät löschen",
+        "description": "Möchtest du „{name}“ wirklich löschen? Bestehende Freigaben dieses Geräts werden ungültig. Diese Aktion kann nicht rückgängig gemacht werden."
+      }
+    }
+  },
+  "shares": {
+    "shared_with_me": "Geteilt mit mir",
+    "owner": "von {owner}",
+    "title": "{device} von {owner}",
+    "not_found": "Freigabe nicht gefunden.",
+    "dialogs": {
+      "return": {
+        "title": "Freigabe zurückgeben",
+        "description": "Möchtest du diese Freigabe wirklich zurückgeben? Sie wird aus deinem Konto entfernt und du kannst den Standort nicht mehr sehen. Um erneut Zugriff zu erhalten, brauchst du eine neue Freigabe.",
+        "confirm": "Zurückgeben"
+      }
+    }
+  },
+  "emitted_shares": {
+    "title": "Meine Freigaben",
+    "created_at": "Erstellt {when}",
+    "not_found": "Freigabe nicht gefunden.",
+    "multiuse": "Mehrfach einlösbar",
+    "single_use": "Einmalig einlösbar",
+    "save_failed": "Die Änderung konnte nicht gespeichert werden. Bitte versuche es erneut.",
+    "badge": {
+      "battery": "Akkustand",
+      "multiuse": "Mehrfach",
+      "locked": "Gesperrt"
+    },
+    "link": {
+      "title": "Freigabe-Link",
+      "multiuse": "Wer den Link mit Trails öffnet, kann das Gerät sehen. Er lässt sich mehrfach einlösen.",
+      "single_use": "Wer den Link mit Trails öffnet, kann das Gerät sehen. Er lässt sich nur einmal einlösen."
+    },
+    "history": {
+      "title": "Standortverlauf",
+      "description": "Wie weit Empfänger in den Standortverlauf dieses Geräts zurücksehen können."
+    },
+    "battery": {
+      "title": "Akkustand teilen",
+      "description": "Empfänger sehen den Ladezustand und ob das Gerät lädt."
+    },
+    "redemptions": {
+      "label": "{count, plural, one {Einlösung} other {Einlösungen}}",
+      "heading": "Einlösungen ({count})",
+      "empty": "Diese Freigabe wurde noch nicht eingelöst.",
+      "redeemed_at": "Eingelöst {when}"
+    },
+    "dialogs": {
+      "rename": {
+        "title": "Freigabe umbenennen",
+        "description": "Der Name hilft dir, deine Freigaben auseinanderzuhalten. Empfänger sehen ihn nicht.",
+        "placeholder": "z.B. Freigabe für Familie",
+        "failed": "Die Freigabe konnte nicht umbenannt werden."
+      },
+      "name": {
+        "taken": "Du hast bereits eine Freigabe mit diesem Namen.",
+        "blank": "Der Freigabename darf nicht leer sein."
+      },
+      "delete": {
+        "title": "Freigabe löschen",
+        "description": "Möchtest du „{name}“ wirklich löschen? Alle Abonnenten der Freigabe werden keine Daten mehr über das Gerät erhalten."
+      }
+    }
+  },
+  "history": {
+    "preset": {
+      "current_only": "Nur aktueller Standort",
+      "full": "Vollständiger Verlauf",
+      "last": {
+        "hour": "Letzte Stunde",
+        "six_hours": "Letzte 6 Stunden",
+        "day": "Letzter Tag",
+        "week": "Letzte Woche"
+      }
+    },
+    "custom": {
+      "days": "{count, plural, one {Letzter Tag} other {Letzte # Tage}}",
+      "hours": "{count, plural, one {Letzte Stunde} other {Letzte # Stunden}}",
+      "minutes": "Letzte {count} min"
+    }
+  },
+  "map": {
+    "camera_mode": {
+      "label": "Kameramodus",
+      "options": {
+        "keep_all_in_view": "Alle Geräte im Blick behalten",
+        "follow_device": "Gerät folgen",
+        "keep_trail_in_view": "Verlauf im Blick behalten",
+        "move_manually": "Karte selbst bewegen"
+      }
+    }
+  }
+}

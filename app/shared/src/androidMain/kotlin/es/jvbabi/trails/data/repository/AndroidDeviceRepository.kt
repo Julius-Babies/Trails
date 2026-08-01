@@ -138,9 +138,9 @@ class AndroidDeviceRepository : DeviceRepository, KoinComponent {
                 context.startService(intent)
             }
         } catch (e: Exception) {
-            // Ab Android 12 kann ein Foreground-Service aus dem Hintergrund verboten sein
-            // (ForegroundServiceStartNotAllowedException). Nicht abstürzen.
-            Log.w("DeviceRepository", "Konnte Ring-Service nicht starten: $e")
+            // From Android 12 on, starting a foreground service from the background can be
+            // forbidden (ForegroundServiceStartNotAllowedException). Don't crash.
+            Log.w("DeviceRepository", "Could not start the ring service: $e")
         }
     }
 

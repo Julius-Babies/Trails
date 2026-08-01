@@ -5,6 +5,7 @@
     import {Button} from "$lib/components/ui/button";
     import {ArrowRight, Loader} from "@lucide/svelte";
     import {type EmailUserSelectionPluginInstance} from "@Julius-Babies/authentikt-svelte";
+    import {_} from "svelte-i18n";
 
     const id = $props.id();
 
@@ -27,7 +28,7 @@
 
 <div class="w-full h-full flex flex-col">
     <form class="w-full flex flex-col gap-1.5" onsubmit={plugin.submit}>
-        <Label for="email-{id}">E-Mail oder Benutzername</Label>
+        <Label for="email-{id}">{$_("auth.email.label")}</Label>
         <Input
                 type="user"
                 autocorrect="off"
@@ -36,7 +37,7 @@
                 inputmode="email"
                 bind:value={plugin.email}
                 bind:ref={inputField}
-                placeholder="andrea.musterfrau@gmx.de"
+                placeholder={$_("auth.email.placeholder")}
                 onsubmit={plugin.submit}
         />
     </form>
@@ -47,9 +48,9 @@
                                                 transition:slide={{ duration: 200 }}
                                         >
                                             {#if plugin.status === "user_not_existing"}
-                                                Der Nutzer existiert nicht.
+                                                {$_("auth.email.user_not_found")}
                                             {:else if plugin.status === "error"}
-                                                Ein Fehler ist aufgetreten.
+                                                {$_("common.error")}
                                             {/if}
                                         </span>
     {/if}
@@ -58,5 +59,5 @@
             class="mt-2"
             onclick={plugin.submit}
             disabled={plugin.status === "loading" || plugin.email === ""}
-    >Weiter {#if plugin.status === "loading"}<Loader />{:else}<ArrowRight />{/if}</Button>
+    >{$_("common.next")} {#if plugin.status === "loading"}<Loader />{:else}<ArrowRight />{/if}</Button>
 </div>

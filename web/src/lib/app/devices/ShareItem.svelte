@@ -4,6 +4,7 @@
     import {DeviceMobileIcon} from "phosphor-svelte";
     import BatteryIcon from "$lib/components/BatteryIcon.svelte";
     import dayjs from "$lib/dayjs";
+    import {_} from "svelte-i18n";
 
     let {
         share,
@@ -30,7 +31,7 @@
 
     let locationText = $derived.by(() => {
         const location = share.last_location;
-        if (location == null) return "Noch nie gesehen";
+        if (location == null) return $_("devices.never_seen");
 
         const address = location.address;
         const place = address != null
@@ -41,9 +42,11 @@
         ].filter(Boolean).join(", ") || address.label
             : `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`;
 
-        if (Date.now() - location.found_at < TWO_MINUTES_MS) return `${place} · gerade eben`;
+        const time = Date.now() - location.found_at < TWO_MINUTES_MS
+            ? $_("devices.just_now")
+            : dayjs(location.found_at).fromNow();
 
-        return `${place} · ${dayjs(location.found_at).fromNow()}`;
+        return $_("devices.place_and_time", {values: {place, time}});
     });
 </script>
 

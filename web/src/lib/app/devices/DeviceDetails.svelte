@@ -13,6 +13,8 @@
     import BatteryIcon from "$lib/components/BatteryIcon.svelte";
     import type {Battery, LastLocation} from "$lib/state/webapp_socket.svelte";
     import dayjs from "$lib/dayjs";
+    import {_} from "svelte-i18n";
+    import {locationHistoryLabel} from "$lib/app/emitted-shares/location_history";
 
     // A shared device, as assembled by the share detail page. Carries everything
     // needed to render the header, so callers hand over the object rather than
@@ -57,7 +59,9 @@
         share ? `${share.base}/api/v1/devices/image/${share.manufacturer}-${share.model}` : imageUrl ?? null
     );
     let resolvedTitle = $derived(share ? share.device_friendly_name : title ?? "");
-    let resolvedSubtitle = $derived(share ? `von ${share.owner_username}` : subtitle);
+    let resolvedSubtitle = $derived(
+        share ? $_("shares.owner", {values: {owner: share.owner_username}}) : subtitle
+    );
     let resolvedLastLocation = $derived(share ? share.last_location : lastLocation ?? null);
     let resolvedBattery = $derived(share ? share.battery : battery);
 
@@ -78,7 +82,7 @@
 
     let placeText = $derived.by(() => {
         const location = resolvedLastLocation;
-        if (location == null) return "Noch nie gesehen";
+        if (location == null) return $_("devices.never_seen");
 
         const address = location.address;
         return address != null
@@ -93,7 +97,7 @@
     let timeText = $derived.by(() => {
         const location = resolvedLastLocation;
         if (location == null) return null;
-        if (Date.now() - location.found_at < TWO_MINUTES_MS) return "gerade eben";
+        if (Date.now() - location.found_at < TWO_MINUTES_MS) return $_("devices.just_now");
         return dayjs(location.found_at).fromNow();
     });
 </script>
@@ -143,7 +147,11 @@
                         percentage={resolvedBattery.percentage}
                         emptyColor="color-mix(in oklab, var(--color-foreground) 18%, transparent)"
                 />
-                <span class="font-medium text-muted-foreground truncate">{resolvedBattery.percentage}%{resolvedBattery.is_charging ? " · lädt" : ""}</span>
+                <span class="font-medium text-muted-foreground truncate">
+                    {$_(resolvedBattery.is_charging ? "battery.level.charging" : "battery.level.not_charging", {
+                        values: {percentage: resolvedBattery.percentage},
+                    })}
+                </span>
             </div>
         {/if}
 
@@ -156,14 +164,14 @@
             <ClockCounterClockwiseIcon />
             <span class="font-medium text-muted-foreground truncate">
                 {#if history.type === "loading"}
-                    Lade...
+                    {$_("common.loading")}
                 {:else if history.type === "not-available"}
-                    Verlauf nicht verfügbar
+                    {$_("devices.history_unavailable")}
                 {:else if history.type === "available"}
                     {#if history.state.historySeconds === null}
-                        Vollständiger Verlauf
+                        {$_("history.preset.full")}
                     {:else}
-                        Verlauf für {history.state.historySeconds} Sekunden verfügbar
+                        {locationHistoryLabel(history.state.historySeconds)}
                     {/if}
                 {/if}
             </span>

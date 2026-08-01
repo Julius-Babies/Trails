@@ -39,6 +39,7 @@ import es.jvbabi.trails.ui.components.Snackbar
 import es.jvbabi.trails.ui.overlay.device_deleted.DeviceDeletedOverlay
 import es.jvbabi.trails.ui.overlay.update_available.UpdateAvailableOverlay
 import es.jvbabi.trails.ui.theme.AppTheme
+import es.jvbabi.trails.utils.SyncHumanReadableLocale
 import kotlinx.coroutines.flow.map
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -57,6 +58,8 @@ val LocalAppTheme = staticCompositionLocalOf { Theme.System }
 fun App(
     startNavigation: Screen? = null
 ) {
+
+    SyncHumanReadableLocale()
 
     val keyValueRepository = koinInject<KeyValueRepository>()
 

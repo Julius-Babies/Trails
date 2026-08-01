@@ -1,4 +1,5 @@
 import {currentUser, type User} from "$lib/state/current_user";
+import {t} from "$lib/i18n";
 
 export interface Battery {
     percentage: number;
@@ -84,9 +85,11 @@ export interface Share {
 }
 
 /** The main label shown for a shared device: the device's friendly name plus
- * whose device it is, e.g. "iPhone 15 von julius". */
+ * whose device it is, e.g. "iPhone 15 from julius". */
 export function shareMainText(share: { device_friendly_name: string; owner_username: string }): string {
-    return `${share.device_friendly_name} von ${share.owner_username}`;
+    return t("shares.title", {
+        values: {device: share.device_friendly_name, owner: share.owner_username},
+    });
 }
 
 /** One redemption of an emitted share. A share is a capability and the redeemer

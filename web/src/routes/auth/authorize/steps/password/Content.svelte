@@ -5,6 +5,7 @@
     import {Button} from "$lib/components/ui/button";
     import {ArrowRight, Loader} from "@lucide/svelte";
     import type {PasswordPluginInstance} from "@Julius-Babies/authentikt-svelte";
+    import {_} from "svelte-i18n";
 
     let {
         plugin,
@@ -26,7 +27,7 @@
 
 <div class="w-full h-full flex flex-col">
     <form class="w-full flex flex-col gap-1.5" onsubmit={plugin.submit}>
-        <Label for="password-{id}">Passwort</Label>
+        <Label for="password-{id}">{$_("auth.password.label")}</Label>
         <Input
                 type="password"
                 id="password-{id}"
@@ -43,9 +44,9 @@
                                                 transition:slide={{ duration: 200 }}
                                         >
                                             {#if plugin.status === "password_incorrect"}
-                                                Das Passwort ist falsch.
+                                                {$_("auth.password.incorrect")}
                                             {:else if plugin.status === "error"}
-                                                Ein Fehler ist aufgetreten.
+                                                {$_("common.error")}
                                             {/if}
                                         </span>
     {/if}
@@ -54,5 +55,5 @@
             class="mt-2"
             onclick={plugin.submit}
             disabled={plugin.status === "loading" || plugin.password === ""}
-    >Weiter {#if plugin.status === "loading"}<Loader class="animate-spin" />{:else}<ArrowRight />{/if}</Button>
+    >{$_("common.next")} {#if plugin.status === "loading"}<Loader class="animate-spin" />{:else}<ArrowRight />{/if}</Button>
 </div>

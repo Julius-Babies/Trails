@@ -11,6 +11,7 @@
     import {Input} from "$lib/components/ui/input";
     import {CircleNotchIcon} from "phosphor-svelte";
     import {ShareRepository, type RenameShareResult} from "$lib/api/shares/share_repository";
+    import {_} from "svelte-i18n";
 
     let {
         open = $bindable(),
@@ -54,8 +55,8 @@
 <Dialog bind:open={open}>
     <DialogContent>
         <DialogHeader>
-            <DialogTitle>Freigabe umbenennen</DialogTitle>
-            <DialogDescription>Der Name hilft dir, deine Freigaben auseinanderzuhalten. Empfänger sehen ihn nicht.</DialogDescription>
+            <DialogTitle>{$_("emitted_shares.dialogs.rename.title")}</DialogTitle>
+            <DialogDescription>{$_("emitted_shares.dialogs.rename.description")}</DialogDescription>
         </DialogHeader>
 
         <div class="flex flex-col gap-1.5">
@@ -63,27 +64,27 @@
                     bind:value={name}
                     bind:ref={inputElement}
                     type="text"
-                    placeholder="z.B. Freigabe für Familie"
+                    placeholder={$_("emitted_shares.dialogs.rename.placeholder")}
                     aria-invalid={error != null}
                     onkeydown={(e) => { if (e.key === "Enter") save(); }}
             />
 
             {#if error === "name-taken"}
-                <span class="text-sm text-destructive">Du hast bereits eine Freigabe mit diesem Namen.</span>
+                <span class="text-sm text-destructive">{$_("emitted_shares.dialogs.name.taken")}</span>
             {:else if error === "name-blank"}
-                <span class="text-sm text-destructive">Der Freigabename darf nicht leer sein.</span>
+                <span class="text-sm text-destructive">{$_("emitted_shares.dialogs.name.blank")}</span>
             {:else if error === "error"}
-                <span class="text-sm text-destructive">Die Freigabe konnte nicht umbenannt werden.</span>
+                <span class="text-sm text-destructive">{$_("emitted_shares.dialogs.rename.failed")}</span>
             {/if}
         </div>
 
         <DialogFooter>
-            <Button variant="secondary" onclick={() => open = false} disabled={saving}>Abbrechen</Button>
+            <Button variant="secondary" onclick={() => open = false} disabled={saving}>{$_("common.cancel")}</Button>
             <Button onclick={save} disabled={saving}>
                 {#if saving}
                     <CircleNotchIcon class="size-4 animate-spin" />
                 {/if}
-                Speichern
+                {$_("common.save")}
             </Button>
         </DialogFooter>
     </DialogContent>

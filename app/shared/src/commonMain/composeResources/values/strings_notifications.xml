@@ -1,0 +1,12 @@
+<resources>
+    <string name="notification_channel_ping_name">Ping</string>
+    <string name="notification_channel_ping_description">Used to find your device</string>
+    <string name="notification_channel_ring_name">Ring</string>
+    <string name="notification_channel_ring_description">Lets your device ring so you can find it</string>
+
+    <string name="notification_ping_title">Device found</string>
+    <string name="notification_ping_by_browser">A browser found this device!</string>
+    <!-- %1$s is the name of the device that found this one. -->
+    <string name="notification_ping_by_device">Your %1$s found this device!</string>
+
+</resources>

@@ -1,0 +1,12 @@
+<resources>
+    <string name="update_title">Update verfügbar</string>
+    <string name="update_message">Ein Update für Trails ist verfügbar. Bitte installiere das Update, um die neuesten Funktionen zu erhalten.</string>
+    <string name="update_not_now">Jetzt nicht</string>
+    <string name="update_install">Installieren</string>
+
+    <string name="update_changelog_loading">Änderungen werden geladen …</string>
+    <string name="update_changelog_features">Neue Funktionen</string>
+    <string name="update_changelog_fixes">Fehlerbehebungen</string>
+    <string name="update_changelog_tasks">Weitere Änderungen</string>
+    <string name="update_changelog_issue">#%1$s</string>
+</resources>

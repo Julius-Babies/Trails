@@ -193,6 +193,103 @@ release and renders them under *Features*, *Fixes* and *Other changes*. Keep the
 JSON valid — a broken file fails the release, which is exactly what the pull
 request check is there to catch early.
 
+### Internationalization (i18n)
+
+No user-facing text may be hardcoded in a component or composable — every
+display string goes through the translation layer. App and web app both ship
+**English and German**.
+
+- **English is the base language.** Keys and the default values are English;
+  German is a translation. This matches the English-only rule for comments,
+  KDoc and changelog base texts.
+- **The language is auto-detected** — from the OS locale in the app, from the
+  browser locale in the web app. There is no in-app language picker; users
+  switch language in their system or browser settings.
+- **Missing translations fall back to English**, never to a raw key.
+- **Dates, times and relative durations are localized too.** They must never
+  render German month names or a `dd.MM.yyyy` pattern in an English UI. Use
+  `nl.jacobras:Human-Readable` in the app and the active `dayjs` locale (or
+  `Intl.*`) on the web — never a hardcoded format string.
+- **Keys may be explicit and descriptive** — don't compress them to save
+  characters. Where the format can nest, express their hierarchy structurally so
+  a shared prefix is written once instead of on every sibling: the web catalogues
+  put a `rename` object inside `devices` and address its leaves as
+  `devices.rename.title`, `devices.rename.description` and
+  `devices.rename.placeholder` (that is what the nested groups under *Web* below
+  are for). Compose XML resource names can't nest, so the app spells the same
+  hierarchy out flat and prefixed — `devices_rename_title`.
+- **Key names are `snake_case`** on both platforms — every path segment and every
+  leaf: `devices.rename.title`, `shares.shared_with_me`, never `renameTitle` or
+  `sharedWithMe`.
+
+#### Web ([`web/`](web))
+
+Uses [svelte-i18n](https://github.com/kaisermann/svelte-i18n).
+
+**One JSON file per language**, at `web/src/lib/i18n/locales/<language>.json`.
+Every catalogue holds the complete key set for its language; they are added
+eagerly in `web/src/lib/i18n/index.ts` so a server-rendered page never ships
+raw message keys.
+
+Catalogues use **nested groups**, not flat dotted keys:
+
+```json
+{
+  "user": {
+    "email": "E-Mail",
+    "phone": "Phone"
+  }
+}
+```
+
+instead of
+
+```json
+{
+  "user.email": "E-Mail",
+  "user.phone": "Phone"
+}
+```
+
+The lookup path (`$_("user.email")`) is identical either way, but the nested
+form keeps the catalogue readable and diffable.
+
+The top level of each catalogue is the feature area (`devices`, `shares`,
+`auth`, …). Inside it, **texts owned by a dialog go under a `dialogs` object**,
+keyed by the dialog — `devices.dialogs.rename.title`,
+`emitted_shares.dialogs.delete.description` — which keeps them apart from the
+texts the page itself renders. A group whose messages are all page-level
+(`emitted_shares.link`, `emitted_shares.badge`) has no `dialogs` object at all.
+
+**The key passed to `$_` doesn't have to be a string.** svelte-i18n also takes a
+descriptor object, which is how you supply a `default` or pick the locale
+explicitly:
+
+```svelte
+{$_({id: "user.email", default: "E-Mail"})}
+```
+
+The key also doesn't have to be a literal — a variable, a constant or a
+conditional is fine, and is the normal way to map state onto messages:
+
+```svelte
+{$_(charging ? "battery.level.charging" : "battery.level.not_charging", {values: {percentage}})}
+```
+
+#### App ([`app/shared/`](app/shared))
+
+Uses Compose Multiplatform resources with a generated class for static access
+(`Res.string.<key>`), see the
+[Compose localization docs](https://kotlinlang.org/docs/multiplatform/compose-localize-strings.html#generate-class-for-static-access).
+Strings live under `app/shared/src/commonMain/composeResources/`:
+`values/strings*.xml` (English, the default) and `values-de/strings*.xml`
+(German). Prefer splitting the strings into several XML files per feature area;
+one file per language is acceptable if the toolchain doesn't pick up the extra
+files.
+
+XML string names can't nest, so write the hierarchy out flat, prefixed by feature
+area: `devices_rename_title`, `devices_rename_description`.
+
 ### Web tooling
 
 - Always use **bun** for the Svelte/`web` project (`bun install`, `bun run …`,

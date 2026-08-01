@@ -33,6 +33,8 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import nl.jacobras.humanreadable.HumanReadable
+import org.jetbrains.compose.resources.stringResource
+import trails.app.shared.generated.resources.*
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
 import kotlin.uuid.Uuid
@@ -62,34 +64,37 @@ fun DeviceCard(
 
         Column(Modifier.weight(1f)) {
             Text(
-                text = device.device.displayName + " von " + device.device.owner.username,
+                text = stringResource(
+                    Res.string.devices_card_owner,
+                    device.device.displayName,
+                    device.device.owner.username,
+                ),
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                text = device.device.friendlyName + " (" + device.device.model + ")",
+                text = stringResource(
+                    Res.string.devices_card_model,
+                    device.device.friendlyName,
+                    device.device.model,
+                ),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = buildString {
-                    if (isThisDevice) {
-                        append("Dieses Gerät")
-                        return@buildString
+                text = when {
+                    isThisDevice -> stringResource(Res.string.devices_card_this_device)
+                    device.snapshot == null -> stringResource(Res.string.devices_card_never_seen)
+                    else -> {
+                        val instant = device.snapshot.time.toInstant(TimeZone.currentSystemDefault())
+                        if (Clock.System.now().minus(instant) <= 1.minutes) {
+                            stringResource(Res.string.devices_card_seen_just_now)
+                        } else {
+                            stringResource(
+                                Res.string.devices_card_last_seen,
+                                HumanReadable.timeAgo(instant),
+                            )
+                        }
                     }
-
-                    if (device.snapshot == null) {
-                        append("Noch nie gesehen")
-                        return@buildString
-                    }
-                    val instant = device.snapshot.time.toInstant(TimeZone.currentSystemDefault())
-                    if (Clock.System.now().minus(instant) <= 1.minutes) {
-                        append("Eben gerade gesehen")
-                        return@buildString
-                    }
-
-                    append("Zuletzt ")
-                    append(HumanReadable.timeAgo(instant))
-                    append(" gesehen")
                 },
                 style = MaterialTheme.typography.bodySmall,
             )

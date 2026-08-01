@@ -39,6 +39,11 @@ import kotlinx.coroutines.flow.*
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.compose.resources.getString
+import trails.app.shared.generated.resources.Res
+import trails.app.shared.generated.resources.notification_ping_by_browser
+import trails.app.shared.generated.resources.notification_ping_by_device
+import trails.app.shared.generated.resources.notification_ping_title
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
@@ -928,12 +933,12 @@ private abstract class WebSocketClientBase(
 
                     is TrailsWebSocketServerMessage.Ping -> {
                         val body = when (message.pingedBySource) {
-                            PingSource.BROWSER -> "Ein Browser hat dieses Gerät gefunden!"
-                            PingSource.DEVICE -> "Dein ${message.pingedByDeviceName} hat dieses Gerät gefunden!"
+                            PingSource.BROWSER -> getString(Res.string.notification_ping_by_browser)
+                            PingSource.DEVICE -> getString(Res.string.notification_ping_by_device, message.pingedByDeviceName)
                         }
                         val notificationSent = notificationRepository.sendNotification(
                             channelId = NotificationRepository.PING_CHANNEL_ID,
-                            title = "Gerät gefunden",
+                            title = getString(Res.string.notification_ping_title),
                             body = body,
                             notificationId = message.pingedByDeviceName.hashCode()
                         )
