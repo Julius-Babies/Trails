@@ -30,10 +30,21 @@ import trails.app.shared.generated.resources.*
 /** Corner radius of the block the changelog sits in, matching the app icon above it. */
 private val ChangelogCornerSize = 16.dp
 
-/** Padding between the changelog block and its content. */
+/**
+ * Corner radius of a single release inside that block.
+ *
+ * Tight on purpose: the releases are segments of one block, not cards of their own. Only where a
+ * segment meets the outside does the block's own radius win, which is what makes the run of them
+ * read as a single shape.
+ */
+private val SegmentCornerSize = 4.dp
+
+/** Gap between two releases — a seam, wide enough to tell them apart and no wider. */
+private val SegmentSpacing = 2.dp
+
+/** Padding between a release and its content. */
 private val ChangelogPadding = 16.dp
 
-private val VersionSpacing = 20.dp
 private val GroupSpacing = 12.dp
 private val EntrySpacing = 8.dp
 
@@ -43,15 +54,16 @@ private val IssueLinkMinWidth = 36.dp
 /**
  * What every release between the running build and the update changed, newest release first.
  *
- * Scrolls inside whatever height the caller hands it. The list runs all the way to the bottom of
- * that box and passes under the buttons floating above it, so [bottomPadding] has to be worth their
- * height — without it the last entry can never be scrolled out from under them.
+ * One segment per release, run together into a single block: the outer corners are the block's, the
+ * seams between them are barely rounded. Scrolls inside whatever height the caller hands it, so the
+ * block passes under whatever floats above it — [bottomPadding] has to be worth that height, or the
+ * last entry can never be scrolled out from under it.
  *
  * Versions without a single entry are the caller's job to filter out; this renders every version it
  * is given, including an empty heading for one that has nothing to say.
  *
  * @param onIssueClick called with the issue number behind an entry when its link is tapped.
- * @param bottomPadding extra room below the last entry, for whatever floats above the list.
+ * @param bottomPadding extra room below the last segment, for whatever floats above the list.
  */
 @Composable
 fun ChangelogList(
@@ -60,25 +72,20 @@ fun ChangelogList(
     modifier: Modifier = Modifier,
     bottomPadding: Dp = 0.dp,
 ) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(ChangelogCornerSize),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    Column(
+        modifier = modifier
+            // The block's own shape, and the only thing that carries it: the segments below are
+            // square-ish, and it is this clip that rounds off the ones at either end.
+            .clip(RoundedCornerShape(ChangelogCornerSize))
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = bottomPadding),
+        verticalArrangement = Arrangement.spacedBy(SegmentSpacing),
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(ChangelogPadding)
-                .padding(bottom = bottomPadding),
-            verticalArrangement = Arrangement.spacedBy(VersionSpacing),
-        ) {
-            versions.forEach { version ->
-                ChangelogVersion(
-                    version = version,
-                    onIssueClick = onIssueClick,
-                )
-            }
+        versions.forEach { version ->
+            ChangelogVersion(
+                version = version,
+                onIssueClick = onIssueClick,
+            )
         }
     }
 }
@@ -108,52 +115,61 @@ fun ChangelogLoadingPlaceholder(modifier: Modifier = Modifier) {
     }
 }
 
-/** A single release: its name, followed by every group that has entries. */
+/** A single release as its own segment: its name, followed by every group that has entries. */
 @Composable
 private fun ChangelogVersion(
     version: Version,
     onIssueClick: (issue: Int) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(GroupSpacing)) {
-        Text(
-            text = AppVersions.tagOf(version.name),
-            style = MaterialTheme.typography.titleMedium,
-        )
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(SegmentCornerSize),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    ) {
+        Column(
+            modifier = Modifier.padding(ChangelogPadding),
+            verticalArrangement = Arrangement.spacedBy(GroupSpacing),
+        ) {
+            Text(
+                text = AppVersions.tagOf(version.name),
+                style = MaterialTheme.typography.titleMedium,
+            )
 
-        if (version.features.isNotEmpty()) ChangelogGroup(title = stringResource(Res.string.update_changelog_features)) {
-            version.features.forEach { (issue, feature) ->
-                ChangelogEntry(issue = issue, onIssueClick = onIssueClick) {
-                    Text(
-                        text = feature.title,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        text = feature.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            if (version.features.isNotEmpty()) ChangelogGroup(title = stringResource(Res.string.update_changelog_features)) {
+                version.features.forEach { (issue, feature) ->
+                    ChangelogEntry(issue = issue, onIssueClick = onIssueClick) {
+                        Text(
+                            text = feature.title,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            text = feature.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
-        }
 
-        if (version.bugfixes.isNotEmpty()) ChangelogGroup(title = stringResource(Res.string.update_changelog_fixes)) {
-            version.bugfixes.forEach { (issue, description) ->
-                ChangelogEntry(issue = issue, onIssueClick = onIssueClick) {
-                    Text(
-                        text = description,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+            if (version.bugfixes.isNotEmpty()) ChangelogGroup(title = stringResource(Res.string.update_changelog_fixes)) {
+                version.bugfixes.forEach { (issue, description) ->
+                    ChangelogEntry(issue = issue, onIssueClick = onIssueClick) {
+                        Text(
+                            text = description,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                 }
             }
-        }
 
-        if (version.tasks.isNotEmpty()) ChangelogGroup(title = stringResource(Res.string.update_changelog_tasks)) {
-            version.tasks.forEach { (issue, description) ->
-                ChangelogEntry(issue = issue, onIssueClick = onIssueClick) {
-                    Text(
-                        text = description,
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+            if (version.tasks.isNotEmpty()) ChangelogGroup(title = stringResource(Res.string.update_changelog_tasks)) {
+                version.tasks.forEach { (issue, description) ->
+                    ChangelogEntry(issue = issue, onIssueClick = onIssueClick) {
+                        Text(
+                            text = description,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                 }
             }
         }

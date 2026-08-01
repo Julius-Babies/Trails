@@ -1,0 +1,8 @@
+{
+  "description": "The update sheet can be swiped away and dismissed with the back button, no longer blocks the app after being dismissed, and the app now checks for a new release every time it comes back to the foreground",
+  "localized": {
+    "de": {
+      "description": "Der Update-Hinweis lässt sich wegwischen und mit der Zurück-Taste schließen, blockiert die App nach dem Schließen nicht mehr und die App sucht bei jedem Wechsel in den Vordergrund nach einer neuen Version"
+    }
+  }
+}

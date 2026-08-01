@@ -12,6 +12,8 @@ import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -69,30 +71,53 @@ class TrailsAppRepositoryImpl(
             }
     }
 
-    override suspend fun getChangelog(release: AppRelease, language: String): Version? {
-        val url = release.changelogAssets["$CHANGELOG_ASSET_PREFIX$language$CHANGELOG_ASSET_SUFFIX"]
-            ?: release.changelogAssets[CHANGELOG_ASSET_DEFAULT]
-            ?: return null
+    /**
+     * Changelogs already read, keyed by release and language.
+     *
+     * The changelog of a published release never changes, so it is worth downloading exactly once:
+     * the update check runs again on every return to the foreground, and without this every one of
+     * them would re-download every release between the running build and the newest one.
+     *
+     * A `null` value is a release that ships no changelog, or none this build can read — also a
+     * settled answer, and cached so it is not asked again either. Failed downloads are deliberately
+     * left out: those are worth another try.
+     */
+    private val changelogs = mutableMapOf<ChangelogKey, Version?>()
 
-        val response = httpClient.get(url)
-        if (!response.status.isSuccess()) return null
+    /** Guards [changelogs], which several update checks may reach for at once. */
+    private val changelogsMutex = Mutex()
 
-        // Read as text and parse explicitly: release assets are served as octet-stream, so
-        // content negotiation would refuse them.
-        val file = changelogJson.decodeFromString<ChangelogFile>(response.bodyAsText())
+    override suspend fun getChangelog(release: AppRelease, language: String): Version? =
+        changelogsMutex.withLock {
+            val key = ChangelogKey(version = release.version, language = language)
+            if (key in changelogs) return@withLock changelogs[key]
 
-        val version = Version(
-            name = release.version,
-            bugfixes = file.fixes.toDescriptions(),
-            features = file.features.toFeatures(),
-            tasks = file.tasks.toDescriptions(),
-        )
+            val url = release.changelogAssets["$CHANGELOG_ASSET_PREFIX$language$CHANGELOG_ASSET_SUFFIX"]
+                ?: release.changelogAssets[CHANGELOG_ASSET_DEFAULT]
+                ?: return@withLock null.also { changelogs[key] = it }
 
-        // A release whose changelog carries nothing usable is treated like one without a
-        // changelog at all, so it never shows up as an empty section.
-        return version.takeUnless { it.isEmpty }
-    }
+            val response = httpClient.get(url)
+            if (!response.status.isSuccess()) return@withLock null
+
+            // Read as text and parse explicitly: release assets are served as octet-stream, so
+            // content negotiation would refuse them.
+            val file = changelogJson.decodeFromString<ChangelogFile>(response.bodyAsText())
+
+            val version = Version(
+                name = release.version,
+                bugfixes = file.fixes.toDescriptions(),
+                features = file.features.toFeatures(),
+                tasks = file.tasks.toDescriptions(),
+            )
+
+            // A release whose changelog carries nothing usable is treated like one without a
+            // changelog at all, so it never shows up as an empty section.
+            version.takeUnless { it.isEmpty }.also { changelogs[key] = it }
+        }
 }
+
+/** What identifies a cached changelog: a release ships one asset per language. */
+private data class ChangelogKey(val version: String, val language: String)
 
 /** Name of the ABI-independent APK, usable on every device. */
 private const val UNIVERSAL_ABI = "universal"
