@@ -53,8 +53,8 @@
                                     <span class="text-xl font-semibold pb-1">{$_("auth.success")}</span>
                                     {#if plugin.result?.type === "redirect"}
                                         <div>
-                                            {$_("auth.redirectHint")}
-                                            <a href={plugin.result.to} class="underline">{$_("auth.redirectLink")}</a>
+                                            {$_("auth.redirect_hint")}
+                                            <a href={plugin.result.to} class="underline">{$_("auth.redirect_link")}</a>
                                         </div>
                                     {/if}
                                 </div>
@@ -63,7 +63,7 @@
                     {/if}
                 </div>
                 <!-- "Authentikt" is a product name, so only the lead-in is translated. -->
-                <span class="text-xs text-zinc-400">{$_("auth.poweredBy")} <a href="https://github.com/Julius-Babies/authentikt" class="underline" target="blank" rel="noreferrer">Authentikt</a>.</span><br />
+                <span class="text-xs text-zinc-400">{$_("auth.powered_by")} <a href="https://github.com/Julius-Babies/authentikt" class="underline" target="blank" rel="noreferrer">Authentikt</a>.</span><br />
 
                 <!-- TODO: Remove for production -->
                 <span class="text-xs text-zinc-400"><a data-sveltekit-reload href="/api/v1/auth/app-authorization?device_manufacturer=Google&device_model=panther" class="underline">{$_("auth.restart")}</a></span>

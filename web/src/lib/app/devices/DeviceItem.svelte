@@ -21,7 +21,7 @@
 
     let locationText = $derived.by(() => {
         const location = device.last_location;
-        if (location == null) return $_("devices.neverSeen");
+        if (location == null) return $_("devices.never_seen");
 
         const address = location.address;
         const place = address != null
@@ -33,10 +33,10 @@
             : `${location.latitude.toFixed(5)}, ${location.longitude.toFixed(5)}`;
 
         const time = Date.now() - location.found_at < TWO_MINUTES_MS
-            ? $_("devices.justNow")
+            ? $_("devices.just_now")
             : dayjs(location.found_at).fromNow();
 
-        return $_("devices.placeAndTime", {values: {place, time}});
+        return $_("devices.place_and_time", {values: {place, time}});
     });
 </script>
 

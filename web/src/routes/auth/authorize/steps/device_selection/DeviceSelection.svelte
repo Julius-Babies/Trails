@@ -42,9 +42,9 @@
         <div>
             <div class="leading-tight">
                 {#if plugin.data.options.length > 1}
-                    {$_("deviceSelection.multiple")}
+                    {$_("device_selection.multiple")}
                 {:else}
-                    {$_("deviceSelection.single", {
+                    {$_("device_selection.single", {
                         values: {
                             manufacturer: plugin.data.options[0].manufacturer,
                             model: plugin.data.options[0].friendly_name,
@@ -52,7 +52,7 @@
                     })}
                 {/if}
                 <div class="pt-1">
-                    {$_("deviceSelection.locationNote")}
+                    {$_("device_selection.location_note")}
                 </div>
             </div>
             <div class="flex flex-col w-full mt-4 border border-zinc-200 rounded-lg overflow-y-auto">
@@ -74,7 +74,7 @@
                                 <span class="text-zinc-500 text-sm">{option.display_name}</span>
                             {/if}
                             <!-- L/LT are dayjs' localized date/time patterns and follow the active locale. -->
-                            <span class="pt-1 font-light text-xs">{$_("deviceSelection.registered", {
+                            <span class="pt-1 font-light text-xs">{$_("device_selection.registered", {
                                 values: {date: registeredAt.format("L"), time: registeredAt.format("LT")},
                             })}</span>
                         </div>
@@ -88,17 +88,17 @@
                             onclick={() => plugin.selectDevice(plugin.data!.options[0].device_id)}
                             variant="default"
                             class="flex flex-1"
-                    >{$_("deviceSelection.useThis")}</Button>
+                    >{$_("device_selection.use_this")}</Button>
                 {/if}
                 <Button
                         variant="outline"
                         class="flex flex-1"
                         onclick={() => showNewDeviceDialog = true}
-                >{$_("deviceSelection.registerNew")}</Button>
+                >{$_("device_selection.register_new")}</Button>
             </div>
         </div>
     {:else}
-        <p>{$_("deviceSelection.loading")}</p>
+        <p>{$_("device_selection.loading")}</p>
     {/if}
 
     {#if showNewDeviceDialog}

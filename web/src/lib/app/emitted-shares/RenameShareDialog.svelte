@@ -55,8 +55,8 @@
 <Dialog bind:open={open}>
     <DialogContent>
         <DialogHeader>
-            <DialogTitle>{$_("emittedShares.renameTitle")}</DialogTitle>
-            <DialogDescription>{$_("emittedShares.renameDescription")}</DialogDescription>
+            <DialogTitle>{$_("emitted_shares.rename_title")}</DialogTitle>
+            <DialogDescription>{$_("emitted_shares.rename_description")}</DialogDescription>
         </DialogHeader>
 
         <div class="flex flex-col gap-1.5">
@@ -64,17 +64,17 @@
                     bind:value={name}
                     bind:ref={inputElement}
                     type="text"
-                    placeholder={$_("emittedShares.renamePlaceholder")}
+                    placeholder={$_("emitted_shares.rename_placeholder")}
                     aria-invalid={error != null}
                     onkeydown={(e) => { if (e.key === "Enter") save(); }}
             />
 
             {#if error === "name-taken"}
-                <span class="text-sm text-destructive">{$_("emittedShares.nameTaken")}</span>
+                <span class="text-sm text-destructive">{$_("emitted_shares.name_taken")}</span>
             {:else if error === "name-blank"}
-                <span class="text-sm text-destructive">{$_("emittedShares.nameBlank")}</span>
+                <span class="text-sm text-destructive">{$_("emitted_shares.name_blank")}</span>
             {:else if error === "error"}
-                <span class="text-sm text-destructive">{$_("emittedShares.renameFailed")}</span>
+                <span class="text-sm text-destructive">{$_("emitted_shares.rename_failed")}</span>
             {/if}
         </div>
 
