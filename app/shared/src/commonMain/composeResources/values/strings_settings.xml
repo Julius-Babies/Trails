@@ -1,7 +1,7 @@
 <resources>
     <string name="settings_title">Settings</string>
 
-    <string name="settings_section_interface">Interface</string>
+    <string name="settings_section_interface">Appearance</string>
     <string name="settings_theme_system">System</string>
     <string name="settings_theme_auto">Auto</string>
     <string name="settings_theme_light">Light</string>
@@ -14,7 +14,7 @@
     <string name="settings_request_location_permissions">Request location permissions</string>
     <string name="settings_request_notification_permissions">Allow notifications</string>
     <string name="settings_request_fullscreen_permissions">Allow full-screen activities</string>
-    <string name="settings_disable_battery_optimizations">Lift battery optimisations</string>
+    <string name="settings_disable_battery_optimizations">Disable battery optimisation</string>
     <string name="settings_ring_device">Ring device</string>
     <string name="settings_start_tracking">Start tracking</string>
     <string name="settings_stop_tracking">Stop tracking</string>

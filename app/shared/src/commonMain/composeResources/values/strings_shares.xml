@@ -27,6 +27,6 @@
 
     <string name="shares_creating">Creating share…</string>
     <string name="shares_created">Share created</string>
-    <!-- Title of the system share sheet; %1$s is the user the share belongs to. -->
-    <string name="shares_share_sheet_title">Trails location share for %1$s</string>
+    <!-- Title of the system share sheet; %1$s is the user whose location the share exposes. -->
+    <string name="shares_share_sheet_title">Trails location share from %1$s</string>
 </resources>

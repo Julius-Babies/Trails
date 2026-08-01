@@ -7,7 +7,7 @@
     <string name="devices_own">Meine Geräte</string>
     <string name="devices_shared_with_me">Mit mir geteilte Geräte</string>
 
-    <string name="devices_card_owner">%1$s von %2$s</string>
+    <string name="devices_card_owner">%1$s · %2$s</string>
     <string name="devices_card_model">%1$s (%2$s)</string>
     <string name="devices_card_this_device">Dieses Gerät</string>
     <string name="devices_card_never_seen">Noch nie gesehen</string>

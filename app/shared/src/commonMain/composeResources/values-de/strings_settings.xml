@@ -15,7 +15,7 @@
     <string name="settings_request_notification_permissions">Benachrichtigungen erlauben</string>
     <string name="settings_request_fullscreen_permissions">Vollbildaktivitäten erlauben</string>
     <string name="settings_disable_battery_optimizations">Batterieoptimierungen aufheben</string>
-    <string name="settings_ring_device">Device klingeln</string>
+    <string name="settings_ring_device">Gerät klingeln</string>
     <string name="settings_start_tracking">Tracking starten</string>
     <string name="settings_stop_tracking">Tracking stoppen</string>
 
