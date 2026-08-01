@@ -210,11 +210,17 @@ display string goes through the translation layer. App and web app both ship
   render German month names or a `dd.MM.yyyy` pattern in an English UI. Use
   `nl.jacobras:Human-Readable` in the app and the active `dayjs` locale (or
   `Intl.*`) on the web — never a hardcoded format string.
-- **Keep keys short.** Group them by feature area instead of spelling out the
-  sentence: `devices.rename_title`, not
-  `devices.dialogs.rename.title.headline`.
-- **Key names are `snake_case`** on both platforms — `rename_title`,
-  `shared_with_me`, never `renameTitle`.
+- **Keys may be explicit and descriptive** — don't compress them to save
+  characters. Where the format can nest, express their hierarchy structurally so
+  a shared prefix is written once instead of on every sibling: the web catalogues
+  put a `rename` object inside `devices` and address its leaves as
+  `devices.rename.title`, `devices.rename.description` and
+  `devices.rename.placeholder` (that is what the nested groups under *Web* below
+  are for). Compose XML resource names can't nest, so the app spells the same
+  hierarchy out flat and prefixed — `devices_rename_title`.
+- **Key names are `snake_case`** on both platforms — every path segment and every
+  leaf: `devices.rename.title`, `shares.shared_with_me`, never `renameTitle` or
+  `sharedWithMe`.
 
 #### Web ([`web/`](web))
 
@@ -260,7 +266,7 @@ The key also doesn't have to be a literal — a variable, a constant or a
 conditional is fine, and is the normal way to map state onto messages:
 
 ```svelte
-{$_(charging ? "battery.level_charging" : "battery.level", {values: {percentage}})}
+{$_(charging ? "battery.level.charging" : "battery.level.not_charging", {values: {percentage}})}
 ```
 
 #### App ([`app/shared/`](app/shared))
@@ -274,8 +280,8 @@ Strings live under `app/shared/src/commonMain/composeResources/`:
 one file per language is acceptable if the toolchain doesn't pick up the extra
 files.
 
-XML string names can't nest, so prefix by feature area
-(`devices_rename_title`) and keep them short.
+XML string names can't nest, so write the hierarchy out flat, prefixed by feature
+area: `devices_rename_title`, `devices_rename_description`.
 
 ### Web tooling
 
