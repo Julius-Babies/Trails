@@ -14,6 +14,7 @@
     import type {Battery, LastLocation} from "$lib/state/webapp_socket.svelte";
     import dayjs from "$lib/dayjs";
     import {_} from "svelte-i18n";
+    import {locationHistoryLabel} from "$lib/app/emitted-shares/location_history";
 
     // A shared device, as assembled by the share detail page. Carries everything
     // needed to render the header, so callers hand over the object rather than
@@ -170,7 +171,7 @@
                     {#if history.state.historySeconds === null}
                         {$_("history.full")}
                     {:else}
-                        {$_("devices.historyWindow", {values: {seconds: history.state.historySeconds}})}
+                        {locationHistoryLabel(history.state.historySeconds)}
                     {/if}
                 {/if}
             </span>
