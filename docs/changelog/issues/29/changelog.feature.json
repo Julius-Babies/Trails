@@ -1,0 +1,10 @@
+{
+  "title": "Install updates in the app",
+  "description": "Updates are now downloaded and installed by the app itself instead of being handed to your browser. You can follow the download's progress and cancel it at any time. If you would rather install updates by hand, the app can save them to your Downloads folder and take you there — either just this once or from now on.",
+  "localized": {
+    "de": {
+      "title": "Updates in der App installieren",
+      "description": "Updates werden jetzt von der App selbst heruntergeladen und installiert, statt an den Browser übergeben zu werden. Der Fortschritt ist sichtbar und der Download jederzeit abbrechbar. Wer Updates lieber selbst installiert, kann sie in den Downloads-Ordner legen lassen und wird direkt dorthin gebracht — entweder einmalig oder von jetzt an immer."
+    }
+  }
+}

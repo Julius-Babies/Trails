@@ -6,9 +6,17 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import es.jvbabi.trails.data.database.TrailsDatabase
 import kotlinx.cinterop.ExperimentalForeignApi
+import org.koin.core.module.Module
+import org.koin.dsl.module
 import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSUserDomainMask
+
+/**
+ * Empty: everything iOS contributes is registered from `MainViewController`, and the one thing that
+ * lives in a platform module — the in-app updater — is Android-only.
+ */
+actual fun platformModule(): Module = module { }
 
 actual fun getDatabaseBuilder(): RoomDatabase.Builder<TrailsDatabase> {
     val dbFilePath = documentDirectory() + "/trails.db"

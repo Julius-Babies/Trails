@@ -12,8 +12,6 @@ import es.jvbabi.trails.data.repository.*
 import es.jvbabi.trails.domain.extension.Settings
 import es.jvbabi.trails.domain.repository.*
 import es.jvbabi.trails.domain.usecase.SetupNotificationsUseCase
-import es.jvbabi.trails.domain.usecase.app.CheckAppIsLatestVersionUseCase
-import es.jvbabi.trails.domain.usecase.app.GetReleaseChangelogsUseCase
 import es.jvbabi.trails.domain.usecase.auth.HandleDeepLinkUseCase
 import es.jvbabi.trails.domain.usecase.auth.LoginUseCase
 import es.jvbabi.trails.domain.usecase.communication.StartExternalConnectionsUseCase
@@ -29,7 +27,6 @@ import es.jvbabi.trails.page.setings.SettingsViewModel
 import es.jvbabi.trails.page.shares.add_share.AddShareViewModel
 import es.jvbabi.trails.page.shares.new_share.NewShareViewModel
 import es.jvbabi.trails.ui.overlay.device_deleted.DeviceDeletedViewModel
-import es.jvbabi.trails.ui.overlay.update_available.UpdateAvailableViewModel
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -42,6 +39,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.serialization.json.Json
 import org.koin.core.context.startKoin
+import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.qualifier.named
@@ -51,6 +49,17 @@ import org.koin.dsl.module
 import kotlin.time.Duration.Companion.seconds
 
 expect fun getDatabaseBuilder(): RoomDatabase.Builder<TrailsDatabase>
+
+/**
+ * Everything only one platform has, and that therefore cannot be declared in the shared module —
+ * the Android in-app updater, for instance, which iOS has no counterpart for.
+ *
+ * This is for dependencies whose *implementation as well as their interface* is platform-specific.
+ * A dependency that the shared code uses through a common interface belongs in the module the
+ * platform's entry point (`MainApplication` / `MainViewController`) passes to [initKoin] instead,
+ * since only that knows the platform's context.
+ */
+expect fun platformModule(): Module
 
 /** Qualifier of the [HttpClient] used for requests to hosts we don't control. */
 const val KOIN_HTTP_CLIENT_THIRD_PARTY = "http_client_third_party"
@@ -124,16 +133,8 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
         singleOf(::SnapshotRepositoryImpl) bind SnapshotRepository::class
         singleOf(::TrailsServerRepositoryImpl) bind TrailsServerRepository::class
         singleOf(::ShareRepositoryImpl) bind ShareRepository::class
-        single<TrailsAppRepository> {
-            TrailsAppRepositoryImpl(
-                httpClient = get(named(KOIN_HTTP_CLIENT_THIRD_PARTY)),
-                deviceRepository = get(),
-            )
-        }
 
         singleOf(::SetupNotificationsUseCase)
-        singleOf(::CheckAppIsLatestVersionUseCase)
-        singleOf(::GetReleaseChangelogsUseCase)
 
         singleOf(::HandleDeepLinkUseCase)
         singleOf(::LoginUseCase)
@@ -152,6 +153,7 @@ fun initKoin(appDeclaration: KoinAppDeclaration = {}) = startKoin {
         viewModelOf(::DeviceViewModel)
         viewModelOf(::ConnectionEventsViewModel)
         viewModelOf(::DeviceDeletedViewModel)
-        viewModelOf(::UpdateAvailableViewModel)
     })
+
+    modules(platformModule())
 }
