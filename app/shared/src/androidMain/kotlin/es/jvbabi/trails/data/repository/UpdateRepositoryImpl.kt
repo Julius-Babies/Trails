@@ -1,5 +1,6 @@
 package es.jvbabi.trails.data.repository
 
+import android.app.DownloadManager
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -147,6 +148,18 @@ class UpdateRepositoryImpl(
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
+
+        context.startActivity(intent)
+    }
+
+    override fun openDownloadsFolder() {
+        val intent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        // Not every build ships a Downloads screen. There is nothing to fall back to when one is
+        // missing — the APK is in the Downloads folder either way — but it must not take the app
+        // down with it.
+        if (intent.resolveActivity(context.packageManager) == null) return
 
         context.startActivity(intent)
     }

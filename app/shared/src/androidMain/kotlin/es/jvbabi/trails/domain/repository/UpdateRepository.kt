@@ -52,4 +52,14 @@ interface UpdateRepository {
      * is what [UpdateDownloadTarget.AppCache] downloads produce.
      */
     fun installUpdate(uri: Uri)
+
+    /**
+     * Opens the system's Downloads screen, where an [UpdateDownloadTarget.Downloads] download has
+     * just landed — the file is the newest entry in it.
+     *
+     * Only the folder, not the file: Android has no public way to single a file out and highlight it
+     * in a file browser, and `ACTION_VIEW` on the APK itself would hand it straight to the installer,
+     * which is the one thing installing by hand is meant to avoid.
+     */
+    fun openDownloadsFolder()
 }

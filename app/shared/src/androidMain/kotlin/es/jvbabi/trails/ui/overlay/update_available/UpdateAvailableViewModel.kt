@@ -63,10 +63,15 @@ class UpdateAvailableViewModel(
                 .collect { download ->
                     state.update { it?.copy(download = download, downloadTarget = target) }
 
-                    // Only what was fetched to be installed goes on to the installer. A download in
-                    // the user's Downloads folder is theirs to install and ends here.
-                    if (download is UpdateDownload.Done && target == UpdateDownloadTarget.AppCache) {
-                        install(download.uri)
+                    if (download !is UpdateDownload.Done) return@collect
+
+                    when (target) {
+                        // Fetched to be installed, so it goes on to the installer.
+                        UpdateDownloadTarget.AppCache -> install(download.uri)
+
+                        // This one is the user's to install, so they are taken to where it landed
+                        // rather than left to go looking for it.
+                        UpdateDownloadTarget.Downloads -> updateRepository.openDownloadsFolder()
                     }
                 }
         }
