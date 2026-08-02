@@ -10,10 +10,8 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.progressSemantics
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,7 +31,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.disabled
@@ -44,6 +44,7 @@ import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.tooling.preview.PreviewWrapper
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastFirstOrNull
 import es.jvbabi.trails.ThemeWrapper
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -100,18 +101,24 @@ fun SteppedSlider(
 
     // Position in step units. Between two steps while the finger is down, a whole index afterwards.
     var position by remember { mutableFloatStateOf(selectedIndex.coerceIn(0, lastIndex).toFloat()) }
-    var isDragging by remember { mutableStateOf(false) }
+    // True from the finger touching down until it lifts, drag or not: the thumb grows on contact
+    // and the position belongs to the gesture for that whole time.
+    var isPressed by remember { mutableStateOf(false) }
     var isSettling by remember { mutableStateOf(false) }
     var settleJob by remember { mutableStateOf<Job?>(null) }
     var committedIndex by remember { mutableIntStateOf(selectedIndex) }
 
-    val nearestIndex = position.roundToInt().coerceIn(0, lastIndex)
+    // Derived rather than read straight off [position]: the label is the only part that has to
+    // recompose during a drag, and only when the thumb actually passes a step.
+    val nearestIndex by remember(lastIndex) {
+        derivedStateOf { position.roundToInt().coerceIn(0, lastIndex) }
+    }
 
     // Follow changes made by someone else, but never while a gesture or its settle animation owns
     // the position: our own change comes back through [selectedIndex] only after the caller has
     // persisted it, and applying it again would drag the thumb back to where the gesture started.
-    LaunchedEffect(selectedIndex, isDragging, isSettling) {
-        if (isDragging || isSettling || selectedIndex == committedIndex) return@LaunchedEffect
+    LaunchedEffect(selectedIndex, isPressed, isSettling) {
+        if (isPressed || isSettling || selectedIndex == committedIndex) return@LaunchedEffect
         committedIndex = selectedIndex
         position = selectedIndex.coerceIn(0, lastIndex).toFloat()
     }
@@ -143,7 +150,7 @@ fun SteppedSlider(
     }
 
     val thumbHeight by animateDpAsState(
-        targetValue = if (isDragging) DraggedThumbHeight else ThumbHeight,
+        targetValue = if (isPressed) DraggedThumbHeight else ThumbHeight,
         label = "thumbHeight",
     )
 
@@ -155,44 +162,74 @@ fun SteppedSlider(
     ) {
         val thumbWidthPx = with(LocalDensity.current) { ThumbWidth.toPx() }
         val travelPx = (constraints.maxWidth - thumbWidthPx).coerceAtLeast(0f)
-        val fraction = position / lastIndex
+
+        // Called from layout, draw and gesture callbacks, never from composition: [position]
+        // changes on every frame of a drag, and reading it here would recompose the whole slider
+        // - canvas, thumb and label - instead of only moving and redrawing it.
+        fun fraction(): Float = position / lastIndex
 
         /** Step position for a touch, taken from the thumb's centre rather than its left edge. */
         fun stepAt(x: Float): Float =
             if (travelPx > 0f) (x - thumbWidthPx / 2f) / travelPx * lastIndex else 0f
 
+        fun thumbCenterX(): Float = thumbWidthPx / 2f + travelPx * fraction()
+
+        /** Whether a touch landed on the thumb, which is grabbed instead of jumped to. */
+        fun isOnThumb(x: Float): Boolean {
+            val left = thumbCenterX() - thumbWidthPx / 2f
+            return x >= left && x <= left + thumbWidthPx
+        }
+
         Box(
             modifier = Modifier
                 .matchParentSize()
-                // Ordered like Material3's own slider: the press handler sits in front of the drag,
-                // so a gesture that turns into a drag is claimed by `draggable` rather than the tap
-                // detector, which then reports a cancelled press instead of a second settle.
+                // Press and drag are one gesture rather than a tap detector in front of a
+                // `draggable`: those two have to agree on who owns the pointer, and the tap
+                // detector kept it, so the thumb could be jumped to but never dragged.
                 .pointerInput(enabled, travelPx, lastIndex) {
                     if (!enabled) return@pointerInput
-                    detectTapGestures(
-                        onPress = { offset ->
-                            settleJob?.cancel()
-                            updatePosition(stepAt(offset.x))
-                            if (tryAwaitRelease()) settleOnNearestStep()
-                        },
-                    )
-                }
-                .draggable(
-                    state = rememberDraggableState { delta ->
-                        if (travelPx > 0f) updatePosition(position + delta / travelPx * lastIndex)
-                    },
-                    orientation = Orientation.Horizontal,
-                    enabled = enabled,
-                    onDragStarted = {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
                         settleJob?.cancel()
-                        isDragging = true
-                    },
-                    onDragStopped = {
-                        isDragging = false
+
+                        // Grabbing the thumb keeps it under the same spot of the finger; it is
+                        // wide enough to hold a label, so re-centring it on touch would tug it up
+                        // to half its width away. Touching the rail instead pulls the thumb over,
+                        // and from there the finger holds its centre.
+                        val grabbedThumb = isOnThumb(down.position.x)
+                        val grabOffset =
+                            if (grabbedThumb) down.position.x - thumbCenterX() else 0f
+                        if (!grabbedThumb) updatePosition(stepAt(down.position.x))
+
+                        isPressed = true
+                        // Claim the gesture right away, the way Material3's slider does. Touching
+                        // the slider already moves it, so letting the surrounding scroll container
+                        // take the pointer back afterwards would only fight the finger.
+                        down.consume()
+
+                        // No touch slop: the thumb sits under the finger from the first frame, so
+                        // there is nothing left to tell a tap and a drag apart.
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.fastFirstOrNull { it.id == down.id } ?: break
+                            if (change.changedToUpIgnoreConsumed()) break
+                            if (change.positionChanged()) {
+                                updatePosition(stepAt(change.position.x - grabOffset))
+                                change.consume()
+                            }
+                        }
+
+                        isPressed = false
                         settleOnNearestStep()
-                    },
+                    }
+                }
+                // The settled step, not the live position: accessibility wants the value the user
+                // picked, and reporting every intermediate one would recompose on every frame.
+                .progressSemantics(
+                    value = committedIndex.coerceIn(0, lastIndex).toFloat(),
+                    valueRange = 0f..lastIndex.toFloat(),
+                    steps = lastIndex - 1,
                 )
-                .progressSemantics(position, 0f..lastIndex.toFloat(), lastIndex - 1)
                 .semantics {
                     if (!enabled) disabled()
                     setProgress { targetValue ->
@@ -207,7 +244,7 @@ fun SteppedSlider(
         ) {
             Canvas(modifier = Modifier.matchParentSize()) {
                 drawRail(
-                    fraction = fraction,
+                    fraction = fraction(),
                     stepCount = stepCount,
                     thumbWidthPx = thumbWidthPx,
                     travelPx = travelPx,
@@ -222,7 +259,7 @@ fun SteppedSlider(
             // allowed to overflow: its footprint has to stay put for the travel to stay correct.
             Box(
                 modifier = Modifier
-                    .offset { IntOffset(x = (travelPx * fraction).roundToInt(), y = 0) }
+                    .offset { IntOffset(x = (travelPx * fraction()).roundToInt(), y = 0) }
                     .size(width = ThumbWidth, height = ThumbHeight)
                     .wrapContentSize(align = Alignment.BottomCenter, unbounded = true),
             ) {

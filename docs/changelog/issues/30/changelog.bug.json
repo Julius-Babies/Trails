@@ -1,0 +1,8 @@
+{
+  "description": "The minimum movement slider can be dragged by its handle instead of only tapped, the handle stays under the finger it was grabbed with, and it follows along smoothly",
+  "localized": {
+    "de": {
+      "description": "Der Regler für die Mindestbewegung lässt sich am Griff ziehen statt nur antippen, der Griff bleibt unter dem Finger, mit dem er gefasst wurde, und folgt ihm flüssig"
+    }
+  }
+}
